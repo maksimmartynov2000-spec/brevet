@@ -1258,7 +1258,7 @@ topic({ id: 'ge.transformations', ch: 'ge', lvl: 2, calc: false, variants: 5,
   } });
 
 /* ===================== HOMOTHÉTIE ===================== */
-const geoKt = k => Number.isInteger(k) ? String(k) : (k < 0 ? '-' : '') + '1/' + Math.round(1 / Math.abs(k));   /* 2, -2, 1/2, -1/2 in input syntax */
+const geoKt = k => Number.isInteger(k) ? String(k) : (k < 0 ? '-(1/' + Math.round(1 / Math.abs(k)) + ')' : '1/' + Math.round(1 / k));   /* 2, -2, 1/2, -(1/2) in input syntax */
 topic({ id: 'ge.homothetie', ch: 'ge', lvl: 3, calc: false, variants: 4,
   ru: 'Гомотетия: коэффициент, длины и площади', fr: 'Homothétie : rapport, longueurs et aires',
   hints: [
@@ -1328,8 +1328,8 @@ function geoAxes(x0, x1, y0, y1, c, step) {
   for (let j = y0; j <= y1; j++) S.seg(geoV(x0 * c, -j * c), geoV(x1 * c, -j * c), 'fgrid');
   S.seg(geoV(x0 * c - 4, 0), geoV(x1 * c + 10, 0), 'fax'); S.seg(geoV(0, -y0 * c + 4), geoV(0, -y1 * c - 10), 'fax');
   S.poly([geoV(x1 * c + 4, -4), geoV(x1 * c + 10, 0), geoV(x1 * c + 4, 4)], 'fax', true); S.poly([geoV(-4, -y1 * c - 4), geoV(0, -y1 * c - 10), geoV(4, -y1 * c - 4)], 'fax', true);
-  for (let i = x0; i <= x1; i++) if (i) { S.seg(geoV(i * c, -3), geoV(i * c, 3), 'fax'); if (i % (step >= 1 ? 1 : 2) === 0 || step === 1) S.text(geoV(i * c, 13), nf(i * step), { cls: 'ftm', fs: 12 }); }
-  for (let j = y0; j <= y1; j++) if (j) { S.seg(geoV(-3, -j * c), geoV(3, -j * c), 'fax'); if (j % (step >= 1 ? 1 : 2) === 0 || step === 1) S.text(geoV(-6, -j * c), nf(j * step), { cls: 'ftm', fs: 12, anchor: 'end' }); }
+  for (let i = x0; i <= x1; i++) if (i) { S.seg(geoV(i * c, -3), geoV(i * c, 3), 'fax'); if (step === 1 || i % 2 === 0) S.text(geoV(i * c, 13), nf(i * step), { cls: 'ftm', fs: 12 }); }
+  for (let j = y0; j <= y1; j++) if (j) { S.seg(geoV(-3, -j * c), geoV(3, -j * c), 'fax'); if (step === 1 || j % 2 === 0) S.text(geoV(-6, -j * c), nf(j * step), { cls: 'ftm', fs: 12, anchor: 'end' }); }
   S.text(geoV(-8, 11), '0', { cls: 'ftm', fs: 12 });
   return { S, P: (x, y) => geoV(x / step * c, -y / step * c) };
 }
@@ -1341,10 +1341,10 @@ topic({ id: 'ge.reperage', ch: 'ge', lvl: 1, calc: false, variants: 3,
     'Знак: правее нуля абсцисса положительная, левее — отрицательная; выше нуля ордината положительная, ниже — отрицательная.'],
   gen(r, vi) {
     const step = vi === 2 ? r.pick([2, 0.5, 5]) : 1, A = geoAxes(-5, 5, -4, 4, 26, step);
-    const pick = () => [r.nz(-5, 5) * step, r.nz(-4, 4) * step];
+    const pick = () => [r.nz(-4, 4) * step, r.nz(-3, 3) * step];
     if (vi === 1) {
       let a, cands;
-      do { a = pick(); cands = [a, [a[1], a[0]], [-a[0], a[1]], [a[0], -a[1]]]; } while (Math.abs(a[1]) > 4 * step || Math.abs(a[0]) === Math.abs(a[1]) || cands.some(p => Math.abs(p[0]) > 5 * step || Math.abs(p[1]) > 4 * step));
+      do { a = pick(); cands = [a, [a[1], a[0]], [-a[0], a[1]], [a[0], -a[1]]]; } while (Math.abs(a[0]) === Math.abs(a[1]) || cands.some(p => Math.abs(p[0]) > 4 * step || Math.abs(p[1]) > 3 * step));
       const letters = r.sh(GEO_LETTERS.filter(x => x !== 'O')).slice(0, 4);
       cands.forEach((p, i) => { const q = A.P(p[0], p[1]); A.S.dot(q, 3); A.S.boxes.push([q.x - 3, q.y - 3, q.x + 3, q.y + 3]); });
       cands.forEach((p, i) => geoPtLab(A.S, A.P(p[0], p[1]), geoV(1, -1), letters[i], { gap: 3 }));
@@ -1361,4 +1361,130 @@ topic({ id: 'ge.reperage', ch: 'ge', lvl: 1, calc: false, variants: 3,
       sol: [step !== 1 ? 'Сначала шаг делений: одна клетка — это ' + nf(step) + (step < 1 ? ' (две клетки — единица)' : '') + '. Числа у осей это подтверждают.' : 'Одна клетка — одна единица.',
         'Пунктир от ' + nm + ' вниз (или вверх) до горизонтальной оси показывает абсциссу: ' + nf(a[0]) + '. Пунктир до вертикальной оси показывает ординату: ' + nf(a[1]) + '.',
         'Ответ: ' + nm + '(' + nf(a[0]) + ' ; ' + nf(a[1]) + '). Сначала абсцисса, потом ордината.'] };
+  } });
+
+/* ===================== SOLIDS: cavalier perspective and round solids ===================== */
+/* x to the right, y into the page (drawn at 40°, × 0.5), z up → maths 2D */
+const geoCav = p => geoV(p[0] + 0.5 * p[1] * Math.cos(geoRad(40)), p[2] + 0.5 * p[1] * Math.sin(geoRad(40)));
+/* pavé ABCDEFGH (ABCD bottom, E above A …): o = { names, lab: { AB: '6 cm' }, sec: [[p3, visible], …] closed polygon, pts: [[p3, name]], W, H, noNames } */
+function geoPave(Lx, Ly, Lz, o) {
+  o = o || {};
+  const nm = (o.names || 'ABCDEFGH').split(''), V3 = [[0, 0, 0], [Lx, 0, 0], [Lx, Ly, 0], [0, Ly, 0], [0, 0, Lz], [Lx, 0, Lz], [Lx, Ly, Lz], [0, Ly, Lz]];
+  const extra = (o.sec || []).map(s => s[0]).concat((o.pts || []).map(p => p[0]));
+  const f = geoFit(V3.concat(extra).map(geoCav), o.W || 200, o.H || 150), P = p => f(geoCav(p)), Q = V3.map(P), S = geoScene();
+  if (o.sec) { const ps = o.sec.map(s => P(s[0])); S.poly(ps, 'ffill'); o.sec.forEach((s, i) => S.seg(ps[i], ps[(i + 1) % ps.length], s[1] ? 'fhl' : 'fdash')); }
+  const vis = [[0, 1], [1, 5], [5, 4], [4, 0], [1, 2], [2, 6], [6, 5], [4, 7], [7, 6]], hid = [[0, 3], [3, 2], [3, 7]];
+  hid.forEach(([a, b]) => S.seg(Q[a], Q[b], 'fdash')); vis.forEach(([a, b]) => S.seg(Q[a], Q[b], 'fl'));
+  const C = geoCen(Q);
+  if (!o.noNames) Q.forEach((q, i) => geoPtLab(S, q, geoSub(q, C), nm[i], { gap: 4 }));
+  (o.pts || []).forEach(([p, n]) => { const q = P(p); S.dot(q, 2.5); geoPtLab(S, q, geoSub(q, C), n, { gap: 4 }); });
+  Object.keys(o.lab || {}).forEach(k => { const a = Q[nm.indexOf(k[0])], b = Q[nm.indexOf(k[1])]; geoSegLab(S, a, b, o.lab[k], C); });
+  return S.svg(o.label || 'pavé droit');
+}
+/* half ellipse path (front: lower half, back: upper half) */
+const geoHalf = (c, rx, ry, front) => 'M' + geoC(c.x - rx) + ' ' + geoC(c.y) + 'A' + geoC(rx) + ' ' + geoC(ry) + ' 0 0 ' + (front ? 0 : 1) + ' ' + geoC(c.x + rx) + ' ' + geoC(c.y);
+function geoEll(S, c, rx, ry, cls, back) {
+  S.path(geoHalf(c, rx, ry, true), cls, [geoV(c.x - rx, c.y), geoV(c.x + rx, c.y + ry)]);
+  S.path(geoHalf(c, rx, ry, false), back || cls, [geoV(c.x - rx, c.y - ry), geoV(c.x + rx, c.y)]);
+  const ps = []; for (let i = 0; i <= 12; i++) ps.push(geoV(c.x + rx * Math.cos(i * Math.PI / 12), c.y + ry * Math.sin(i * Math.PI / 12))); S.line(ps);
+}
+/* cylinder: radius R, height H (units), k px per unit; o.sec: 'perp' (height t, 0…1) or 'par' (distance d from the axis) */
+function geoCyl(R, H, o) {
+  o = o || {}; const k = o.k || Math.min(70 / R, 150 / H), S = geoScene(), rx = R * k, ry = rx * 0.32, B = geoV(0, 0), T = geoV(0, -H * k);
+  if (o.sec === 'perp') { const c = geoV(0, -H * k * o.t); S.ellipse(c, rx, ry, 'ffill'); geoEll(S, c, rx, ry, 'fhl', 'fdash'); }
+  if (o.sec === 'par') { const w = Math.sqrt(R * R - o.d * o.d) * k, dy = 0.32 * o.d * k; const ps = [geoV(-w, -dy), geoV(w, -dy), geoV(w, -H * k - dy), geoV(-w, -H * k - dy)]; S.poly(ps, 'ffill'); S.poly(ps, 'fhl'); }
+  geoEll(S, B, rx, ry, 'fl', 'fdash'); S.ellipse(T, rx, ry, 'fl');
+  S.seg(geoV(-rx, 0), geoV(-rx, -H * k)); S.seg(geoV(rx, 0), geoV(rx, -H * k));
+  if (o.rlab) { S.dot(T, 2); S.seg(T, geoV(rx, T.y), 'fl2'); S.text(geoV(rx / 2, T.y - 10), o.rlab, { fs: 13 }); }
+  if (o.hlab) geoSegLab(S, geoV(rx, 0), geoV(rx, -H * k), o.hlab, B, { gap: 6 });
+  return S.svg(o.label || 'cylindre');
+}
+function geoCone(R, H, o) {
+  o = o || {}; const k = o.k || Math.min(70 / R, 150 / H), S = geoScene(), rx = R * k, ry = rx * 0.32, B = geoV(0, 0), A = geoV(0, -H * k);
+  if (o.sec) { const t = o.sec, c = geoV(0, -H * k * t), rr = rx * (1 - t); S.ellipse(c, rr, rr * 0.32, 'ffill'); geoEll(S, c, rr, rr * 0.32, 'fhl', 'fdash'); }
+  geoEll(S, B, rx, ry, 'fl', 'fdash'); S.seg(A, geoV(-rx, 0)); S.seg(A, geoV(rx, 0));
+  if (o.axis) { S.seg(A, B, 'fdash'); S.dot(B, 2); }
+  return S.svg(o.label || 'cône');
+}
+function geoSphereFig(R, o) {
+  o = o || {}; const k = 85 / R, S = geoScene(), C = geoV(0, 0), rr = R * k;
+  S.circle(C, rr, 'fl'); geoEll(S, C, rr, rr * 0.3, 'fl2', 'fdash');
+  if (o.d != null) {
+    const yy = -o.d * k, w = Math.sqrt(R * R - o.d * o.d) * k, c2 = geoV(0, yy);
+    S.ellipse(c2, w, w * 0.3, 'ffill'); geoEll(S, c2, w, w * 0.3, 'fhl', 'fdash');
+    if (o.tri) { const M = geoV(w, yy); S.seg(C, c2, 'fl'); S.seg(c2, M, 'fl'); S.seg(C, M, 'fl'); geoRightMark(S, c2, C, M, 7); S.dot(C, 2.5); S.dot(c2, 2.5); S.dot(M, 2.5);
+      geoPtLab(S, C, geoV(-1, 0.4), 'O', { gap: 4 }); geoPtLab(S, c2, geoV(-1, -0.6), 'H', { gap: 4 }); geoPtLab(S, M, geoV(1, -0.3), 'M', { gap: 4 });
+      if (o.lab) { geoSegLab(S, C, M, o.lab.OM, c2, { canFlip: true }); geoSegLab(S, C, c2, o.lab.OH, M, { canFlip: true }); geoSegLab(S, c2, M, o.lab.HM, C, { canFlip: true }); } }
+  }
+  return S.svg(o.label || 'sphère');
+}
+/* square-based pyramid SABCD in cavalier perspective; o.sec = t (plane parallel to the base at height t·h) */
+function geoPyr(a, h, o) {
+  o = o || {}; const V3 = [[0, 0, 0], [a, 0, 0], [a, a, 0], [0, a, 0], [a / 2, a / 2, h]], f = geoFit(V3.map(geoCav), 170, 160), Q = V3.map(p => f(geoCav(p))), S = geoScene();
+  if (o.sec != null) { const t = o.sec, ps = [0, 1, 2, 3].map(i => f(geoCav(V3[i].map((v, j) => v + (V3[4][j] - v) * t)))); S.poly(ps, 'ffill'); [[0, 1, 1], [1, 2, 1], [2, 3, 0], [3, 0, 0]].forEach(([i, j, v]) => S.seg(ps[i], ps[j], v ? 'fhl' : 'fdash')); }
+  [[0, 3], [3, 2], [3, 4]].forEach(([i, j]) => S.seg(Q[i], Q[j], 'fdash')); [[0, 1], [1, 2], [0, 4], [1, 4], [2, 4]].forEach(([i, j]) => S.seg(Q[i], Q[j]));
+  if (o.names) { const C = geoCen(Q); Q.forEach((q, i) => geoPtLab(S, q, geoSub(q, C), o.names[i], { gap: 4 })); }
+  return S.svg(o.label || 'pyramide');
+}
+/* right prism with a triangular base (standing on the base) */
+function geoPrism(o) {
+  o = o || {}; const b = [[0, 0, 0], [3, 0, 0], [1.2, 2.6, 0]], V3 = b.concat(b.map(p => [p[0], p[1], 2.4])), f = geoFit(V3.map(geoCav), 150, 150), Q = V3.map(p => f(geoCav(p))), S = geoScene();
+  [[0, 2], [2, 1], [2, 5]].forEach(([i, j]) => S.seg(Q[i], Q[j], 'fdash')); [[0, 1], [3, 4], [4, 5], [5, 3], [0, 3], [1, 4]].forEach(([i, j]) => S.seg(Q[i], Q[j]));
+  return S.svg(o.label || 'prisme droit');
+}
+/* globe seen from the equator plane: parallels and meridians every 30°; pts: [[lat, long, name]] (north and east positive) */
+function geoGlobe(pts) {
+  const S = geoScene(), R = 105, C = geoV(0, 0), P = (la, lo) => geoV(R * Math.cos(geoRad(la)) * Math.sin(geoRad(lo)), -R * Math.sin(geoRad(la)));
+  S.circle(C, R, 'fl');
+  [-60, -30, 30, 60].forEach(la => S.seg(P(la, -90), P(la, 90), 'fl2'));
+  [-60, -30, 30, 60].forEach(lo => { const rx = R * Math.abs(Math.sin(geoRad(lo))); S.path('M0 ' + (-R) + 'A' + geoC(rx) + ' ' + R + ' 0 0 ' + (lo > 0 ? 1 : 0) + ' 0 ' + R, 'fl2', [geoV(lo > 0 ? rx : -rx, 0)]); const ps = []; for (let i = -90; i <= 90; i += 15) ps.push(P(i, lo)); S.line(ps); });
+  S.seg(P(0, -90), P(0, 90), 'fl'); S.seg(geoV(0, -R), geoV(0, R), 'fl');
+  S.text(geoV(0, -R - 12), 'N'); S.text(geoV(0, R + 12), 'S'); S.text(geoV(-R - 12, 0), 'O'); S.text(geoV(R + 12, 0), 'E');
+  S.text(geoV(-R * 0.62, -9), 'équateur', { cls: 'ftm', fs: 12 }); S.text(geoV(30, R * 0.74), 'Greenwich', { cls: 'ftm', fs: 12, anchor: 'start' });
+  pts.forEach(([la, lo]) => { const p = P(la, lo); S.dot(p, 3.5); S.boxes.push([p.x - 3, p.y - 3, p.x + 3, p.y + 3]); });
+  pts.forEach(([la, lo, n]) => geoPtLab(S, P(la, lo), geoV(1, -1), n, { gap: 3 }));
+  return S.svg('globe terrestre');
+}
+const geoGeo = (la, lo) => '(' + Math.abs(la) + '° ' + (la > 0 ? 'N' : 'S') + ' ; ' + Math.abs(lo) + '° ' + (lo > 0 ? 'E' : 'O') + ')';
+topic({ id: 'ge.reperage-espace', ch: 'ge', lvl: 2, calc: false, variants: 3,
+  ru: 'Координаты в пространстве и на глобусе', fr: 'Se repérer dans l’espace et sur une sphère',
+  hints: [
+    'В прямоугольном параллелепипеде («pavé droit») точку задают тремя числами: абсцисса, ордината и высота («altitude»), например G(4 ; 3 ; 2).',
+    'Начало координат — вершина A. Из A идём вдоль трёх рёбер: вдоль [AB] считаем абсциссу, вдоль [AD] — ординату, вверх вдоль [AE] — высоту. Если в каком-то направлении идти не нужно, там 0.',
+    'На глобусе точку задают широтой («latitude»: на сколько градусов к северу N или к югу S от экватора) и долготой («longitude»: к востоку E или к западу O от гринвичского меридиана).'],
+  gen(r, vi) {
+    if (vi === 2) {
+      const la = r.pick([30, 60]) * r.sgn(), lo = r.pick([30, 60]) * r.sgn(), pts4 = [[la, lo], [-la, lo], [la, -lo], [lo, la]];
+      if (Math.abs(la) === Math.abs(lo)) pts4[3] = [-la, -lo];
+      const letters = r.sh(['A', 'B', 'C', 'D', 'M', 'P', 'R', 'T']).slice(0, 4);
+      const fig = geoGlobe(pts4.map((p, i) => [p[0], p[1], letters[i]]));
+      const sol = ['Широта — угол к северу (N) или к югу (S) от экватора: считаем параллели от экватора, каждая через 30°. Долгота — угол к востоку (E, вправо) или к западу (O, влево) от гринвичского меридиана.',
+        'Точка ' + letters[0] + ': ' + (la > 0 ? 'выше' : 'ниже') + ' экватора на ' + Math.abs(la) + '° и ' + (lo > 0 ? 'правее' : 'левее') + ' Гринвича на ' + Math.abs(lo) + '°, то есть ' + geoGeo(la, lo) + '. Первой пишут широту, второй — долготу.'];
+      if (r() < 0.5) return { q: L('Sur le globe ci-dessous, les parallèles et les méridiens sont tracés tous les 30°. Quel point a pour coordonnées ' + geoGeo(la, lo) + ' ?', 'На глобусе ниже параллели и меридианы проведены через каждые 30°. У какой точки координаты ' + geoGeo(la, lo) + '?'), fig,
+        ans: MQ(r, letters.map(l => L('Le point ' + l, 'Точка ' + l)), 0), sol };
+      return { q: L('Sur le globe ci-dessous, les parallèles et les méridiens sont tracés tous les 30°. Quelles sont la latitude et la longitude du point ' + letters[0] + ' ?', 'На глобусе ниже параллели и меридианы проведены через каждые 30°. Каковы широта и долгота точки ' + letters[0] + '?'), fig,
+        ans: MQ(r, pts4.map(p => L(geoGeo(p[0], p[1]), geoGeo(p[0], p[1]))), 0), sol };
+    }
+    const Lx = r.ri(3, 8), Ly = r.ri(2, 6), Lz = r.ri(2, 5), V = { A: [0, 0, 0], B: [Lx, 0, 0], C: [Lx, Ly, 0], D: [0, Ly, 0], E: [0, 0, Lz], F: [Lx, 0, Lz], G: [Lx, Ly, Lz], H: [0, Ly, Lz] };
+    const co = p => '(' + p.map(v => nf(v)).join(' ; ') + ')';
+    const intro = L('Le pavé droit ABCDEFGH est placé dans un repère de l’espace d’origine A. Les points B, D et E ont pour coordonnées B' + co(V.B) + ', D' + co(V.D) + ' et E' + co(V.E) + '.',
+      'Прямоугольный параллелепипед ABCDEFGH помещён в систему координат с началом в точке A. Координаты точек: B' + co(V.B) + ', D' + co(V.D) + ' и E' + co(V.E) + '.');
+    if (vi === 0) {
+      const mids = [['I', 'F', 'G'], ['J', 'E', 'H'], ['K', 'C', 'G'], ['M', 'B', 'C'], ['N', 'H', 'G']];
+      let target, name, pts = [], extraFr = '', extraRu = '';
+      if (r() < 0.65) { name = r.pick(['C', 'F', 'G', 'H']); target = V[name]; }
+      else { const [m, a, b] = r.pick(mids); name = m; target = V[a].map((v, i) => (v + V[b][i]) / 2); pts = [[target, m]]; extraFr = ' Le point ' + m + ' est le milieu de l’arête [' + a + b + '].'; extraRu = ' Точка ' + m + ' — середина ребра [' + a + b + '].'; }
+      const fig = geoPave(Lx, Ly, Lz, { pts });
+      return { q: L(intro.fr + extraFr + ' Quelles sont les coordonnées du point ' + name + ' ?', intro.ru + extraRu + ' Каковы координаты точки ' + name + '?'), fig,
+        ans: multi([L('abscisse :', 'абсцисса:'), N(fx(target[0]))], [L('ordonnée :', 'ордината:'), N(fx(target[1]))], [L('altitude :', 'высота:'), N(fx(target[2]))]),
+        sol: ['Из B' + co(V.B) + ' видно: вдоль [AB] абсцисса растёт от 0 до ' + Lx + '. Из D — вдоль [AD] ордината растёт до ' + Ly + '. Из E — вверх вдоль [AE] высота растёт до ' + Lz + '.',
+          'Чтобы попасть из A в точку ' + name + ', идём на ' + nf(target[0]) + ' вдоль [AB], на ' + nf(target[1]) + ' вдоль [AD] и на ' + nf(target[2]) + ' вверх.' + (pts.length ? ' Середина ребра — половина пути вдоль этого ребра.' : ''),
+          'Ответ: ' + name + co(target) + '.'] };
+    }
+    const name = r.pick(['C', 'F', 'G', 'H']), t = V[name];
+    const others = ['B', 'C', 'D', 'E', 'F', 'G', 'H'].filter(x => x !== name);
+    const opts = [name].concat(r.sh(others).slice(0, 3));
+    return { q: L(intro.fr + ' Quel sommet a pour coordonnées ' + co(t) + ' ?', intro.ru + ' У какой вершины координаты ' + co(t) + '?'), fig: geoPave(Lx, Ly, Lz),
+      ans: MQ(r, opts.map(x => L('Le sommet ' + x, 'Вершина ' + x)), 0),
+      sol: ['Читаем координаты по порядку: ' + (t[0] ? 'абсцисса ' + Lx + ' — идём вдоль [AB] до конца' : 'абсцисса 0 — вдоль [AB] не идём') + '; ' + (t[1] ? 'ордината ' + Ly + ' — идём на всю глубину, как до D' : 'ордината 0 — остаёмся на передней грани') + '; ' + (t[2] ? 'высота ' + Lz + ' — поднимаемся наверх' : 'высота 0 — остаёмся на нижней грани') + '.', 'Так попадаем в вершину ' + name + '.'] };
   } });

@@ -1047,29 +1047,31 @@ function ppgPyrFig(c, h, u) {   /* square base c×c on the ground, apex above th
   const T = [c / 2, h, c / 2], B = [[0, 0, 0], [c, 0, 0], [c, 0, c], [0, 0, c]];
   const E = [[B[0], B[1]], [B[1], B[2]], [B[2], B[3], 1], [B[3], B[0], 1], [T, B[0]], [T, B[1]], [T, B[2]], [T, B[3], 1], [T, [c / 2, 0, c / 2], 1]];
   const F = [[T, B[0], B[1]], [T, B[1], B[2]]];
-  return ppgSolid(E, F, [[B[0], B[1], ppgU2(c, u), 1]], m => { const p = m(T), q = m([c / 2, 0, c / 2]); return ppgDot(q[0], q[1]) + ppgTxt(p[0] + 7, (p[1] + q[1]) / 2 + 5, ppgU2(h, u), 'start'); });
+  return ppgSolid(E, F, [[B[0], B[1], ppgU2(c, u), 1]], m => { const p = m(T), q = m([c / 2, 0, c / 2]); return ppgDot(q[0], q[1]) + ppgTxt(p[0] + 6, p[1] + (q[1] - p[1]) * 0.45 + 5, 'h', 'start', 'ftx', 16); });
 }
-/* round solids drawn directly on the screen: kind 'cyl' | 'cone' | 'ball' */
+/* round solids drawn directly on the screen: kind 'cyl' | 'cone' | 'ball'; the picture is as tall as it needs */
 function ppgRoundFig(kind, R, H, u) {
-  const W = 340, Hh = 220, k = kind === 'ball' ? 80 / R : Math.min(110 / R, 150 / H), rx = R * k, ry = rx * 0.32, cx = 170;
+  const k = kind === 'ball' ? 80 / R : Math.min(100 / R, 140 / H), rx = R * k, ry = rx * 0.32, cx = 170;
   const half = (y, up, cls) => '<path d="M' + (cx - rx).toFixed(1) + ' ' + y.toFixed(1) + ' A' + rx.toFixed(1) + ' ' + ry.toFixed(1) + ' 0 0 ' + (up ? 1 : 0) + ' ' + (cx + rx).toFixed(1) + ' ' + y.toFixed(1) + '" class="' + cls + '"/>';
+  const ell = (y, cls) => '<ellipse cx="' + cx + '" cy="' + y.toFixed(1) + '" rx="' + rx.toFixed(1) + '" ry="' + ry.toFixed(1) + '" class="' + cls + '"/>';
   let g = '';
   if (kind === 'ball') {
-    const cy = 110; g += ppgCirc([cx, cy], rx, 'ffill') + ppgCirc([cx, cy], rx, 'fl') + half(cy, false, 'fl') + half(cy, true, 'fdash') + ppgDot(cx, cy) + ppgLn(cx, cy, cx + rx, cy, 'fl') + ppgTxt(cx + rx / 2, cy - 8, ppgU2(R, u));
-    return svgFig(W, Hh, g, 'boule');
+    const cy = 110, ex = cx + rx * Math.cos(0.6), ey = cy - rx * Math.sin(0.6);   /* the radius goes up to the right, clear of the equator */
+    g += ppgCirc([cx, cy], rx, 'ffill') + ppgCirc([cx, cy], rx, 'fl') + half(cy, false, 'fl') + half(cy, true, 'fdash') + ppgDot(cx, cy) + ppgLn(cx, cy, ex, ey, 'fl') + ppgTxt((cx + ex) / 2 - 6, (cy + ey) / 2 - 8, ppgU2(R, u), 'end');
+    return svgFig(340, 220, g, 'boule');
   }
-  const by = 110 + H * k / 2, ty = by - H * k;
   if (kind === 'cyl') {
+    const ty = 26 + ry, by = ty + H * k;
     g += '<path d="M' + (cx - rx).toFixed(1) + ' ' + ty.toFixed(1) + ' L' + (cx - rx).toFixed(1) + ' ' + by.toFixed(1) + ' A' + rx.toFixed(1) + ' ' + ry.toFixed(1) + ' 0 0 0 ' + (cx + rx).toFixed(1) + ' ' + by.toFixed(1) + ' L' + (cx + rx).toFixed(1) + ' ' + ty.toFixed(1) + ' Z" class="ffill"/>';
-    g += '<ellipse cx="' + cx + '" cy="' + ty.toFixed(1) + '" rx="' + rx.toFixed(1) + '" ry="' + ry.toFixed(1) + '" class="ffill"/><ellipse cx="' + cx + '" cy="' + ty.toFixed(1) + '" rx="' + rx.toFixed(1) + '" ry="' + ry.toFixed(1) + '" class="fl"/>';
-    g += ppgLn(cx - rx, ty, cx - rx, by, 'fl') + ppgLn(cx + rx, ty, cx + rx, by, 'fl') + half(by, false, 'fl') + half(by, true, 'fdash');
-    g += ppgDot(cx, ty) + ppgLn(cx, ty, cx + rx, ty, 'fl') + ppgTxt(cx + rx / 2, ty - 7, ppgU2(R, u)) + ppgTxt(cx + rx + 8, (ty + by) / 2 + 5, ppgU2(H, u), 'start');
-    return svgFig(W, Hh, g, 'cylindre');
+    g += ell(ty, 'ffill') + ell(ty, 'fl') + ppgLn(cx - rx, ty, cx - rx, by, 'fl') + ppgLn(cx + rx, ty, cx + rx, by, 'fl') + half(by, false, 'fl') + half(by, true, 'fdash');
+    g += ppgDot(cx, ty) + ppgLn(cx, ty, cx + rx, ty, 'fl') + ppgTxt(cx + rx / 2, ty - ry - 6, ppgU2(R, u)) + ppgTxt(cx + rx + 8, (ty + by) / 2 + 5, ppgU2(H, u), 'start');
+    return svgFig(340, Math.round(by + ry + 10), g, 'cylindre');
   }
+  const ty = 14, by = ty + H * k;
   g += '<path d="M' + cx + ' ' + ty.toFixed(1) + ' L' + (cx - rx).toFixed(1) + ' ' + by.toFixed(1) + ' A' + rx.toFixed(1) + ' ' + ry.toFixed(1) + ' 0 0 0 ' + (cx + rx).toFixed(1) + ' ' + by.toFixed(1) + ' Z" class="ffill"/>';
   g += ppgLn(cx, ty, cx - rx, by, 'fl') + ppgLn(cx, ty, cx + rx, by, 'fl') + half(by, false, 'fl') + half(by, true, 'fdash') + ppgLn(cx, ty, cx, by, 'fdash') + ppgDot(cx, by);
-  g += ppgLn(cx, by, cx + rx, by, 'fl') + ppgTxt(cx + rx / 2, by + 20, ppgU2(R, u)) + ppgTxt(cx - 6, (ty + by) / 2 + 5, ppgU2(H, u), 'end');
-  return svgFig(W, Hh, g, 'cône');
+  g += ppgLn(cx, by, cx + rx, by, 'fl') + ppgTxt(cx + rx / 2, by + ry + 18, ppgU2(R, u)) + ppgTxt(cx + 6, ty + (by - ty) * 0.6 + 5, 'h', 'start', 'ftx', 16);
+  return svgFig(340, Math.round(by + ry + 26), g, 'cône');
 }
 
 /* ---------- gm.volumes ---------- */
@@ -1135,4 +1137,87 @@ topic({ id: 'gm.volumes', ch: 'gm', lvl: 2, calc: false, variants: 5,
         { t: 'Радиус возводим в куб:', tex: ppgTx(R) + '^3=' + ppgTx(+fx(Math.pow(R, 3))) },
         { t: 'Подставляем в формулу и округляем в конце:', tex: '\\dfrac{4}{3}\\times\\pi\\times ' + ppgTx(+fx(Math.pow(R, 3))) + '\\approx ' + ppgTx(+ppgRd(V, 0)) + ppgUT('cm³') },
         'Частая ошибка — $$R^3$$ считать как $$3\\times R$$ или забыть множитель $$\\dfrac{4}{3}$$.'] };
+  } });
+
+/* ---------- why areas ×k² and volumes ×k³: pictures for the solutions ---------- */
+function ppgWhySq(k) {   /* a unit square and the k×k square made of k² unit squares */
+  const s = 30, H = s * k + 40, y0 = H - 22; let g = '';
+  g += ppgShape([[40, y0], [40 + s, y0], [40 + s, y0 - s], [40, y0 - s]]) + ppgTxt(40 + s / 2, y0 + 17, '1');
+  const x0 = 170; g += ppgShape([[x0, y0], [x0 + s * k, y0], [x0 + s * k, y0 - s * k], [x0, y0 - s * k]]);
+  for (let i = 1; i < k; i++) g += ppgLn(x0 + s * i, y0, x0 + s * i, y0 - s * k, 'fl2') + ppgLn(x0, y0 - s * i, x0 + s * k, y0 - s * i, 'fl2');
+  g += ppgTxt(x0 + s * k / 2, y0 + 17, String(k)) + ppgLn(85, y0 - s / 2, 150, y0 - s / 2, 'fl2') + ppgPath('M143 ' + (y0 - s / 2 - 5) + ' L150 ' + (y0 - s / 2) + ' L143 ' + (y0 - s / 2 + 5), 'fl2') + ppgTxt(117, y0 - s / 2 - 8, '× ' + k);
+  return svgFig(340, H, g, 'carreaux');
+}
+function ppgWhyCube(k) {   /* a unit cube and the k×k×k cube made of k³ unit cubes */
+  const s = k > 2 ? 26 : 34, H = Math.round(s * k * 1.32 + 40), M = (ox, oy) => (x, y, z) => [ox + s * (x + 0.45 * z), oy - s * (y + 0.32 * z)];
+  const cube = (m, n, grid) => {
+    const P = (x, y, z) => m(x * n, y * n, z * n);
+    let g = ppgPg([P(0, 0, 0), P(1, 0, 0), P(1, 1, 0), P(0, 1, 0)], 'ffill') + ppgPg([P(0, 1, 0), P(1, 1, 0), P(1, 1, 1), P(0, 1, 1)], 'ffill') + ppgPg([P(1, 0, 0), P(1, 0, 1), P(1, 1, 1), P(1, 1, 0)], 'ffill');
+    if (grid) for (let i = 1; i < n; i++) {
+      const L2 = (a, b) => ppgLn(m(...a)[0], m(...a)[1], m(...b)[0], m(...b)[1], 'fl2');
+      g += L2([i, 0, 0], [i, n, 0]) + L2([0, i, 0], [n, i, 0]) + L2([i, n, 0], [i, n, n]) + L2([0, n, i], [n, n, i]) + L2([n, i, 0], [n, i, n]) + L2([n, 0, i], [n, n, i]);
+    }
+    [[[0, 0, 0], [1, 0, 0]], [[1, 0, 0], [1, 1, 0]], [[1, 1, 0], [0, 1, 0]], [[0, 1, 0], [0, 0, 0]], [[0, 1, 0], [0, 1, 1]], [[1, 1, 0], [1, 1, 1]], [[0, 1, 1], [1, 1, 1]], [[1, 0, 0], [1, 0, 1]], [[1, 0, 1], [1, 1, 1]]]
+      .forEach(([a, b]) => { const p = P(...a), q = P(...b); g += ppgLn(p[0], p[1], q[0], q[1], 'fl'); });
+    return g;
+  };
+  const y0 = H - 22; let g = cube(M(40, y0), 1, false) + ppgTxt(40 + s / 2, y0 + 17, '1') + cube(M(165, y0), k, true) + ppgTxt(165 + s * k / 2, y0 + 17, String(k));
+  g += ppgLn(40 + s * 1.6, y0 - s / 2, 150, y0 - s / 2, 'fl2') + ppgPath('M143 ' + (y0 - s / 2 - 5) + ' L150 ' + (y0 - s / 2) + ' L143 ' + (y0 - s / 2 + 5), 'fl2') + ppgTxt((40 + s * 1.6 + 150) / 2, y0 - s / 2 - 8, '× ' + k);
+  return svgFig(340, H, g, 'cubes');
+}
+const ppgKtx = f => f.d === 1 ? String(f.n) : Fr.str(f);           /* k in input syntax: 3 or 1/2 */
+const ppgKfr = f => f.d === 1 ? String(f.n) : '$' + Fr.str(f) + '$'; /* k in a text */
+
+/* ---------- gm.agrandissement ---------- */
+topic({ id: 'gm.agrandissement', ch: 'gm', lvl: 2, calc: false, variants: 3,
+  ru: 'Увеличение и уменьшение: длины, площади, объёмы', fr: 'Agrandissement et réduction',
+  hints: [
+    'При увеличении или уменьшении с коэффициентом $k$ («agrandissement ou réduction de rapport $k$») все длины умножаются на $k$, а углы не меняются. $k>1$ — увеличение, $k<1$ — уменьшение.',
+    'Площади умножаются на $k^2$: квадратик со стороной 1 превращается в квадрат со стороной $k$, в котором помещается $k×k$ таких квадратиков. При $k=3$ площадь растёт в 9 раз, а не в 3.',
+    'Объёмы умножаются на $k^3$: кубик с ребром 1 превращается в куб с ребром $k$ — это $k×k×k$ кубиков. При уменьшении с $k=1/2$ площадь умножается на $1/4$, объём — на $1/8$.'],
+  gen(r, vi) {
+    const kf = r.pick([F(2), F(3), F(4), F(1, 2), F(1, 3), F(3, 2), F(5)]), up = kf.n > kf.d, kv = kf.n / kf.d;
+    const word = up ? ['subit un agrandissement de rapport', 'увеличили с коэффициентом'] : ['subit une réduction de rapport', 'уменьшили с коэффициентом'];
+    const why = n => n <= 4 ? n : null;   /* pictures for k ≤ 4 */
+    if (vi === 0) {   /* lengths and areas */
+      const sh = r.pick([['Un rectangle', 'Прямоугольник', 'du rectangle obtenu', 'полученного прямоугольника'], ['Un triangle', 'Треугольник', 'du triangle obtenu', 'полученного треугольника'], ['Un jardin dessiné sur un plan', 'Сад на плане', 'du jardin obtenu', 'полученного сада']]);
+      const askA = r() < 0.7, d2 = kf.d * kf.d;
+      if (askA) {
+        const A0 = d2 * r.pick([2, 3, 4, 5, 6, 8, 10, 12]), A1 = A0 * kv * kv, k2 = Fr.mul(kf, kf), n = up ? kf.n / kf.d : kf.d / kf.n;
+        const sol = [{ t: 'Все длины умножаются на ' + ppgKfr(kf) + '. Квадратик со стороной 1 становится квадратом со стороной ' + (up ? ppgKfr(kf) : '…') + ' — в ' + (up ? 'нём' : 'обратную сторону') + ' ' + (up ? Number.isInteger(kv) ? kv * kv + ' таких квадратиков' : '$' + Fr.str(k2) + '$ квадратика' : 'та же картинка, только справа налево') + '. Поэтому площадь умножается на $k^2$.', svg: Number.isInteger(n) && why(n) ? ppgWhySq(n) : null }];
+        if (!sol[0].svg) delete sol[0].svg;
+        sol.push(['Коэффициент для площадей:', '(' + ppgKtx(kf) + ')^2=' + Fr.str(k2)]);
+        sol.push(['Новая площадь:', A0 + '*' + Fr.str(k2) + '=' + fx(A1), 'cm²']);
+        sol.push('Ошибка — умножить площадь просто на ' + ppgKfr(kf) + ': на $k$ умножаются только длины.');
+        return { q: L(sh[0] + ' d\'aire ' + A0 + ' cm² ' + word[0] + ' ' + ppgKfr(kf) + '. Quelle est l\'aire ' + sh[2] + ' ?', sh[1] + ' площадью ' + A0 + ' см² ' + word[1] + ' ' + ppgKfr(kf) + '. Какова площадь ' + sh[3] + '?'), ans: N(fx(A1), { unit: 'cm²' }), sol };
+      }
+      const l0 = kf.d * r.pick([2, 3, 4, 5, 6, 7, 8, 9]), l1 = l0 * kv;
+      return { q: L(sh[0] + ' ' + word[0] + ' ' + ppgKfr(kf) + '. Un côté de la figure de départ mesure ' + l0 + ' cm. Combien mesure le côté correspondant ' + sh[2].replace('du ', 'de la figure ').replace(/de la figure (rectangle|triangle|jardin) obtenu/, 'de la figure obtenue') + ' ?', sh[1] + ' ' + word[1] + ' ' + ppgKfr(kf) + '. Одна из сторон исходной фигуры равна ' + l0 + ' см. Чему равна соответствующая сторона новой фигуры?'),
+        ans: N(fx(l1), { unit: 'cm' }), sol: [['Все длины умножаются на коэффициент ' + ppgKfr(kf) + ':', l0 + '*' + ppgKtx(kf) + '=' + fx(l1), 'cm'], up ? 'Коэффициент больше 1 — фигура увеличилась, сторона стала длиннее.' : 'Коэффициент меньше 1 — фигура уменьшилась, сторона стала короче.'] };
+    }
+    if (vi === 1) {   /* volumes */
+      const sd = r.pick([['Une pyramide', 'Пирамиду', 'de la pyramide obtenue', 'полученной пирамиды'], ['Un cône', 'Конус', 'du cône obtenu', 'полученного конуса'], ['Une boîte en forme de pavé droit', 'Коробку в форме параллелепипеда', 'de la boîte obtenue', 'полученной коробки']]);
+      const kk = [F(2), F(3), F(1, 2), F(1, 3), F(3, 2)].find((_, i, a) => i === r.ri(0, a.length - 1)) || F(2), uk = kk.n > kk.d, kv3 = Math.pow(kk.n / kk.d, 3), k3 = F(Math.pow(kk.n, 3), Math.pow(kk.d, 3));
+      const V0 = Math.pow(kk.d, 3) * r.pick([1, 2, 3, 4, 5, 6, 10]), V1 = V0 * kv3, n = uk ? kk.n / kk.d : kk.d / kk.n;
+      const w = uk ? ['subit un agrandissement de rapport', 'увеличили с коэффициентом'] : ['subit une réduction de rapport', 'уменьшили с коэффициентом'];
+      const sol = [{ t: 'Все длины умножаются на ' + ppgKfr(kk) + '. Кубик с ребром 1 превращается в куб с ребром ' + (uk ? ppgKfr(kk) : '… (при уменьшении — наоборот)') + ', а в таком кубе ' + (uk && Number.isInteger(kk.n / kk.d) ? kv3 + ' единичных кубиков' : '$' + Fr.str(k3) + '$ единичного кубика') + '. Поэтому объём умножается на $k^3$.' }];
+      if (Number.isInteger(n) && n <= 3) sol[0].svg = ppgWhyCube(n);
+      sol.push(['Коэффициент для объёмов:', '(' + ppgKtx(kk) + ')^3=' + Fr.str(k3)]);
+      sol.push(['Новый объём:', V0 + '*' + Fr.str(k3) + '=' + fx(V1), 'cm³']);
+      return { q: L(sd[0] + ' de volume ' + V0 + ' cm³ ' + w[0] + ' ' + ppgKfr(kk) + '. Quel est le volume ' + sd[2] + ' ?', sd[1] + ' объёмом ' + V0 + ' см³ ' + w[1] + ' ' + ppgKfr(kk) + '. Каков объём ' + sd[3] + '?'), ans: N(fx(V1), { unit: 'cm³' }), sol };
+    }
+    /* vi 2: by how much are areas / volumes multiplied */
+    const vol = r() < 0.5, red = r() < 0.3;
+    if (red) {
+      const n = r.pick([2, 3]), m = vol ? n * n * n : n * n;
+      const opts = (vol ? [n * n * n, n * n, n, 3 * n] : [n * n, n, 2 * n, n * n * n]).filter((v, i, a) => a.indexOf(v) === i).slice(0, 4).map(v => '$1/' + v + '$');
+      while (opts.length < 4) opts.push('$1/' + (m * 2 + opts.length) + '$');
+      return { q: L('Lors d\'une réduction de rapport $1/' + n + '$, ' + (vol ? 'les volumes' : 'les aires') + ' sont multipliés par :', 'При уменьшении с коэффициентом $1/' + n + '$ ' + (vol ? 'объёмы' : 'площади') + ' умножаются на:'), ans: MQ(r, opts, 0), sol: [
+        [(vol ? 'Объёмы умножаются на $k^3$' : 'Площади умножаются на $k^2$') + ':', '(1/' + n + ')^' + (vol ? 3 : 2) + '=1/' + m],
+        vol ? 'Длины уменьшились в ' + n + ' раза в каждом из трёх направлений — объём уменьшился в $' + n + '×' + n + '×' + n + '=' + m + '$ раз.' : 'Длины уменьшились в ' + n + ' раза и в длину, и в ширину — площадь уменьшилась в $' + n + '×' + n + '=' + m + '$ раз.'] };
+    }
+    const n = vol ? r.pick([2, 4, 5, 10]) : r.pick([3, 4, 5, 10]), opts = (vol ? [n * n * n, n * n, n, 3 * n] : [n * n, n, 2 * n, n * n * n]).map(String);
+    return { q: L('Lors d\'un agrandissement de rapport ' + n + ', ' + (vol ? 'les volumes' : 'les aires') + ' sont multipliés par :', 'При увеличении с коэффициентом ' + n + ' ' + (vol ? 'объёмы' : 'площади') + ' умножаются на:'), ans: MQ(r, opts, 0), sol: [
+      { t: vol ? 'Кубик с ребром 1 превращается в куб с ребром ' + n + ': в нём $' + n + '×' + n + '×' + n + '=' + n * n * n + '$ кубиков. Объёмы умножаются на $k^3$.' : 'Квадратик со стороной 1 превращается в квадрат со стороной ' + n + ': в нём $' + n + '×' + n + '=' + n * n + '$ квадратиков. Площади умножаются на $k^2$.', svg: n <= 3 ? (vol ? ppgWhyCube(n) : ppgWhySq(n)) : (vol ? null : n === 4 ? ppgWhySq(4) : null) },
+      'Умножить на ' + n + ' — это только для длин; ' + (vol ? n * n + ' — для площадей.' : n * n * n + ' — для объёмов.')].map(x => { if (x && x.svg === null) delete x.svg; return x; }) };
   } });

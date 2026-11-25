@@ -352,7 +352,7 @@ topic({ id: 'st.moyenne-ponderee', ch: 'st', lvl: 2, calc: false, variants: 4,
           staWhy(ds)] };
     }
     /* coefficients */
-    const w = staWho(r), co = r.pick([[2, 2, 1], [2, 1, 1], [3, 1, 1], [2, 1, 2], [3, 2, 1].slice(0, 3)].filter(c => staSum(c) === 4 || staSum(c) === 5));
+    const w = staWho(r), co = r.pick([[2, 2, 1], [2, 1, 1], [3, 1, 1], [2, 1, 2], [1, 2, 1], [1, 1, 2], [1, 1, 3]]);   /* sum 4 or 5: the mean has at most 2 decimals */
     const ev = r.sh([['à un contrôle', 'за контрольную'], ['à un devoir maison', 'за домашнюю работу'], ['à une interrogation écrite', 'за самостоятельную работу'], ['à un exposé', 'за доклад']]).slice(0, 3);
     const nt = [r.ri(6, 19), r.ri(6, 19), r.ri(6, 19)], S = staSum(nt.map((x, i) => x * co[i])), C = staSum(co), m = S / C;
     return { q: staL(`En mathématiques, ${w.n} a obtenu ${nt[0]} ${ev[0][0]} (coefficient ${co[0]}), ${nt[1]} ${ev[1][0]} (coefficient ${co[1]}) et ${nt[2]} ${ev[2][0]} (coefficient ${co[2]}). Calculer sa moyenne.`,
@@ -589,10 +589,9 @@ topic({ id: 'st.mediane-tableau', ch: 'st', lvl: 2, calc: false, variants: 4,
     const V = C === 'course' ? r.ri(35, 55) : C === 'serie' ? r.ri(10, 60) : r.ri(18, 26) * 100;
     const Q = {
       course: [`${N0} coureurs ont participé à une course. Leurs temps sont tous différents et le temps médian est ${V} min. Combien de coureurs ont mis plus de ${V} min ?`, `Число участников забега — ${N0}, все их времена разные, медианное время — ${V} мин. Сколько участников бежали дольше ${V} мин?`],
-      serie: [`Une série de ${N0} nombres, tous différents, a pour médiane ${V}. Combien de nombres de cette série sont strictement supérieurs à ${V} ?`, `В ряду всего ${N0} различных чисел (количество — ${N0}), медиана равна ${V}. Сколько чисел ряда строго больше ${V}?`],
+      serie: [`Une série de ${N0} nombres, tous différents, a pour médiane ${V}. Combien de nombres de cette série sont strictement supérieurs à ${V} ?`, `Количество чисел в ряду — ${N0}, все они различны, медиана равна ${V}. Сколько чисел ряда строго больше ${V}?`],
       salaires: [`Les ${N0} salariés d'une entreprise ont des salaires tous différents. Le salaire médian est ${eur(V)}. Combien de salariés gagnent plus de ${eur(V)} ?`, `Число сотрудников компании — ${N0}, их зарплаты все разные. Медианная зарплата — ${eur(V)}. Сколько сотрудников получают больше ${eur(V)}?`]
     }[C];
-    if (C === 'serie') Q[1] = `Количество чисел в ряду — ${N0}, все они различны, медиана равна ${V}. Сколько чисел ряда строго больше ${V}?`;
     const k = (N0 + 1) / 2;
     return { q: staL(Q[0], Q[1]), ans: N(ans), sol: odd ? [
       ['Значений ' + N0 + ' — нечётное число. Медиана — само значение номер', '(' + N0 + '+1)/2=' + k],
@@ -660,19 +659,22 @@ topic({ id: 'st.etendue', ch: 'st', lvl: 1, calc: false, variants: 4,
       ds.forEach(d => { d.t = nf(d.v) + ' °C'; });
       return { q: staL(Q[0], Q[1]), ans: MQ(r, [nf(e) + ' °C'].concat(ds.map(d => staNb(d.t))), 0), sol: base.concat([staWhy(ds)]) };
     }
-    /* vi 3: a value is added */
-    let x = r() < 0.4 ? r.ri(lo + 1, hi - 1) : r() < 0.5 ? hi + r.ri(2, 9) : lo - r.ri(2, Math.min(9, lo + 8));
-    if (a.includes(x)) x = hi + r.ri(2, 9);
-    const lo2 = Math.min(lo, x), hi2 = Math.max(hi, x), e2 = hi2 - lo2;
-    const Q3 = C === 'notes' ? [`Les notes de ${staWho(r).n} en sciences sont : ${staSF(a)}. ${staWho(r).f ? 'Elle' : 'Il'} obtient ensuite la note ${x}. Quelle est l'étendue de la nouvelle série de notes ?`, `Оценки по естественным наукам: ${staSR(a)}. Потом добавилась оценка ${x}. Найди размах нового ряда оценок.`]
+    /* vi 3: a value is added (inside the range or not) */
+    let x = hi + 3;
+    for (let g = 0; g < 60; g++) {
+      const t = r();
+      x = t < 0.4 ? r.ri(lo + 1, hi - 1) : t < 0.7 ? hi + r.ri(2, 9) : lo - r.ri(2, 9);
+      if (C === 'notes' && (x < 0 || x > 20)) continue;
+      if (!a.includes(x)) break;
+    }
+    const lo3 = Math.min(lo, x), hi3 = Math.max(hi, x), e3 = hi3 - lo3, w = staWho(r);
+    const Q3 = C === 'notes' ? [`Les notes de ${w.n} en sciences sont : ${staSF(a)}. ${w.f ? 'Elle' : 'Il'} obtient ensuite la note ${x}. Quelle est l'étendue de la nouvelle série de notes ?`, `Оценки ${w.n} по естественным наукам: ${staSR(a)}. Потом ${staG(w, 'он получил', 'она получила')} оценку ${x}. Найди размах нового ряда оценок.`]
       : [`On considère la série : ${staSF(a)}. On ajoute la valeur ${nf(x)} à cette série. Quelle est l'étendue de la nouvelle série ?`, `Дан ряд: ${staSR(a)}. К нему добавили значение ${nf(x)}. Найди размах нового ряда.`];
-    if (C === 'notes') { x = Math.max(0, Math.min(20, x)); }
-    const lo3 = Math.min(lo, x), hi3 = Math.max(hi, x), e3 = hi3 - lo3;
-    return { q: staL(Q3[0].replace(/la note \d+/, 'la note ' + x), Q3[1].replace(/оценка \d+/, 'оценка ' + x)), ans: N(e3), sol: [
-      'Размах зависит только от двух крайних значений. Сейчас наименьшее — ' + nf(lo) + ', наибольшее — ' + nf(hi) + '.',
+    return { q: staL(Q3[0], Q3[1]), ans: N(e3), sol: [
+      'Размах зависит только от двух крайних значений. Сейчас наименьшее — ' + nf(lo) + ', наибольшее — ' + nf(hi) + ', размах ' + e + '.',
       x > lo && x < hi ? 'Новое значение ' + nf(x) + ' лежит между ними, поэтому крайние значения не меняются и размах остаётся прежним.'
-        : x >= hi ? 'Новое значение ' + nf(x) + ' больше прежнего наибольшего — теперь наибольшее значение ' + nf(x) + '.' : 'Новое значение ' + nf(x) + ' меньше прежнего наименьшего — теперь наименьшее значение ' + nf(x) + '.',
-      ['Размах:', hi3 + '-' + (lo3 < 0 ? '(' + lo3 + ')' : lo3) + '=' + e3]].concat(e2 === e3 ? [] : []) };
+        : x > hi ? 'Новое значение ' + nf(x) + ' больше прежнего наибольшего — теперь наибольшее значение ' + nf(x) + '.' : 'Новое значение ' + nf(x) + ' меньше прежнего наименьшего — теперь наименьшее значение ' + nf(x) + '.',
+      ['Размах нового ряда:', hi3 + '-' + (lo3 < 0 ? '(' + lo3 + ')' : lo3) + '=' + e3]] };
   } });
 
 topic({ id: 'st.effectifs-frequences', ch: 'st', lvl: 1, calc: false, variants: 4,
@@ -863,12 +865,17 @@ topic({ id: 'st.diagramme-circulaire', ch: 'st', lvl: 2, calc: false, variants: 
         `На круговой диаграмме сектор «${acts[j][0]}» имеет угол ${dg}° и соответствует ${e} ученикам. Сколько всего учеников опросили?`),
         ans: N(T), sol: [
           ['Сектор ' + dg + '° — это доля круга', dg + '/360=' + Fr.str(f)],
-          'Значит, ' + e + ' учеников — это ' + Fr.str(f).replace('/', ' из ') + ' частей всех учеников' + (f.n === 1 ? ': все ученики — в ' + f.d + ' раз больше.' : '.'),
+          'Значит, ' + e + ' ' + staPl(e, 'ученик', 'ученика', 'учеников') + ' — это ' + staFt(f.n, f.d) + ' всех учеников' + (f.n === 1 ? ', и всех учеников в ' + f.d + ' раз больше.' : '.'),
           ['Всего учеников:', e + '*360/' + dg + '=' + T],
           'Проверка: ' + staFt(e, T) + ' × 360° = ' + dg + '°.'] };
     }
     /* which pie chart fits the table */
-    const lg = [['Anglais', 'английский'], ['Espagnol', 'испанский'], ['Allemand', 'немецкий']];
+    const niv = r.pick(['5e', '4e', '3e']);
+    const CX = r.pick([
+      { lg: [['Anglais', 'английский'], ['Espagnol', 'испанский'], ['Allemand', 'немецкий']], h: 'Langue étudiée', fr: 'quelle langue vivante ils étudient', ru: 'какой иностранный язык они изучают' },
+      { lg: [['À pied', 'пешком'], ['Vélo', 'велосипед'], ['Bus', 'автобус']], h: 'Moyen de transport', fr: 'comment ils viennent au collège', ru: 'как они добираются до колледжа' },
+      { lg: [['Football', 'футбол'], ['Basket', 'баскетбол'], ['Natation', 'плавание']], h: 'Sport préféré', fr: 'quel est leur sport préféré', ru: 'какой у них любимый вид спорта' }]);
+    const lg = CX.lg;
     const TR = [[6, 3, 3], [3, 6, 3], [3, 3, 6], [6, 4, 2], [6, 2, 4], [4, 6, 2], [2, 6, 4], [4, 2, 6], [2, 4, 6], [8, 2, 2], [2, 8, 2], [2, 2, 8], [4, 4, 4], [5, 4, 3], [3, 4, 5], [7, 3, 2]];
     const sh = r.pick(TR.filter(t => !(t[0] === 4 && t[1] === 4))), T = r.pick([24, 36, 48, 60]), e = sh.map(x => x * T / 12);
     const same = TR.filter(t => t.join() !== sh.join() && staSort(t).join() === staSort(sh).join()), other = TR.filter(t => staSort(t).join() !== staSort(sh).join());
@@ -877,9 +884,9 @@ topic({ id: 'st.diagramme-circulaire', ch: 'st', lvl: 2, calc: false, variants: 
     let s = '';
     pies.forEach((t, i) => { s += staPieIn(pos[i][0], pos[i][1], 54, t.map((x, k) => ({ deg: x * 30, cls: 'fc' + (k + 1) })), false) + staTx(pos[i][0] - 70, pos[i][1] - 44, 'ABCD'[i], 'ftx', 'middle'); });
     lg.forEach((l, k) => { s += staRc(22 + k * 108, 290, 14, 14, 'fc' + (k + 1)) + staTx(42 + k * 108, 302, l[0], 'ftx', 'start'); });
-    const fig = staTab([['Langue étudiée'].concat(lg.map(l => l[0])), ['Effectif'].concat(e)]) + svgFig(340, 312, s, 'quatre diagrammes circulaires');
-    return { q: staL(`On a demandé à ${T} élèves de 4e quelle langue vivante ils étudient. Les résultats sont donnés dans le tableau. Quel diagramme circulaire représente ces résultats ?`,
-      `${T} учеников 4e спросили, какой иностранный язык они изучают. Результаты — в таблице. Какая круговая диаграмма изображает эти результаты?`),
+    const fig = staTab([[CX.h].concat(lg.map(l => l[0])), ['Effectif'].concat(e)]) + svgFig(340, 312, s, 'quatre diagrammes circulaires');
+    return { q: staL(`On a demandé à ${T} élèves de ${niv} ${CX.fr}. Les résultats sont donnés dans le tableau. Quel diagramme circulaire représente ces résultats ?`,
+      `${T} учеников ${niv} спросили, ${CX.ru}. Результаты — в таблице. Какая круговая диаграмма изображает эти результаты?`),
       fig, ans: MQF([staL('Diagramme A', 'Диаграмма A'), staL('Diagramme B', 'Диаграмма B'), staL('Diagramme C', 'Диаграмма C'), staL('Diagramme D', 'Диаграмма D')], c),
       sol: [
         'Находим долю каждого языка и угол его сектора (доля × 360°): ' + lg.map((l, k) => l[0] + ' — ' + staFt(e[k], T) + ' = ' + staFt(sh[k], 12) + ', угол ' + sh[k] * 30 + '°').join('; ') + '.',
@@ -1088,7 +1095,7 @@ topic({ id: 'st.proba-2epreuves', ch: 'st', lvl: 3, calc: true, variants: 5,
         : [`${w.n} lance deux fois de suite un dé équilibré à quatre faces numérotées de 1 à 4 et additionne les deux nombres obtenus. Quelle est la probabilité d'obtenir ${E[0]} ? ${irr[0]}`, `${w.n} два раза подряд бросает честную кость с четырьмя гранями (от 1 до 4) и складывает выпавшие числа. Какова вероятность получить ${E[1]}? ${irr[1]}`];
       return { q: staL(Q[0], Q[1]), ans: FRA(F(ok.length, f * f)), sol: [
         'Исход — пара (первое число ; второе число). Пар ' + f + ' × ' + f + ' = ' + f * f + ', и все они равновозможны.',
-        { t: 'Таблица сумм (строка — первая кость, столбец — вторая), подходящие клетки выделены:', svg: staTab(tb) },
+        { t: 'Таблица сумм (строка — первая кость, столбец — вторая), подходящие клетки выделены:', svg: tbl(tb, 'side') },
         'Подходят исходы: ' + ok.map(x => '(' + x[0] + ' ; ' + x[1] + ')').join(', ') + ' — их ' + ok.length + '.',
         ['', 'P=' + staFq(ok.length, f * f)],
         'Ловушка — считать равновозможными сами суммы. Сумма 2 получается одним способом (1 ; 1), а сумма ' + (f + 1) + ' — ' + f + ' способами, поэтому считаем пары, а не суммы.'] };
@@ -1180,10 +1187,8 @@ topic({ id: 'st.proba-frequence', ch: 'st', lvl: 2, calc: false, variants: 4,
         sac: [[`Un sac contient ${a} boules rouges et ${b} boules vertes. On tire une boule au hasard, on note sa couleur et on la remet dans le sac.`, `В мешке ${a} красных и ${b} зелёных шаров (красных — ${a}, зелёных — ${b}). Вынимают шар, смотрят цвет и кладут обратно.`], ['des boules rouges', 'красных шаров'], a + '/' + (a + b), [['$' + a + '/' + (a + b) + '$', 'devient exactement égale à', 'станет в точности равна', 'частота «гуляет» около вероятности и не обязана совпасть с ней точно'], ['$1/2$', 'se rapproche de', 'приближается к', 'цветов два, но шаров разных цветов разное количество'], ['$' + a + '/' + b + '$', 'se rapproche de', 'приближается к', 'это отношение красных к зелёным, а вероятность — красные ÷ все шары']]]
       }[C];
       if (C === 'sac') D[0][1] = `В мешке шары: красных — ${a}, зелёных — ${b}. Вынимают шар, смотрят цвет и кладут обратно.`;
-      const opt = (v, fr, ru) => staL(`La fréquence ${fr} $${v.replace(/\$/g, '')}$.`.replace('$$', '$'), `Частота ${ru} ${v}.`);
       const right = staL(`La fréquence se rapproche de $${D[2]}$.`, `Частота приближается к $${D[2]}$.`);
       const wrongs = D[3].map(x => staL(`La fréquence ${x[1]} ${x[0]}.`, `Частота ${x[2]} ${x[0]}.`));
-      void opt;
       return { q: staL(`${D[0][0]} On répète cette expérience un très grand nombre de fois. Que peut-on dire de la fréquence d'apparition ${D[1][0]} ?`, `${D[0][1]} Опыт повторяют очень много раз. Что можно сказать о частоте ${D[1][1]}?`),
         ans: MQ(r, [right].concat(wrongs), 0), sol: [
           'Вероятность здесь равна $' + D[2] + '$. Закон больших чисел: при очень большом числе испытаний частота становится близкой к вероятности.',
@@ -1255,7 +1260,7 @@ topic({ id: 'al.scratch-lire', ch: 'al', lvl: 1, calc: false, variants: 4,
     const T = r.pick([0, 1, 2, 3]);
     const steps = [[[r.pick(['*', '+']), 0], ['-', 0]], [['+', 0], ['*', 0]], [['*', 0], ['+', 0], ['*', 0]], [['-', 0], ['*', 0], ['+', 0]]][T].map(([o]) => [o, o === '*' ? r.ri(2, 5) : r.ri(2, 9)]);
     if (vi === 2) {   /* which expression: QCM */
-      const a = r.ri(2, 9), b = r.ri(2, 5), K = r.pick([0, 1, 2, 3]);
+      const b = r.ri(2, 5), K = r.pick([0, 1, 2, 3]); let a = r.ri(2, 9); if (a === b) a = b + r.ri(1, 4);   /* a ≠ b: otherwise two options coincide */
       let bs, right, wrong, st;
       if (K === 0) {
         bs = [STA_B.set('y', staOp(STA_REP, '+', a)), STA_B.set('y', staOp(staVr('y'), '*', b))];
@@ -1344,7 +1349,7 @@ topic({ id: 'al.scratch-boucle', ch: 'al', lvl: 2, calc: false, variants: 4,
     const tn = k => { h += k === 'rt' ? 90 : -90; const dir = ((h % 360) + 360) % 360; trace.push('«tourner ' + (k === 'rt' ? '↻' : '↺') + ' de 90» — поворот ' + (k === 'rt' ? 'по часовой стрелке' : 'против часовой стрелки') + ': теперь спрайт смотрит ' + { 0: 'вверх', 90: 'вправо', 180: 'вниз', 270: 'влево' }[dir]); };
     mv(a); tn(t1); mv(b); if (three) { tn(t2); mv(c); }
     const P = (u, v) => '(' + nf(u) + ' ; ' + nf(v) + ')';
-    const cand = [P(y, x), P(x, -y), P(-x, y), P(x + (three ? 0 : 0), y === 0 ? b : 0), P(a, b), P(a + b, 0)];
+    const cand = [P(y, x), P(x, -y), P(-x, y), P(a, b), P(a + b, 0), P(-x, -y)];
     const opts = [P(x, y)]; cand.forEach(o => { if (opts.length < 4 && !opts.includes(o)) opts.push(o); });
     return { q: staL("Au départ, l'instruction « s'orienter à 90 » oriente le lutin vers la droite. Quelles sont les coordonnées du lutin à la fin du script ?", 'Блок «s\'orienter à 90» поворачивает спрайт вправо. Какие координаты будут у спрайта в конце скрипта?'),
       fig: staScratch(bs), ans: MQ(r, opts.map(o => staNb(o)), 0), sol: [
@@ -1420,7 +1425,7 @@ topic({ id: 'al.tableur-formule', ch: 'al', lvl: 1, calc: false, variants: 4,
     if (vi === 0) {   /* which formula was typed in B2 */
       const a = r.ri(2, 9), b = r.nz(-9, 9), x0 = r.pick([0, 1, 2, -2]), xs = [0, 1, 2, 3, 4].map(i => x0 + i);
       const f = staF1(a, b, 'A2'), bs = (b < 0 ? '-' : '+') + Math.abs(b);
-      const W = r.sh([[staF1(a, b, 'A1'), 'A1 — это заголовок «Nombre de départ», а не число: формула должна брать число из той же строки, что и она сама'], [staF1(a, b, 'B2'), 'в B2 формула ссылалась бы сама на себя'], ['=' + a + '*' + xs[0] + bs, 'с числом вместо адреса после растягивания во всех строках получился бы один и тот же результат'], ['=' + a + '*x' + bs, 'буква x таблице ничего не говорит — нужно указать ячейку']]).slice(0, 3);
+      const W = r.sh([[staF1(a, b, 'A1'), 'A1 — это заголовок «Nombre de départ», а не число: формула должна брать число из той же строки, что и она сама'], [staF1(a, b, 'B2'), 'в B2 формула ссылалась бы сама на себя'], ['=' + a + '*' + np(xs[0]) + bs, 'с числом вместо адреса после растягивания во всех строках получился бы один и тот же результат'], ['=' + a + '*x' + bs, 'буква x таблице ничего не говорит — нужно указать ячейку']]).slice(0, 3);
       return { q: staL('On utilise un tableur pour calculer les résultats d\'un programme de calcul pour plusieurs nombres de départ, placés dans la colonne A. Quelle formule a-t-on saisie dans la cellule B2, avant de l\'étirer vers le bas ?',
         'С помощью электронной таблицы считают результаты программы вычислений для нескольких исходных чисел из столбца A. Какую формулу ввели в ячейку B2, прежде чем растянуть её вниз?'),
         fig: staSheet([['Nombre de départ', 'Résultat']].concat(xs.map(x => [nf(x), nf(a * x + b)]))), ans: MQ(r, [f].concat(W.map(x => x[0])), 0), sol: [
@@ -1500,7 +1505,7 @@ topic({ id: 'al.tableur-recopie', ch: 'al', lvl: 2, calc: false, variants: 4,
       const T = r.pick([0, 1, 2]), cols = 'BCDEFG', j = r.ri(2, 5), C0 = cols[j];
       const fR = c => (T === 0 ? '=' + c + '1*' + c + '1' : T === 1 ? '=2*' + c + '1+1' : '=' + c + '1*' + a);
       const vR = x => (T === 0 ? x * x : T === 1 ? 2 * x + 1 : x * a);
-      const xs = [1, 2, 3, 4, 5, 6].map(i => i + (r() < 0.5 ? 0 : 0));
+      const x0 = r.ri(1, 4), xs = [0, 1, 2, 3, 4, 5].map(i => x0 + i);
       const W = [[fR('B'), 'формула не осталась прежней: буквы столбцов сдвинулись вместе с ячейкой'], [T === 0 ? '=' + C0 + '2*' + C0 + '2' : T === 1 ? '=2*' + C0 + '2+1' : '=' + C0 + '2*' + a, 'при копировании вправо номер строки не меняется: число берётся из строки 1'], [fR(cols[j - 1]), 'сдвиг посчитан неверно: из B в ' + C0 + ' — это ' + j + ' ' + staPl(j, 'столбец', 'столбца', 'столбцов') + ' вправо']];
       return { q: staL(`Dans une feuille de calcul, on a saisi dans la cellule B2 la formule ${fR('B')}, puis on l'a recopiée vers la droite jusqu'à la cellule G2. Quelle formule contient la cellule ${C0}2 ?`, `В ячейку B2 ввели формулу ${fR('B')} и скопировали её вправо до ячейки G2. Какая формула окажется в ячейке ${C0}2?`),
         fig: staSheet([['x'].concat(xs), ['Résultat'].concat(xs.map(vR))]), ans: MQ(r, [fR(C0)].concat(W.map(x => x[0])), 0), sol: [
