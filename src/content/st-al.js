@@ -11,7 +11,6 @@ function staNb(s) {
 const staL = (fr, ru) => L(staNb(fr), staNb(ru));
 const staSum = a => a.reduce((s, x) => s + x, 0);
 const staSort = a => a.slice().sort((x, y) => x - y);
-function staMed(a) { const s = staSort(a), n = s.length; return n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2; }
 /* a series in a text: «8 ; 12 ; 6» in French, «8; 12; 6» in Russian */
 const staSF = (a, u) => a.map(v => nf(v) + (u ? ' ' + u : '')).join(' ; ');
 const staSR = (a, u) => a.map(v => nf(v) + (u ? ' ' + u : '')).join('; ');
@@ -667,7 +666,7 @@ topic({ id: 'st.etendue', ch: 'st', lvl: 1, calc: false, variants: 4,
         { v: e - 1, ru: 'неверно посчитано расстояние между ' + nf(lo) + ' и ' + nf(hi) },
         { v: e + 1, ru: 'неверно посчитано расстояние между ' + nf(lo) + ' и ' + nf(hi) }]);
       ds.forEach(d => { d.t = nf(d.v) + ' °C'; });
-      return { q: staL(Q[0], Q[1]), ans: MQ(r, [nf(e) + ' °C'].concat(ds.map(d => staNb(d.t))), 0), sol: base.concat([staWhy(ds)]) };
+      return { q: staL(Q[0], Q[1]), ans: MQ(r, [staNb(nf(e) + ' °C')].concat(ds.map(d => staNb(d.t))), 0), sol: base.concat([staWhy(ds)]) };
     }
     /* vi 3: a value is added (inside the range or not) */
     let x = hi + 3;
@@ -704,7 +703,8 @@ topic({ id: 'st.effectifs-frequences', ch: 'st', lvl: 1, calc: false, variants: 
       const face = r.pick(['pile', 'face']), other = face === 'pile' ? 'face' : 'pile';
       const res = r.sh(new Array(k).fill(face).concat(new Array(n - k).fill(other)));
       const ds = [{ t: staFt(n - k, n), ru: 'это частота «' + other + '»' }, { t: staFt(k, n - k), ru: 'число «' + face + '» поделили на число «' + other + '», а делить нужно на общее число бросков' }, { t: staFt(1, 2), ru: 'это вероятность для честной монеты, а частота — то, что получилось в этом опыте' }];
-      return { q: staL(`On lance ${n} fois une pièce de monnaie. Voici les résultats obtenus : ${res.join(', ')}. Quelle est la fréquence d'apparition de « ${face} » ?`, `Монету подбросили ${n} раз. Результаты: ${res.join(', ')}. Какова частота выпадения «${face}»?`),
+      const w = staWho(r);
+      return { q: staL(`${w.n} lance une pièce de monnaie ${n} fois de suite et note chaque résultat : ${res.join(', ')}. Quelle est la fréquence d'apparition de « ${face} » ?`, `${w.n} ${staG(w, 'подбросил', 'подбросила')} монету ${n} раз подряд и ${staG(w, 'записал', 'записала')} результаты: ${res.join(', ')}. Какова частота выпадения «${face}»?`),
         ans: MQ(r, [staFt(k, n)].concat(ds.map(d => d.t)), 0), sol: [
           'Частота («fréquence») = сколько раз выпал «' + face + '» ÷ сколько всего было бросков.',
           'Считаем «' + face + '»: ' + k + ' ' + staPl(k, 'раз', 'раза', 'раз') + ' из ' + n + '.',
@@ -774,11 +774,12 @@ topic({ id: 'st.diagrammes', ch: 'st', lvl: 1, calc: false, variants: 4,
           'Каждый ученик учтён ровно в одном столбике, поэтому все ученики — это сумма высот всех столбиков.',
           ['Читаем высоты по сетке и складываем:', e.join('+') + '=' + T]] };
         if (r() < 0.5) {
-          const k = r.ri(0, 5);
+          const k = r.pick(vals.filter(i => e[i] > 0));   /* a bar that is there */
           const Q = k === 0 ? ['Combien d\'élèves n\'ont ni frère ni sœur ?', 'У скольких учеников нет ни братьев, ни сестёр?'] : k === 1 ? ['Combien d\'élèves ont exactement un frère ou une sœur ?', 'У скольких учеников ровно один брат или одна сестра?'] : [`Combien d'élèves ont exactement ${k} frères et sœurs ?`, `У скольких учеников число братьев и сестёр равно ${k}?`];
           return { q: staL(intro[0] + ' ' + Q[0], intro[1] + ' ' + Q[1]), fig, ans: N(e[k]), sol: ['Находим столбик над числом ' + k + ' и ведём взгляд от его верха горизонтально к вертикальной оси.', 'Верх столбика — на уровне ' + e[k] + '. Значит, таких учеников ' + e[k] + '.'] };
         }
-        const k = r.ri(2, 4), sel = e.slice(k), s = staSum(sel);
+        let k = r.ri(2, 4); while (staSum(e.slice(k)) === 0) k--;
+        const sel = e.slice(k), s = staSum(sel);
         return { q: staL(intro[0] + ` Combien d'élèves ont au moins ${k} frères et sœurs ?`, intro[1] + ` У скольких учеников не меньше ${k} братьев и сестёр?`), fig, ans: N(s), sol: [
           '«Au moins ' + k + '» — это ' + k + ' или больше: подходят столбики над числами ' + vals.slice(k).join(', ') + '.',
           ['Складываем их высоты:', sel.join('+') + '=' + s]] };
@@ -803,8 +804,8 @@ topic({ id: 'st.diagrammes', ch: 'st', lvl: 1, calc: false, variants: 4,
       let c = [];
       do { c = staSplit(r, T, 4, mn); } while (new Set(c).size < 3 || c.some(x => x * u > 180));
       const parts = c.map((x, i) => ({ lab: 'ABCD'[i] + ' : ' + x * u + '°', deg: x * u, cls: 'fc' + (i + 1) })), j = r.ri(0, 3), L0 = 'ABCD'[j], dg = c[j] * u;
-      return { q: staL(`Le diagramme circulaire ci-dessous donne la répartition des réponses de ${T} élèves à une question à choix multiple (réponses A, B, C et D). Combien d'élèves ont choisi la réponse ${L0} ?`,
-        `Круговая диаграмма показывает ответы ${staGen(T, 'ученика', 'учеников')} на вопрос с выбором ответа (варианты A, B, C и D). Сколько учеников выбрали ответ ${L0}?`),
+      return { q: staL(`Les ${T} élèves d'un club ont répondu à une question à choix multiple (réponses A, B, C ou D). Le diagramme circulaire ci-dessous montre comment se répartissent leurs réponses. Combien d'élèves ont choisi la réponse ${L0} ?`,
+        `Ученики клуба (всего их ${T}) ответили на вопрос с выбором ответа (варианты A, B, C или D). Круговая диаграмма показывает, как распределились их ответы. Сколько учеников выбрали ответ ${L0}?`),
         fig: staPie(parts), ans: N(c[j]), sol: [
           'Весь круг (360°) — это все ученики (их ' + T + '). Сектор ' + L0 + ' занимает ' + dg + '°, то есть долю ' + staFt(dg, 360) + ' круга.',
           ['Учеников:', T + '*' + dg + '/360=' + c[j]],
@@ -1353,7 +1354,7 @@ topic({ id: 'al.scratch-boucle', ch: 'al', lvl: 2, calc: false, variants: 4,
         'Проверка: при повороте на 72° (360 ÷ 5) получился бы правильный пятиугольник, а не звезда.']
         : askN ? ['На рисунке ' + STA_POLY[n][1] + ': ' + n + ' равных сторон.', 'Каждое повторение рисует одну сторону и поворачивает на ' + t + '°, поэтому повторений нужно ' + n + ' — и ' + n + ' × ' + t + '° = 360°, полный оборот.']
           : ['На рисунке ' + STA_POLY[n][1] + ': ' + n + ' равных сторон, ' + n + ' одинаковых поворотов.', ['За весь обход спрайт поворачивается на 360°, поэтому каждый поворот:', '360/' + n + '=' + t, '°'], 'Ловушка: угол внутри фигуры равен ' + (180 - t) + '°, но спрайт поворачивает на внешний угол — тот, на который меняется направление движения.'];
-      return { q: staL('Par quelle valeur doit-on remplacer les pointillés dans le script pour obtenir la figure dessinée en dessous ?', 'Каким числом нужно заменить многоточие в скрипте, чтобы получилась фигура, нарисованная под ним?'),
+      return { q: staL('Quel nombre faut-il écrire à la place des pointillés pour que le script trace la figure dessinée en dessous ?', 'Какое число нужно написать вместо многоточия, чтобы скрипт нарисовал фигуру под ним?'),
         fig, ans: askN ? N(n) : N(t, { unit: '°' }), sol: st };
     }
     /* coordinates of the sprite: QCM */

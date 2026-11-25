@@ -202,7 +202,8 @@ function numCandidates(raw, isList) {
   }
   return [...new Set(out)];
 }
-function bestOf(cands, f) { let first = null; for (const c of cands) { let g; try { g = f(c); } catch (e) { if (e && e.merr) g = R_NO(GM(e.en, e.ru), { syntax: true }); else throw e; } if (g.ok) return g; if (!first || (first.syntax && !g.syntax)) first = g; } return first; }
+/* several ways to read the answer (3,5 / 3.5): the first that is right; if none — the most helpful explanation («почти» first) */
+function bestOf(cands, f) { let first = null, near = null; for (const c of cands) { let g; try { g = f(c); } catch (e) { if (e && e.merr) g = R_NO(GM(e.en, e.ru), { syntax: true }); else throw e; } if (g.ok) return g; if (g.near && !near) near = g; if (!first || (first.syntax && !g.syntax)) first = g; } return near || first; }
 /* forgiving input for plain numbers: "$18", "70%", "28 m²", "- 27" and "7 / 20" mean what they look like */
 const reEsc = t => String(t).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 function numTidy(spec, input) {
@@ -260,12 +261,12 @@ function gradeNum(spec, raw) {
     const st = parseStd(raw);
     let val; try { val = numVal(raw).v; } catch (e) { val = NaN; }
     if (!st) {
-      if (isFinite(val) && close(val, K, 1e-9)) return R_NO(GM('Correct value, but write it in standard form: a × 10^n with 1 ≤ a < 10.', 'Значение верное, но запиши в стандартном виде: a × 10^n, где 1 ≤ a < 10.'), { near: true });
-      return R_NO(GM('Use the form a × 10^n (type 3.5*10^4).', 'Форма a × 10^n (набери 3.5*10^4).'));
+      if (isFinite(val) && close(val, K, 1e-9)) return R_NO(GM('Correct value, but write it in standard form: a × 10^n with 1 ≤ a < 10.', 'Значение верное, но запиши в научной записи («notation scientifique»): a × 10^n, где 1 ≤ a < 10.'), { near: true });
+      return R_NO(GM('Use the form a × 10^n (type 3.5*10^4).', 'Нужна научная запись a × 10^n: набери, например, 3,5×10^4.'));
     }
     const v = st.a * Math.pow(10, st.e);
     if (!close(v, K, 1e-9)) return R_NO();
-    if (Math.abs(st.a) < 1 || Math.abs(st.a) >= 10) return R_NO(GM('Correct value, but in standard form 1 ≤ a < 10.', 'Значение верное, но в стандартном виде 1 ≤ a < 10.'), { near: true });
+    if (Math.abs(st.a) < 1 || Math.abs(st.a) >= 10) return R_NO(GM('Correct value, but in standard form 1 ≤ a < 10.', 'Значение верное, но в научной записи число перед 10^n — от 1 до 10 (1 ≤ a < 10).'), { near: true });
     return R_OK();
   }
   const nv = numVal(raw);

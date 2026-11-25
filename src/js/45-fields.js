@@ -177,8 +177,7 @@ function tidyIn(spec, v) {
   if (v == null) return v;
   let s = String(v);
   if (spec.k === 'expr' || spec.k === 'subj') s = s.replace(/(\d),(\d)/g, '$1.$2');
-  s = s.replace(/π/g, '3.141592653589793');
-  if (spec.k === 'num' && /%\s*$/.test(s) && spec.unit !== '%') s = s.replace(/%\s*$/, '');
+  /* π is read by the engine itself (6π = 6 × π); a % sign after a number is the unit, not part of the number */
   if (spec.k === 'num' || spec.k === 'sol') s = s.replace(/%\s*$/, '');
   return s;
 }

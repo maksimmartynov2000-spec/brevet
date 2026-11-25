@@ -18,6 +18,7 @@ function tokenize(src) {
     if ((m = /^(\d+\.?\d*|\.\d+)/.exec(rest))) { t.push({ k: 'n', v: m[0], p: i }); i += m[0].length; continue; }
     if ((m = /^(sqrt|cbrt|root)/i.exec(rest))) { t.push({ k: 'f', v: m[0].toLowerCase(), p: i }); i += m[0].length; continue; }
     if ((m = /^[a-zA-Z]_[a-zA-Z0-9]+/.exec(rest))) { t.push({ k: 'v', v: m[0], p: i }); i += m[0].length; continue; }
+    if (ch === 'π') { t.push({ k: 'n', v: String(Math.PI), p: i, pi: true }); i++; continue; }
     if (/[a-zA-Zρθλη]/.test(ch) || ch === 'Δ') { t.push({ k: 'v', v: ch, p: i }); i++; continue; }
     if (ch === '√') { t.push({ k: 'pre', v: 'sqrt', p: i }); i++; continue; }
     if (ch === '∛') { t.push({ k: 'pre', v: 'cbrt', p: i }); i++; continue; }
@@ -45,18 +46,16 @@ function parse(src) {
     while (isO('+') || isO('-')) { const o = tk[p++].v; a = { t: o, a, b: term() }; }
     return a;
   }
+  /* × and ÷ have the same priority and go from left to right: 20÷4×3 = 15 */
   function term() {
-    let a = mul();
-    while (isO('÷')) { p++; a = { t: '/', a, b: mul(), div: true }; }
+    let a = frac();
+    while (isO('*') || isO('÷')) { const o = tk[p++].v; const b = frac(); a = o === '*' ? { t: '*', a, b } : { t: '/', a, b, div: true }; }
     return a;
   }
-  function mul() {
+  /* a fraction bar binds tighter than × and ÷: 3/5÷9/10 is (3/5)÷(9/10), 2/3×9/4 is (2/3)×(9/4) */
+  function frac() {
     let a = signed();
-    while (isO('*') || isO('/')) {
-      const o = tk[p++].v;
-      const b = signed();
-      a = o === '*' ? { t: '*', a, b } : { t: '/', a, b };
-    }
+    while (isO('/')) { p++; a = { t: '/', a, b: signed() }; }
     return a;
   }
   function signed() {
@@ -71,7 +70,7 @@ function parse(src) {
       const prev = tk[p - 1], nx = peek();
       if (prev.k === 'v' && nx.k === 'n' && (prev.v === 'x' || prev.v === 'X') && tk[p - 2] && tk[p - 2].k === 'n') throw new MErr('To multiply numbers use the × key (or *), not the letter x: ' + tk[p - 2].v + '×' + nx.v + '.', 'Для умножения используй клавишу × (или *), а не букву x: ' + tk[p - 2].v + '×' + nx.v + '.');
       if (prev.k === 'v' && nx.k === 'n') throw new MErr('After the letter ' + prev.v + ' comes a number. For a power use ^ : ' + prev.v + '^' + nx.v + '.', 'После буквы ' + prev.v + ' стоит число. Степень пишут через ^ : ' + prev.v + '^' + nx.v + '.');
-      if (prev.k === 'n' && nx.k === 'n') throw new MErr('Two numbers in a row. Put an operation between them.', 'Два числа подряд. Поставь между ними знак действия.');
+      if (prev.k === 'n' && nx.k === 'n' && !prev.pi && !nx.pi) throw new MErr('Two numbers in a row. Put an operation between them.', 'Два числа подряд. Поставь между ними знак действия.');
       if (prev.k === 'o' && prev.v === ')' && nx.k === 'n') throw new MErr('A number right after «)». Use ^ for a power or * to multiply.', 'Число сразу после «)». Для степени — ^, для умножения — *.');
       a = { t: '*', a, b: pow(), imp: true };
     }
@@ -92,7 +91,7 @@ function parse(src) {
   function primary() {
     const x = tk[p++];
     if (!x) throw new MErr('The expression ends too early.', 'Выражение обрывается.');
-    if (x.k === 'n') return { t: 'n', v: parseFloat(x.v), s: x.v };
+    if (x.k === 'n') return { t: 'n', v: parseFloat(x.v), s: x.pi ? 'π' : x.v };
     if (x.k === 'v') return { t: 'v', n: x.v };
     if (x.k === 'pre') {
       const nx = peek();
@@ -190,7 +189,7 @@ function equiv(A, B, vars) {
 /* ---------- TeX ---------- */
 const GREEK = { 'ρ': '\\rho ', 'θ': '\\theta ', 'λ': '\\lambda ', 'η': '\\eta ', 'Δ': '\\Delta ' };
 /* French and Russian write decimals with a comma: 3,5 */
-function texNum(s) { return String(s).replace('.', '{,}'); }
+function texNum(s) { return s === 'π' ? '\\pi ' : String(s).replace('.', '{,}'); }
 function tex(n) {
   switch (n.t) {
     case 'n': return texNum(n.s != null ? n.s : n.v);
@@ -201,7 +200,7 @@ function tex(n) {
       const a = tex(n.a), b = tex(n.b);
       if (n.imp) {
         const bl = firstLeaf(n.b);
-        if (bl && bl.t === 'n' && lastIsNumLike(n.a)) return a + '\\cdot ' + b;
+        if (bl && bl.t === 'n' && bl.s !== 'π' && lastIsNumLike(n.a)) return a + '\\cdot ' + b;
         return a + (/\\[a-zA-Z]+$/.test(a) && /^[a-zA-Z]/.test(b) ? ' ' : '') + b;
       }
       return a + '\\times ' + b;
@@ -211,6 +210,7 @@ function tex(n) {
       let a = tex(n.a);
       const A = n.a;
       if (A.t === '/' && !A.div || A.t === 'f' || A.t === 'neg') a = '\\left(' + a + '\\right)';
+      if (A.t === 'p') a = '\\left(' + tex(A.a) + '\\right)';   /* (3/4)^2 keeps its brackets */
       return '{' + a + '}^{' + tex(strip(n.b)) + '}';
     }
     case 'neg': return '-' + tex(n.a);

@@ -372,7 +372,7 @@ topic({ id: 'ge.triangle-construire', ch: 'ge', lvl: 1, calc: false, variants: 4
       const bad = r.sh([lo - 1, lo - 2, hi + 1, hi + 2, hi + 4, 2 * hi].filter(x => x >= 1)).slice(0, 3);
       const opts = [good, ...bad].map(x => L(nf(x) + ' ' + u, nf(x) + ' ' + GEO_U[u]));
       return { q: L('Dans un triangle ' + nm.join('') + ', ' + sides[0] + ' = ' + a + ' ' + u + ' et ' + sides[1] + ' = ' + b + ' ' + u + '. Parmi les propositions suivantes, laquelle peut être la longueur ' + sides[2] + ' ?',
-        'В треугольнике ' + nm.join('') + ' ' + sides[0] + ' = ' + a + ' ' + GEO_U[u] + ' и ' + sides[1] + ' = ' + b + ' ' + GEO_U[u] + '. Какой может быть длина ' + sides[2] + '?'), ans: MQ(r, opts, 0),
+        'В треугольнике ' + nm.join('') + ' стороны ' + sides[0] + ' = ' + a + ' ' + GEO_U[u] + ' и ' + sides[1] + ' = ' + b + ' ' + GEO_U[u] + '. Какой может быть длина ' + sides[2] + '?'), ans: MQ(r, opts, 0),
         sol: ['Каждая сторона треугольника короче суммы двух других.',
           ['Сторона ' + sides[2] + ' короче суммы двух данных:', sides[2] + '<' + a + '+' + b + '=' + hi],
           ['И бо́льшая из данных сторон короче суммы двух других: ' + Math.max(a, b) + ' < ' + Math.min(a, b) + ' + ' + sides[2] + ', значит,', sides[2] + '>' + Math.max(a, b) + '-' + Math.min(a, b) + '=' + lo],
@@ -380,8 +380,9 @@ topic({ id: 'ge.triangle-construire', ch: 'ge', lvl: 1, calc: false, variants: 4
     }
     if (vi === 2) {
       const big = r() < 0.5;
-      return { q: L(sides[0] + ' = ' + a + ' ' + u + ' et ' + sides[1] + ' = ' + b + ' ' + u + '. Quelle est la ' + (big ? 'plus grande' : 'plus petite') + ' longueur entière possible, en ' + u + ', pour ' + sides[2] + ' si le triangle ' + nm.join('') + ' n’est pas aplati ?',
-        sides[0] + ' = ' + a + ' ' + GEO_U[u] + ' и ' + sides[1] + ' = ' + b + ' ' + GEO_U[u] + '. Какая ' + (big ? 'наибольшая' : 'наименьшая') + ' целая длина ' + sides[2] + ' (в ' + GEO_U[u] + ') возможна, если треугольник ' + nm.join('') + ' не сплющенный?'),
+      const uR = u === 'm' ? 'в метрах' : 'в сантиметрах';
+      return { q: L('Dans un triangle ' + nm.join('') + ', ' + sides[0] + ' = ' + a + ' ' + u + ' et ' + sides[1] + ' = ' + b + ' ' + u + '. Le triangle n’est pas aplati. Quelle est la ' + (big ? 'plus grande' : 'plus petite') + ' valeur entière possible de la longueur ' + sides[2] + ', en ' + u + ' ?',
+        'В треугольнике ' + nm.join('') + ' стороны ' + sides[0] + ' = ' + a + ' ' + GEO_U[u] + ' и ' + sides[1] + ' = ' + b + ' ' + GEO_U[u] + '. Треугольник не сплющенный. Какое ' + (big ? 'наибольшее' : 'наименьшее') + ' целое значение может иметь длина ' + sides[2] + ' (' + uR + ')?'),
         ans: N(big ? hi - 1 : lo + 1, { unit: u }),
         sol: big ? [['Сторона ' + sides[2] + ' должна быть короче суммы двух других:', sides[2] + '<' + a + '+' + b + '=' + hi], 'Строго меньше ' + hi + ' (при ' + sides[2] + ' = ' + hi + ' точки легли бы на одну прямую). Наибольшее целое число меньше ' + hi + ' — это ' + (hi - 1) + '.']
           : [['Бо́льшая из данных сторон (' + Math.max(a, b) + ') должна быть короче суммы двух других: ' + Math.max(a, b) + ' < ' + Math.min(a, b) + ' + ' + sides[2] + ', то есть', sides[2] + '>' + Math.max(a, b) + '-' + Math.min(a, b) + '=' + lo], 'Строго больше ' + lo + ' (при ' + sides[2] + ' = ' + lo + ' треугольник сплющенный). Наименьшее целое число больше ' + lo + ' — это ' + (lo + 1) + '.'] };
@@ -612,7 +613,7 @@ topic({ id: 'ge.pythagore-reciproque', ch: 'ge', lvl: 2, calc: false, variants: 
       const opts = [L(sq(sh) + ' et ' + sq(s1 + '^2+' + s2), sq(sh) + ' и ' + sq(s1 + '^2+' + s2)), L(sq(s1) + ' et ' + sq(sh + '^2+' + s2), sq(s1) + ' и ' + sq(sh + '^2+' + s2)), L(sq(s2) + ' et ' + sq(s1 + '^2+' + sh), sq(s2) + ' и ' + sq(s1 + '^2+' + sh)), L('$' + sh + '$ et $' + s1 + '+' + s2 + '$', '$' + sh + '$ и $' + s1 + '+' + s2 + '$')];
       return { q: L('Le triangle ' + tri + ' est tel que ' + data + '. Pour savoir s’il est rectangle, que faut-il comparer ?', 'В треугольнике ' + tri + ': ' + dataR + '. Что нужно сравнить, чтобы узнать, прямоугольный ли он?'), ans: MQ(r, opts, 0),
         fig: geoTri(d.P, nm, { side: { [s1]: nf(a) + ' cm', [s2]: nf(b) + ' cm', [sh]: nf(c) + ' cm' } }),
-        sol: ['Гипотенуза — самая длинная сторона, поэтому в равенстве Пифагора одна сторона — самая длинная: здесь [' + sh + '] = ' + nf(c) + ' см.', 'Сравниваем квадрат самой длинной стороны с суммой квадратов двух других. Сравнивать длины без квадратов бессмысленно: в любом треугольнике сторона меньше суммы двух других.'] };
+        sol: ['Если треугольник прямоугольный, его гипотенуза — самая длинная сторона. Поэтому в равенстве Пифагора гипотенузой может быть только [' + sh + '] = ' + nf(c) + ' см.', 'Сравниваем квадрат самой длинной стороны с суммой квадратов двух других. Сравнивать длины без квадратов бессмысленно: в любом треугольнике сторона меньше суммы двух других.'] };
     }
     const s2txt = '$' + sh + '^2=' + c + '^2=' + c2 + '$ et $' + s1 + '^2+' + s2 + '^2=' + a + '^2+' + b + '^2=' + ab2 + '$.';
     const steps = [L('Dans le triangle ' + tri + ', le plus long côté est [' + sh + '].', 'В треугольнике ' + tri + ' самая длинная сторона — [' + sh + '].'),
@@ -900,7 +901,7 @@ topic({ id: 'ge.trigo-choisir', ch: 'ge', lvl: 1, calc: false, variants: 4,
       const opts = ['adj', 'opp', 'hyp'].map(x => L('[' + T[x] + ']', '[' + T[x] + ']'));
       const qfr = k === 'hyp' ? 'Quelle est l’hypoténuse de ce triangle ?' : 'Quel est le ' + GEO_SIDE_FR[k] + ' à l’angle ' + geoHat(T.ang) + ' ?';
       const qru = k === 'hyp' ? 'Какая сторона — гипотенуза этого треугольника?' : 'Какая сторона — ' + GEO_SIDE_RU[k] + ' для угла ' + geoHat(T.ang) + '?';
-      return { q: L(intro.fr + ' ' + qfr, intro.ru + ' ' + qru), fig, ans: MQF(opts, ['adj', 'opp', 'hyp'].indexOf(k)),
+      return { q: L(intro.fr + ' ' + qfr, intro.ru + ' ' + qru), fig, ans: MQ(r, opts, ['adj', 'opp', 'hyp'].indexOf(k)),
         sol: ['Гипотенуза («hypoténuse») всегда напротив прямого угла: прямой угол при ' + R + ', значит, гипотенуза — [' + T.hyp + '].',
           'Угол ' + T.nm[T.ai] + ' образован двумя сторонами: [' + T.hyp + '] и [' + T.adj + ']. Та из них, что не гипотенуза, — прилежащий катет («côté adjacent»): [' + T.adj + '].',
           'Оставшаяся сторона [' + T.opp + '] не касается вершины ' + T.nm[T.ai] + ' — она напротив угла: это противолежащий катет («côté opposé»).'] };
@@ -1279,7 +1280,7 @@ topic({ id: 'ge.homothetie', ch: 'ge', lvl: 3, calc: false, variants: 4,
       }
       const toS = p => G.P(p[0], p[1]);
       G.S.poly(src.map(toS), 'ffill'); G.S.poly(src.map(toS), 'fl'); G.S.poly(img.map(toS), 'ffill'); G.S.poly(img.map(toS), 'fl');
-      src.concat(img).forEach((p, i) => { G.S.seg(toS(O), toS(p), 'fl2'); void i; });
+      src.concat(img).forEach(p => G.S.seg(toS(O), toS(p), 'fl2'));
       G.S.dot(toS(O)); geoPtLab(G.S, toS(O), geoV(-1, 1), 'O', { gap: 3 });
       const nm = ['A', 'B', 'C'], cen = geoCen(src.map(toS)), ceni = geoCen(img.map(toS));
       src.forEach((p, i) => geoPtLab(G.S, toS(p), geoSub(toS(p), cen), nm[i], { gap: 3 }));
