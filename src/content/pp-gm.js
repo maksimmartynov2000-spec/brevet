@@ -795,7 +795,7 @@ topic({ id: 'gm.durees', ch: 'gm', lvl: 1, calc: false, variants: 4,
         else sol.push('Минут ' + me + ' меньше, чем ' + md + ', — «занимаем» 1 час = 60 минут: ' + ppgClock(en, true) + ' — это ' + (he - 1) + ' ч ' + (me + 60) + ' мин.', ['Теперь вычитаем отдельно часы и минуты:', (he - 1) + '-' + hd + '=' + (he - 1 - hd) + ';' + (me + 60) + '-' + md + '=' + (me + 60 - md)]);
         sol.push('Ответ: ' + ppgClock(st, true) + '. Проверка: ' + ppgClock(st, true) + ' + ' + ppgHM(du, true) + ' = ' + ppgClock(en, true) + ' ✓');
       }
-      return { q: L(T[0], T[1]), ans: multi([null, N(ansT[0], { unit: 'h' })], [null, N(ansT[1])]), sol };
+      return { q: L(T[0], T[1]), ans: multi([null, N(ansT[0], { unit: 'h' })], [null, N(ansT[1], { unit: 'min' })]), sol };
     }
     if (vi === 2) {   /* a duration */
       if (r() < 0.5) {   /* between two clock times */
@@ -1304,8 +1304,8 @@ topic({ id: 'gm.grandeurs-composees', ch: 'gm', lvl: 2, calc: false, variants: 5
   gen(r, vi) {
     if (vi === 0) {   /* density: mass = ρ × V (calculator; Métropole and Polynésie 2026) */
       const C = r.pick([
-        { fr: 'Une médaille en argent', ru: 'Серебряная медаль', rho: 10.5, mat: ['l\'argent', 'серебра'], V: [48.6, 52.2, 55.4, 60.8] },
-        { fr: 'Une boule en plastique', ru: 'Пластиковый шар', rho: 0.9, mat: ['ce plastique', 'этого пластика'], V: [65.4, 33.5, 113.1, 268.1] },
+        { fr: 'Une médaille en argent', ru: 'Серебряная медаль', rho: 10.5, mat: ['l\'argent', 'серебра'], V: [46.8, 50.3, 55.4, 60.8] },
+        { fr: 'Une boule en plastique', ru: 'Пластиковый шар', rho: 0.9, mat: ['ce plastique', 'этого пластика'], V: [14.1, 33.5, 113.1, 268.1] },
         { fr: 'Un lingot d\'or', ru: 'Золотой слиток', rho: 19.3, mat: ['l\'or', 'золота'], V: [51.8, 25.9, 12.4] },
         { fr: 'Une planche de bois', ru: 'Деревянная доска', rho: 0.7, mat: ['ce bois', 'этого дерева'], V: [1250, 2400, 3600] }]);
       const V = r.pick(C.V), m = C.rho * V, rev = r() < 0.3;

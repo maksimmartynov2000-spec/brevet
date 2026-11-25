@@ -22,7 +22,15 @@ function pickShort(n, plan, filter) {
   const take = chs => { const c = shuffle(pool.filter(t => chs.includes(t.ch) && !used.has(t.id))); return c.find(t => !isM(t.id)) || c[0]; };
   (plan || []).slice(0, n).forEach(slot => { const t = take(slot.split('|')); if (t) { used.add(t.id); out.push(t); } });
   while (out.length < n) { const t = shuffle(pool.filter(x => !used.has(x.id)))[0]; if (!t) break; used.add(t.id); out.push(t); }
-  return out.map(t => ({ tid: t.id, vi: Math.floor(Math.random() * t.variants), seed: rnd() }));
+  return out.map(t => noCalcItem(t));
+}
+/* Partie 1 is without a calculator: some types of a topic need one (π, rounding) — take a type and numbers that do not */
+function noCalcItem(t) {
+  for (let k = 0; k < 24; k++) {
+    const vi = Math.floor(Math.random() * t.variants), seed = rnd();
+    try { if (!t.gen(mkRng(seed), vi).calc) return { tid: t.id, vi, seed }; } catch (e) { /* try other numbers */ }
+  }
+  return { tid: t.id, vi: 0, seed: rnd() };
 }
 function pickProblems(n) {
   const byCh = {}; shuffle(PROBLEMS).forEach(p => { (byCh[p.ch] = byCh[p.ch] || []).push(p); });

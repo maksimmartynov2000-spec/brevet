@@ -16,6 +16,7 @@ function keyTex(spec, it) {
   if (spec.k === 'ratio') return String(spec.key).split(':').join(' : ');
   if (spec.k === 'list') return String(spec.key).split(',').map(x => texNum(x.trim())).join(' ;\\; ');
   if (spec.k === 'dur') return '\\text{' + durStr(+spec.key, spec.u || 'hm') + '}';
+  if (spec.k === 'time') return '\\text{' + clock24(+spec.key) + '}';
   if (spec.k === 'num' && (spec.dp != null || spec.sf != null)) return texNum(String(spec.key));
   if (spec.k === 'expr') return mi(spec.key);
   if (spec.k === 'num') { const v = ev(parse(spec.key), {}); if (f.includes('std')) return stdTex(v); return mi(spec.key); }
