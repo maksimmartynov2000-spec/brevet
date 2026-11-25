@@ -678,3 +678,175 @@ topic({ id: 'cl.mise-en-equation', ch: 'cl', lvl: 2, calc: false, variants: 2,
     return { q: L(s.fr + ' ' + s.ask.fr, s.ru + ' ' + s.ask.ru), ans: N(fx(s.x), s.unit ? { unit: s.unit } : {}),
       sol: st.concat(clfSolveSteps(s.A, s.B, s.C, 'x')).concat(['Проверка по условию: при $x=' + fx(s.x) + '$ получаем $' + s.ok.split('=')[0].replace(/x/g, '*' + np(s.x)).replace(/(^|[(+\-])\*/g, '$1') + '=' + fx(s.C) + '$ — всё сходится.']) };
   } });
+
+/* =====================================================================================
+   PROGRAMMES DE CALCUL
+   an operation: { t: 'add'|'sub'|'mul'|'div'|'mulx'|'addx'|'subx'|'sq'|'subsq', a }
+   ===================================================================================== */
+const clfMult = k => ({ 1: ['le nombre de départ', 'исходное число'], 2: ['le double du nombre de départ', 'удвоенное исходное число'], 3: ['le triple du nombre de départ', 'утроенное исходное число'], 4: ['le quadruple du nombre de départ', 'учетверённое исходное число'] })[k];
+function clfOp(o) {
+  switch (o.t) {
+    case 'add': return ['Ajouter ' + nf(o.a), 'прибавить ' + nf(o.a)];
+    case 'sub': return ['Soustraire ' + nf(o.a), 'вычесть ' + nf(o.a)];
+    case 'mul': return ['Multiplier par ' + nf(o.a), 'умножить на ' + nf(o.a)];
+    case 'div': return ['Diviser par ' + nf(o.a), 'разделить на ' + nf(o.a)];
+    case 'mulx': return ['Multiplier par le nombre de départ', 'умножить на исходное число'];
+    case 'addx': return ['Ajouter ' + clfMult(o.a)[0], 'прибавить ' + clfMult(o.a)[1]];
+    case 'subx': return ['Soustraire ' + clfMult(o.a)[0], 'вычесть ' + clfMult(o.a)[1]];
+    case 'sq': return ['Élever le résultat au carré', 'возвести результат в квадрат'];
+    default: return ['Soustraire le carré du nombre de départ', 'вычесть квадрат исходного числа'];
+  }
+}
+/* the value after each step, for the starting number x0 */
+function clfRun(ops, x0) {
+  let v = x0;
+  return ops.map(o => { switch (o.t) { case 'add': v += o.a; break; case 'sub': v -= o.a; break; case 'mul': v *= o.a; break; case 'div': v /= o.a; break; case 'mulx': v *= x0; break; case 'addx': v += o.a * x0; break; case 'subx': v -= o.a * x0; break; case 'sq': v *= v; break; default: v -= x0 * x0; } return v; });
+}
+/* the result as a polynomial in x (array low → high) */
+function clfPoly(ops) {
+  let P = [0, 1];
+  ops.forEach(o => { switch (o.t) { case 'add': P = Pl.add(P, [o.a]); break; case 'sub': P = Pl.add(P, [-o.a]); break; case 'mul': P = Pl.sc(P, o.a); break; case 'div': P = Pl.sc(P, 1 / o.a); break; case 'mulx': P = Pl.mul(P, [0, 1]); break; case 'addx': P = Pl.add(P, [0, o.a]); break; case 'subx': P = Pl.add(P, [0, -o.a]); break; case 'sq': P = Pl.mul(P, P); break; default: P = Pl.add(P, [0, 0, -1]); } });
+  return Pl.trim(P.map(c => Math.round(c * 1e9) / 1e9));
+}
+/* the result written as a pupil writes it; br = false: the classic slip without brackets */
+function clfExpr(ops, br) {
+  if (br == null) br = true;
+  let e = 'x', sum = false;
+  ops.forEach(o => {
+    switch (o.t) {
+      case 'add': e += '+' + o.a; sum = true; break;
+      case 'sub': e += '-' + o.a; sum = true; break;
+      case 'mul': e = e === 'x' ? cf(o.a, 'x') : sum && br ? o.a + '(' + e + ')' : e + '*' + np(o.a); sum = false; break;
+      case 'div': e = (sum && br ? '(' + e + ')' : e) + '/' + o.a; sum = false; break;
+      case 'mulx': e = e === 'x' ? 'x^2' : sum && br ? 'x(' + e + ')' : e + '*x'; sum = false; break;
+      case 'addx': e += '+' + cf(o.a, 'x'); sum = true; break;
+      case 'subx': e += '-' + cf(o.a, 'x'); sum = true; break;
+      case 'sq': e = e === 'x' ? 'x^2' : br ? '(' + e + ')^2' : e + '^2'; sum = false; break;
+      default: e += '-x^2'; sum = true;
+    }
+  });
+  return e;
+}
+/* the program as on the exam (French), and in words for the Russian translation */
+const clfProgFig = ops => tbl([['Programme de calcul'], ['Choisir un nombre']].concat(ops.map(o => [clfOp(o)[0]])));
+const clfProgRu = ops => 'выбрать число; ' + ops.map(o => clfOp(o)[1]).join('; ');
+/* steps of the program for a number */
+function clfRunSteps(ops, x0) {
+  const vals = clfRun(ops, x0); let prev = x0;
+  return ops.map((o, i) => {
+    let m;
+    switch (o.t) {
+      case 'add': m = fx(prev) + '+' + o.a; break;
+      case 'sub': m = fx(prev) + '-' + o.a; break;
+      case 'mul': m = fx(prev) + '*' + np(o.a); break;
+      case 'div': m = fx(prev) + '÷' + o.a; break;
+      case 'mulx': m = fx(prev) + '*' + np(x0); break;
+      case 'addx': m = fx(prev) + '+' + (o.a === 1 ? np(x0) : o.a + '*' + np(x0)); break;
+      case 'subx': m = fx(prev) + '-' + (o.a === 1 ? np(x0) : o.a + '*' + np(x0)); break;
+      case 'sq': m = np(prev) + '^2'; break;
+      default: m = fx(prev) + '-' + np(x0) + '^2';
+    }
+    prev = vals[i]; const t = clfOp(o)[1];
+    return [t[0].toUpperCase() + t.slice(1) + ':', m + '=' + fx(vals[i])];
+  });
+}
+/* the programs of the brevet level: 0–2 give a linear result, 3–4 a square */
+function clfProgram(r, linOnly) {
+  const t = r.ri(0, linOnly ? 2 : 4);
+  if (t === 0) return [{ t: 'add', a: r.ri(1, 9) }, { t: 'mul', a: r.ri(2, 6) }, { t: 'sub', a: r.ri(1, 12) }];
+  if (t === 1) { let k; do k = r.nz(-5, 5); while (Math.abs(k) < 2); return [{ t: 'mul', a: k }, { t: 'add', a: r.ri(1, 9) }, { t: 'mul', a: r.ri(2, 5) }]; }
+  if (t === 2) return [{ t: 'sub', a: r.ri(1, 6) }, { t: 'mul', a: r.ri(2, 6) }, { t: 'addx', a: r.ri(1, 3) }];
+  if (t === 3) return [{ t: 'add', a: r.ri(1, 6) }, { t: 'mulx' }, { t: 'sub', a: r.ri(1, 9) }];
+  return [{ t: 'mul', a: r.ri(2, 3) }, { t: 'add', a: r.ri(1, 5) }, { t: 'sq' }];
+}
+
+/* ---------- cl.programme-calcul ---------- */
+topic({ id: 'cl.programme-calcul', ch: 'cl', lvl: 2, calc: false, variants: 4,
+  ru: 'Программа вычислений', fr: 'Programme de calcul',
+  hints: [
+    'Выполняй шаги программы строго по порядку, каждый раз с результатом предыдущего шага. Отрицательное число записывай в скобках.',
+    'Чтобы записать программу буквами, обозначь исходное число $x$ и повторяй те же шаги. Если нужно умножить результат, в котором есть сумма, бери его в скобки: «прибавить 4, умножить на 3» — это $3(x+4)$, а не $x+4*3$.',
+    'Чтобы узнать, какое число выбрать для нужного результата, приравняй выражение программы к этому результату и реши уравнение.'],
+  gen(r, vi) {
+    const ops = clfProgram(r, vi === 2), P = clfPoly(ops), e = clfExpr(ops), quadr = P.length > 2, prog = clfProgRu(ops), fig = clfProgFig(ops);
+    if (vi === 0) {   /* run the program */
+      const x0 = quadr ? r.nz(-5, 6) : r.nz(-9, 9), res = clfRun(ops, x0).pop();
+      return { q: L('On considère le programme de calcul ci-dessous. On choisit ' + nf(x0) + ' comme nombre de départ. Quel résultat obtient-on ?', 'Дана программа вычислений: ' + prog + '. Выбираем число ' + nf(x0) + '. Какой результат получится?'), fig, ans: N(fx(res)),
+        sol: [['Выбираем число ' + nf(x0) + ' и выполняем шаги по порядку, каждый раз с предыдущим результатом.']].concat(clfRunSteps(ops, x0)).concat(['Результат программы: ' + nf(res) + '.']) };
+    }
+    const chain = ['x'].concat(ops.map((o, i) => clfExpr(ops.slice(0, i + 1)))).join('→');
+    if (vi === 1) {   /* the result as an expression */
+      return { q: L('On considère le programme de calcul ci-dessous. On note $x$ le nombre choisi au départ. Exprimer le résultat du programme en fonction de $x$.', 'Дана программа вычислений: ' + prog + '. Обозначим исходное число через $x$. Вырази результат программы через $x$.'), fig, ans: XP(Pl.str(P)), sol: [
+        ['Повторяем шаги программы с буквой $x$ вместо числа. Когда умножаем результат, в котором есть сумма, берём его в скобки — умножается весь результат, а не последнее слагаемое:', chain],
+        ['Можно раскрыть скобки и привести подобные — получится более короткая запись того же выражения (верны обе):', e + '=' + Pl.str(P)]] };
+    }
+    if (vi === 2) {   /* which starting number gives the result R */
+      const x0 = r.nz(-9, 12), R = clfRun(ops, x0).pop();
+      return { q: L('On considère le programme de calcul ci-dessous. Quel nombre faut-il choisir au départ pour obtenir ' + nf(R) + ' ?', 'Дана программа вычислений: ' + prog + '. Какое число нужно выбрать, чтобы получить ' + nf(R) + '?'), fig, ans: N(x0), sol: [
+        ['Обозначим исходное число $x$ и запишем результат программы:', e + '=' + Pl.str(P)],
+        ['Результат должен быть равен ' + nf(R) + ' — получаем уравнение:', Pl.str(P) + '=' + R]].concat(clfSolveSteps(P[1], P[0], R, 'x')).concat(['Проверка: программа с числом ' + nf(x0) + ' даёт ' + clfRun(ops, x0).map(v => nf(v)).join(', затем ') + ' — всё сходится.']) };
+    }
+    /* vi 3: QCM — which expression gives the result (sujet zéro 2026) */
+    let O = ops, opts, ok = false;
+    for (let g = 0; g < 30 && !ok; g++) {
+      if (g) O = clfProgram(r, false);
+      opts = [clfExpr(O), clfExpr(O, false), clfExpr([O[1], O[0], O[2]]), clfExpr([O[0], O[2], O[1]])];
+      ok = clfDistinct(opts) && opts.every((a, i) => opts.every((b, j) => i >= j || !clfSame(a, b)));
+    }
+    return { q: L('On considère le programme de calcul ci-dessous. On note $x$ le nombre choisi au départ. Parmi les expressions suivantes, laquelle donne le résultat du programme ?', 'Дана программа вычислений: ' + clfProgRu(O) + '. Обозначим исходное число через $x$. Какое выражение даёт результат программы?'),
+      fig: clfProgFig(O), ans: MQ(r, opts.map(s => '$' + s + '$'), 0), sol: [
+        ['Повторяем шаги программы с буквой $x$ по порядку:', ['x'].concat(O.map((o, i) => clfExpr(O.slice(0, i + 1)))).join('→')],
+        'Откуда неверные ответы: $' + opts[1] + '$ — потеряны скобки: по приоритету действий умножится (или возведётся в степень) только последнее слагаемое, а программа действует на весь предыдущий результат; $' + opts[2] + '$ и $' + opts[3] + '$ — шаги программы выполнены в другом порядке.'] };
+  } });
+
+/* ---------- cl.programme-preuve ---------- */
+/* programs whose result is always the same kind of number */
+function clfProofProgram(r) {
+  const t = r.ri(0, 3);
+  if (t === 0) { const a = r.ri(1, 9), k = r.ri(2, 4); return { ops: [{ t: 'add', a }, { t: 'mul', a: k }, { t: 'subx', a: k }], dev: S(cf(k, 'x'), k * a, cf(-k, 'x')) }; }
+  if (t === 1) { const a = r.ri(1, 9), k = r.ri(2, 5); return { ops: [{ t: 'mul', a: k }, { t: 'add', a: k * a }, { t: 'div', a: k }, { t: 'sub', a }], dev: 'x+' + a + '-' + a }; }
+  if (t === 2) { const a = r.ri(1, 3); return { ops: [{ t: 'add', a }, { t: 'sq' }, { t: 'subsq' }, { t: 'sub', a: a * a }], dev: 'x^2+' + cf(2 * a, 'x') + '+' + a * a + '-x^2-' + a * a }; }
+  const a = r.ri(2, 5); return { ops: [{ t: 'add', a }, { t: 'mulx' }, { t: 'subsq' }], dev: 'x^2+' + cf(a, 'x') + '-x^2' };
+}
+/* «the result is always …» for a result c or m·x or x² */
+function clfConcl(P) {
+  if (P.length === 1) return L('égal à ' + nf(P[0]), 'равен ' + nf(P[0]));
+  if (P.length === 3) return L('égal au carré du nombre de départ', 'равен квадрату исходного числа');
+  const m = P[1];
+  if (m === 1) return L('égal au nombre de départ', 'равен исходному числу');
+  if (m === 2) return L('égal au double du nombre de départ', 'равен удвоенному исходному числу');
+  if (m === 3) return L('égal au triple du nombre de départ', 'равен утроенному исходному числу');
+  if (m === 4) return L('égal au quadruple du nombre de départ', 'равен учетверённому исходному числу');
+  return L('égal à ' + m + ' fois le nombre de départ', 'равен исходному числу, умноженному на ' + m);
+}
+topic({ id: 'cl.programme-preuve', ch: 'cl', lvl: 3, calc: false, variants: 3,
+  ru: 'Программа вычислений: доказать', fr: 'Programme de calcul : démontrer une propriété',
+  hints: [
+    'Проверка на нескольких числах подсказывает ответ, но не доказывает его: чисел бесконечно много. Доказательство — запись программы для любого числа $x$.',
+    'Запиши результат программы буквами, со скобками там, где умножается или возводится в квадрат весь предыдущий результат. Например, «прибавить 3, умножить на 2, вычесть удвоенное исходное число» — это $2(x+3)-2x$.',
+    'Раскрой скобки и приведи подобные: $2(x+3)-2x=2x+6-2x=6$. Если $x$ исчезает, результат всегда один и тот же; если остаётся $2x$ — результат всегда вдвое больше исходного числа.'],
+  gen(r, vi) {
+    const { ops, dev } = clfProofProgram(r), P = clfPoly(ops), e = clfExpr(ops), res = Pl.str(P), c = clfConcl(P), fig = clfProgFig(ops), prog = clfProgRu(ops);
+    if (vi === 0) {   /* QCM: the conjecture */
+      const pool = [[0], [0, 1], [0, 2], [0, 0, 1], [P.length === 1 ? P[0] + 2 : 6]].filter(Q => Pl.str(Q) !== res).slice(0, 3);
+      const opts = [c].concat(pool.map(clfConcl)).map(o => L('Le résultat est toujours ' + o.fr + '.', 'Результат всегда ' + o.ru + '.'));
+      return { q: L('On considère le programme de calcul ci-dessous. Quelle affirmation est vraie quel que soit le nombre choisi au départ ?', 'Дана программа вычислений: ' + prog + '. Какое утверждение верно при любом исходном числе?'), fig, ans: MQ(r, opts, 0), sol: [
+        'Попробуй сначала пару чисел — это подскажет ответ. Но доказывает его только запись с буквой: она верна сразу для всех чисел.',
+        ['Обозначим исходное число $x$ и запишем программу:', e], ['Раскрываем скобки и приводим подобные:', e + '=' + dev + '=' + res],
+        'Значит, при любом исходном числе результат ' + c.ru + '.'] };
+    }
+    if (vi === 1) {   /* the steps of the proof in order */
+      return { q: L('On veut démontrer que, quel que soit le nombre choisi au départ, le résultat du programme ci-dessous est toujours ' + c.fr + '. Remettre dans l\'ordre les étapes de la démonstration.', 'Нужно доказать, что при любом исходном числе результат программы (' + prog + ') всегда ' + c.ru + '. Расставь шаги доказательства по порядку.'), fig, ans: ORD(r, [
+        L('On note $x$ le nombre choisi au départ.', 'Обозначим исходное число через $x$.'),
+        L('Le résultat du programme est $' + e + '$.', 'Результат программы равен $' + e + '$.'),
+        L('On développe : $' + e + '=' + dev + '$.', 'Раскрываем скобки: $' + e + '=' + dev + '$.'),
+        L('On réduit : on obtient $' + res + '$, donc le résultat est toujours ' + c.fr + '.', 'Приводим подобные: получаем $' + res + '$, значит, результат всегда ' + c.ru + '.')]), sol: [
+          'Доказательство идёт от общего числа $x$ к выводу: назвать число, записать программу буквами, раскрыть скобки, привести подобные — и только потом сделать вывод.',
+          'Проверка на отдельных числах здесь не нужна: буква $x$ заменяет сразу все числа.'] };
+    }
+    /* vi 2: the reduced expression */
+    return { q: L('On considère le programme de calcul ci-dessous. On note $x$ le nombre choisi au départ. Exprimer le résultat en fonction de $x$, sous forme développée et réduite.', 'Дана программа вычислений: ' + prog + '. Обозначим исходное число через $x$. Вырази результат через $x$: раскрой скобки и приведи подобные.'), fig, ans: XP(res, { forms: ['expanded'] }), sol: [
+      ['Записываем программу буквами, по шагам:', ['x'].concat(ops.map((o, i) => clfExpr(ops.slice(0, i + 1)))).join('→')],
+      ['Раскрываем скобки и приводим подобные:', e + '=' + dev + '=' + res],
+      'Вывод: при любом исходном числе результат ' + c.ru + '.'] };
+  } });

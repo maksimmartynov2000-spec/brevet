@@ -4,9 +4,9 @@
    real Scratch 3 colours with the French labels of the blocks; spreadsheet extracts have column letters and row numbers. */
 
 /* ---------- text helpers ---------- */
-/* no-break spaces: before : ; ? ! » % € °C, after «, and in 2 200 (formulas $…$ are left as they are) */
+/* no-break spaces: before : ; ? ! » % € °C, after «, after the labels «a.» «b.», and in 2 200 (formulas $…$ are left as they are) */
 function staNb(s) {
-  return String(s).split(/(\$[^$]*\$)/).map((p, i) => (i % 2 ? p : p.replace(/ (?=[:;?!»%€]|°C)/g, ' ').replace(/« /g, '« ').replace(/(\d) (?=\d{3}(?!\d))/g, '$1 '))).join('');
+  return String(s).split(/(\$[^$]*\$)/).map((p, i) => (i % 2 ? p : p.replace(/ (?=[:;?!»%€]|°C)/g, '\u00a0').replace(/« /g, '«\u00a0').replace(/(^| )([a-d])\. /g, '$1$2.\u00a0').replace(/(\d) (?=\d{3}(?!\d))/g, '$1\u00a0'))).join('');
 }
 const staL = (fr, ru) => L(staNb(fr), staNb(ru));
 const staSum = a => a.reduce((s, x) => s + x, 0);
@@ -109,7 +109,7 @@ function staWheel(labs) {
 /* probability tree: A = [[lab, p], [lab, p]], B = [[[lab, p], [lab, p]], [[lab, p], [lab, p]]] */
 function staTree(A, B) {
   const x0 = 12, x1 = 150, x2 = 300, ym = 108, y1 = [56, 160], y2 = [[22, 90], [126, 194]];
-  const br = (xa, ya, xb, yb, p, up) => staLn(xa, ya, xb, yb, 'fl2') + staTx((xa + xb) / 2, (ya + yb) / 2 + (up ? -10 : 20), p, 'ftx', 'middle');
+  const br = (xa, ya, xb, yb, p, up) => staLn(xa, ya, xb, yb, 'fl') + staTx((xa + xb) / 2, (ya + yb) / 2 + (up ? -10 : 20), p, 'ftx', 'middle');
   let s = '';
   A.forEach((a, i) => {
     s += br(x0, ym, x1 - 14, y1[i], a[1], i === 0) + staTx(x1, y1[i] + 5, a[0], 'ftx', 'middle');
@@ -725,7 +725,7 @@ topic({ id: 'st.effectifs-frequences', ch: 'st', lvl: 1, calc: false, variants: 
     if (vi === 2) {   /* a count from a frequency */
       const neg = r() < 0.35, form = r.pick(['pct', 'frac', 'dec']);
       const fr0 = form === 'frac' ? r.pick([[1, 4], [3, 4], [1, 3], [2, 3], [2, 5], [3, 5]]) : r.pick([[1, 4], [3, 4], [1, 2], [1, 5], [2, 5], [3, 10], [1, 10], [7, 10]]);
-      const T = form === 'pct' && r() < 0.4 ? r.pick([200, 300, 400, 500]) : fr0[1] * r.ri(Math.ceil(18 / fr0[1]), Math.floor(40 / fr0[1]));
+      const T = form === 'pct' && r() < 0.4 ? r.pick([200, 300, 400, 500]) : fr0[1] * r.ri(Math.ceil(18 / fr0[1]), Math.floor((form === 'frac' ? 32 : 40) / fr0[1]));   /* a class has at most 32 pupils */
       const part = T * fr0[0] / fr0[1], f = fr0[0] / fr0[1], ans = neg ? T - part : part;
       let Q, M;
       if (form === 'pct') {

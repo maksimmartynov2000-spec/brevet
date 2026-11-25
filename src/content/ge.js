@@ -247,7 +247,7 @@ function geoAngPar(r, naming) {
   }
   const fig = geoParFig(alpha, [{ at: pa, sec: a, txt: g + '°' }, { at: pb, sec: b, txt: '?', hl: true }]);
   const eq = x === g;
-  return { q: L('Les droites (d) et (d\') sont parallèles. Quelle est la mesure de l\'angle marqué « ? » ?', 'Прямые (d) и (d\') параллельны. Чему равен угол, отмеченный «?»?'), fig, ans: N(x, { unit: '°' }),
+  return { q: L('Les droites (d) et (d\') sont parallèles. Quelle est la mesure de l’angle marqué « ? » ?', 'Прямые (d) и (d\') параллельны. Чему равен угол, отмеченный «?»?'), fig, ans: N(x, { unit: '°' }),
     sol: [GEO_PAR_RU[rel], eq ? { t: 'Поэтому угол «?» равен данному:', tex: '?=' + geoDg(g) } : { t: 'Поэтому:', tex: '?=180^\\circ-' + geoDg(g) + '=' + geoDg(x) }] };
 }
 function geoAngSum(r) {
@@ -282,12 +282,12 @@ function geoAngIso(r) {
   const A3 = geoA3(nm, 0), B3 = geoA3(nm, 1), C3 = geoA3(nm, 2);
   if (kind === 'equi') {
     const fig = geoTri(tri(60), nm, { tick: { [A + B]: 1, [A + C]: 1, [B + C]: 1 }, ang: { [B]: '?' }, angHl: [B] });
-    return { q: L('Le triangle ' + A + B + C + ' est équilatéral. Quelle est la mesure de l\'angle ' + geoHat(B3) + ' ?', 'Треугольник ' + A + B + C + ' равносторонний. Чему равен угол ' + geoHat(B3) + '?'), fig, ans: N(60, { unit: '°' }),
+    return { q: L('Le triangle ' + A + B + C + ' est équilatéral. Quelle est la mesure de l’angle ' + geoHat(B3) + ' ?', 'Треугольник ' + A + B + C + ' равносторонний. Чему равен угол ' + geoHat(B3) + '?'), fig, ans: N(60, { unit: '°' }),
       sol: ['Все стороны равны, значит, треугольник равнобедренный при каждой вершине — и все три угла равны между собой.', { t: 'Сумма 180° делится поровну на три угла:', tex: '180^\\circ\\div 3=60^\\circ' }] };
   }
   if (kind === 'isorect') {
     const fig = geoTri(tri(45), nm, { tick: { [A + B]: 1, [A + C]: 1 }, right: A, ang: { [B]: '?' }, angHl: [B] });
-    return { q: L('Le triangle ' + A + B + C + ' est rectangle et isocèle en ' + A + '. Quelle est la mesure de l\'angle ' + geoHat(B3) + ' ?', 'Треугольник ' + A + B + C + ' прямоугольный и равнобедренный, прямой угол при вершине ' + A + ' (' + A + B + ' = ' + A + C + '). Чему равен угол ' + geoHat(B3) + '?'), fig, ans: N(45, { unit: '°' }),
+    return { q: L('Le triangle ' + A + B + C + ' est rectangle et isocèle en ' + A + '. Quelle est la mesure de l’angle ' + geoHat(B3) + ' ?', 'Треугольник ' + A + B + C + ' прямоугольный и равнобедренный, прямой угол при вершине ' + A + ' (' + A + B + ' = ' + A + C + '). Чему равен угол ' + geoHat(B3) + '?'), fig, ans: N(45, { unit: '°' }),
       sol: ['Угол ' + A + ' прямой, поэтому два других угла вместе дают 180° − 90° = 90°.', 'Треугольник равнобедренный, а в равнобедренном треугольнике углы при основании равны (ось симметрии через вершину ' + A + ' меняет их местами).', { t: 'Каждому достаётся половина:', tex: '90^\\circ\\div 2=45^\\circ' }] };
   }
   if (kind === 'apex') {
@@ -380,7 +380,7 @@ topic({ id: 'ge.triangle-construire', ch: 'ge', lvl: 1, calc: false, variants: 4
     }
     if (vi === 2) {
       const big = r() < 0.5;
-      return { q: L(sides[0] + ' = ' + a + ' ' + u + ' et ' + sides[1] + ' = ' + b + ' ' + u + '. Quelle est la ' + (big ? 'plus grande' : 'plus petite') + ' longueur entière possible, en ' + u + ', pour ' + sides[2] + ' si le triangle ' + nm.join('') + ' n\'est pas aplati ?',
+      return { q: L(sides[0] + ' = ' + a + ' ' + u + ' et ' + sides[1] + ' = ' + b + ' ' + u + '. Quelle est la ' + (big ? 'plus grande' : 'plus petite') + ' longueur entière possible, en ' + u + ', pour ' + sides[2] + ' si le triangle ' + nm.join('') + ' n’est pas aplati ?',
         sides[0] + ' = ' + a + ' ' + GEO_U[u] + ' и ' + sides[1] + ' = ' + b + ' ' + GEO_U[u] + '. Какая ' + (big ? 'наибольшая' : 'наименьшая') + ' целая длина ' + sides[2] + ' (в ' + GEO_U[u] + ') возможна, если треугольник ' + nm.join('') + ' не сплющенный?'),
         ans: N(big ? hi - 1 : lo + 1, { unit: u }),
         sol: big ? [['Сторона ' + sides[2] + ' должна быть короче суммы двух других:', sides[2] + '<' + a + '+' + b + '=' + hi], 'Строго меньше ' + hi + ' (при ' + sides[2] + ' = ' + hi + ' точки легли бы на одну прямую). Наибольшее целое число меньше ' + hi + ' — это ' + (hi - 1) + '.']
@@ -1558,7 +1558,8 @@ topic({ id: 'ge.solides', ch: 'ge', lvl: 1, calc: false, variants: 5,
       const rect = [geoV(0, 0), geoV(W, 0), geoV(W, h), geoV(0, h)];
       S.poly(rect, 'fl'); S.circle(geoV(W / 2, -rr), rr, 'fl'); S.circle(geoV(W / 2, h + rr), rr, 'fl');
       S.seg(geoV(W / 2, -rr), geoV(W / 2 + rr, -rr), 'fl2'); S.dot(geoV(W / 2, -rr), 2); S.text(geoV(W / 2 + rr + 6, -rr), 'r = ' + R + ' cm', { fs: 14, anchor: 'start' });
-      geoSegLab(S, rect[1], rect[2], H + ' cm', rect[0]); geoSegLab(S, rect[2], rect[3], '?', rect[0], { t: 0.25 });
+      geoSegLab(S, rect[1], rect[2], H + ' cm', rect[0]);
+      { const a = geoV(5, h / 2), b = geoV(W - 5, h / 2); S.seg(a, b, 'fl2'); S.poly([geoV(a.x + 7, a.y - 3), a, geoV(a.x + 7, a.y + 3)], 'fl2', true); S.poly([geoV(b.x - 7, b.y - 3), b, geoV(b.x - 7, b.y + 3)], 'fl2', true); S.text(geoV(W / 2, h / 2 - 11), '?'); }
       const T = v => '$$' + v + '\\pi$$ cm';
       return { q: L('On dessine le patron d’un cylindre de rayon ' + R + ' cm et de hauteur ' + H + ' cm. Ce patron est formé de deux disques et d’un rectangle. Quelle est la longueur du rectangle ?', 'Рисуют развёртку цилиндра с радиусом ' + R + ' см и высотой ' + H + ' см. Она состоит из двух кругов и прямоугольника. Какова длина прямоугольника?'), fig: S.svg('patron d’un cylindre'),
         ans: MQ(r, [2 * R, R, R * R, 2 * H].map(v => L(T(v), T(v).replace('cm', 'см'))), 0),
@@ -1586,13 +1587,13 @@ topic({ id: 'ge.sections', ch: 'ge', lvl: 2, calc: false, variants: 4,
   gen(r, vi) {
     if (vi === 0) {
       const k = r.pick(['pave', 'cube', 'cylP', 'cylA', 'cone', 'pyr', 'boule', 'sphere']);
-      const F = { pave: [geoPave(5, 3, 2.5, { noNames: true, sec: [[[2.6, 0, 0], 1], [[2.6, 0, 2.5], 1], [[2.6, 3, 2.5], 0], [[2.6, 3, 0], 0]] }), 'ce pavé droit par un plan parallèle à une face', 'этот параллелепипед плоскостью, параллельной грани', 'rect'],
-        cube: [geoPave(3, 3, 3, { noNames: true, sec: [[[0, 0, 1.6], 1], [[3, 0, 1.6], 1], [[3, 3, 1.6], 0], [[0, 3, 1.6], 0]] }), 'ce cube par un plan parallèle à une face', 'этот куб плоскостью, параллельной грани', 'carre'],
-        cylP: [geoCyl(2, 4, { sec: 'perp', t: 0.55 }), 'ce cylindre par un plan perpendiculaire à son axe', 'этот цилиндр плоскостью, перпендикулярной его оси', 'disque'],
-        cylA: [geoCyl(2, 4, { sec: 'par', d: -0.9 }), 'ce cylindre par un plan parallèle à son axe', 'этот цилиндр плоскостью, параллельной его оси', 'rect'],
-        cone: [geoCone(2, 3.6, { sec: 0.45 }), 'ce cône par un plan parallèle à sa base', 'этот конус плоскостью, параллельной основанию', 'disque'],
-        pyr: [geoPyr(3, 3.2, { sec: 0.45 }), 'cette pyramide à base carrée par un plan parallèle à sa base', 'эту пирамиду с квадратным основанием плоскостью, параллельной основанию', 'carre'],
-        boule: [geoSphereFig(4, { d: 1.6 }), 'cette boule par un plan', 'этот шар плоскостью', 'disque'], sphere: [geoSphereFig(4, { d: 1.6 }), 'cette sphère par un plan', 'эту сферу плоскостью', 'cercle'] }[k];
+      const F = { pave: [() => geoPave(5, 3, 2.5, { noNames: true, sec: [[[2.6, 0, 0], 1], [[2.6, 0, 2.5], 1], [[2.6, 3, 2.5], 0], [[2.6, 3, 0], 0]] }), 'ce pavé droit par un plan parallèle à une face', 'этот параллелепипед плоскостью, параллельной грани', 'rect'],
+        cube: [() => geoPave(3, 3, 3, { noNames: true, sec: [[[0, 0, 1.6], 1], [[3, 0, 1.6], 1], [[3, 3, 1.6], 0], [[0, 3, 1.6], 0]] }), 'ce cube par un plan parallèle à une face', 'этот куб плоскостью, параллельной грани', 'carre'],
+        cylP: [() => geoCyl(2, 4, { sec: 'perp', t: 0.55 }), 'ce cylindre par un plan perpendiculaire à son axe', 'этот цилиндр плоскостью, перпендикулярной его оси', 'disque'],
+        cylA: [() => geoCyl(2, 4, { sec: 'par', d: -0.9 }), 'ce cylindre par un plan parallèle à son axe', 'этот цилиндр плоскостью, параллельной его оси', 'rect'],
+        cone: [() => geoCone(2, 3.6, { sec: 0.45 }), 'ce cône par un plan parallèle à sa base', 'этот конус плоскостью, параллельной основанию', 'disque'],
+        pyr: [() => geoPyr(3, 3.2, { sec: 0.45 }), 'cette pyramide à base carrée par un plan parallèle à sa base', 'эту пирамиду с квадратным основанием плоскостью, параллельной основанию', 'carre'],
+        boule: [() => geoSphereFig(4, { d: 1.6 }), 'cette boule par un plan', 'этот шар плоскостью', 'disque'], sphere: [() => geoSphereFig(4, { d: 1.6 }), 'cette sphère par un plan', 'эту сферу плоскостью', 'cercle'] }[k];
       const names = { rect: ['un rectangle', 'прямоугольник'], carre: ['un carré', 'квадрат'], disque: ['un disque', 'круг'], cercle: ['un cercle', 'окружность'], para: ['un parallélogramme non rectangle', 'параллелограмм без прямых углов'], ell: ['une ellipse', 'эллипс («овал»)'], tri: ['un triangle', 'треугольник'], trap: ['un trapèze', 'трапеция'] };
       const dis = { rect: ['para', 'tri', 'disque'], carre: ['tri', 'trap', 'disque'], disque: ['ell', 'rect', 'tri'], cercle: ['disque', 'ell', 'carre'] }[F[3]];
       if (k === 'cylA') dis[2] = 'ell';
@@ -1602,7 +1603,7 @@ topic({ id: 'ge.sections', ch: 'ge', lvl: 2, calc: false, variants: 4,
         cylA: 'Плоскость, параллельная оси, режет цилиндр по двум отрезкам-образующим и по двум хордам оснований: получается прямоугольник высотой как цилиндр.',
         cone: 'Сечение конуса плоскостью, параллельной основанию, — круг, уменьшенная копия основания (центр гомотетии — вершина конуса).', pyr: 'Сечение пирамиды плоскостью, параллельной основанию, — уменьшенная копия основания: здесь квадрат меньшего размера.',
         boule: 'Шар — тело, «заполненный» внутри, поэтому его сечение — круг («disque»). Окружность («cercle») получилась бы у сферы — поверхности шара.', sphere: 'Сфера — только поверхность шара, «оболочка». Плоскость режет её по линии — окружности («cercle»). Круг («disque») был бы сечением шара.' }[k];
-      return { q: L('On coupe ' + F[1] + ', comme sur la figure. Quelle est la nature de la section ?', 'Разрезают ' + F[2] + ', как на рисунке. Какая фигура получается в сечении?'), fig: F[0],
+      return { q: L('On coupe ' + F[1] + ', comme sur la figure. Quelle est la nature de la section ?', 'Разрезают ' + F[2] + ', как на рисунке. Какая фигура получается в сечении?'), fig: F[0](),
         ans: MQ(r, [F[3]].concat(dis).map(x => L(names[x][0][0].toUpperCase() + names[x][0].slice(1), names[x][1][0].toUpperCase() + names[x][1].slice(1))), 0), sol: [why] };
     }
     if (vi === 1) {
