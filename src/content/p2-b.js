@@ -577,53 +577,73 @@ pbProb({ id: 'p2.potager', ch: 'gm', lvl: 1, pts: 4,
         'Нужно ' + sacs + ' ' + pbRu(sacs, 'мешок', 'мешка', 'мешков') + ' (' + (sacs * Ls) + ' л).'] }] };
   } });
 
-/* ---------- p2.piscine-vidange : volume d'un cylindre, débit, heures et minutes, fonction affine ---------- */
-function pbPisFig(R, h) {
-  const cx = 170, rx = 118, ry = 24, top = 46, bot = 150;
-  const body = '<path d="M' + pbXY([cx - rx, top]) + ' L' + pbXY([cx - rx, bot]) + ' A' + rx + ',' + ry + ' 0 0 0 ' + pbXY([cx + rx, bot]) + ' L' + pbXY([cx + rx, top]) + ' A' + rx + ',' + ry + ' 0 0 1 ' + pbXY([cx - rx, top]) + ' Z" class="ffill"/>';
-  return svgFig(340, 200, body + '<ellipse cx="' + cx + '" cy="' + top + '" rx="' + rx + '" ry="' + ry + '" class="fl" fill="none"/>' + pbLn([cx - rx, top], [cx - rx, bot]) + pbLn([cx + rx, top], [cx + rx, bot]) +
-    '<path d="M' + pbXY([cx - rx, bot]) + ' A' + rx + ',' + ry + ' 0 0 0 ' + pbXY([cx + rx, bot]) + '" class="fl" fill="none"/>' + '<path d="M' + pbXY([cx - rx, bot]) + ' A' + rx + ',' + ry + ' 0 0 1 ' + pbXY([cx + rx, bot]) + '" class="fdash" fill="none"/>' +
-    pbLn([cx, top], [cx + rx, top]) + pbDot([cx, top]) + pbTx([cx + rx / 2, top - 6], nf(R) + ' m', 'ftm') +
-    pbLn([cx + rx + 12, top], [cx + rx + 12, bot], 'fl2') + pbTx([cx + rx + 16, (top + bot) / 2 + 5], nf(h) + ' m', 'ftm', 'start'),
-    'Bassin cylindrique de rayon ' + nf(R) + ' m et de hauteur ' + nf(h) + ' m');
+/* ---------- p2.aquariums : volumes d'un cylindre et d'un pavé, fraction de la hauteur, cm³ → L, réduction en pourcentage ---------- */
+function pbAquFig(d) {
+  const ff = d.f[0] / d.f[1];
+  /* aquarium 1 — a cylinder */
+  const cx = 100, rx = 50, ry = 10, top = 46, bot = 150, wl = bot - ff * (bot - top);
+  const arc = (y, sweep, cls) => '<path d="M' + pbXY([cx - rx, y]) + ' A' + rx + ',' + ry + ' 0 0 ' + sweep + ' ' + pbXY([cx + rx, y]) + '" class="' + cls + '" fill="none"/>';
+  let o = '<path d="M' + pbXY([cx - rx, wl]) + ' L' + pbXY([cx - rx, bot]) + ' A' + rx + ',' + ry + ' 0 0 0 ' + pbXY([cx + rx, bot]) + ' L' + pbXY([cx + rx, wl]) + ' A' + rx + ',' + ry + ' 0 0 0 ' + pbXY([cx - rx, wl]) + ' Z" class="ffill"/>';
+  o += '<ellipse cx="' + cx + '" cy="' + top + '" rx="' + rx + '" ry="' + ry + '" class="fl" fill="none"/>' + '<ellipse cx="' + cx + '" cy="' + pbC(wl) + '" rx="' + rx + '" ry="' + ry + '" class="fl2" fill="none"/>' +
+    pbLn([cx - rx, top], [cx - rx, bot]) + pbLn([cx + rx, top], [cx + rx, bot]) + arc(bot, 0, 'fl') + arc(bot, 1, 'fdash');
+  o += pbLn([cx - rx, top - ry - 10], [cx + rx, top - ry - 10], 'fl2') + pbLn([cx - rx, top - ry - 15], [cx - rx, top - ry - 5], 'fl2') + pbLn([cx + rx, top - ry - 15], [cx + rx, top - ry - 5], 'fl2') + pbTx([cx, top - ry - 15], d.d + ' cm', 'ftm') +
+    pbLn([cx - rx - 7, top], [cx - rx - 7, bot], 'fl2') + pbTx([cx - rx - 10, (top + bot) / 2 + 4], d.H1 + ' cm', 'ftm', 'end');
+  /* aquarium 2 — a cuboid drawn in perspective */
+  const x0 = 214, y0 = 70, w = 74, h = 80, dx = 28, dy = -22, yb = y0 + h, yw = yb - ff * h;
+  const Ftl = [x0, y0], Ftr = [x0 + w, y0], Fbr = [x0 + w, yb], Fbl = [x0, yb], sh = p => [p[0] + dx, p[1] + dy], Btl = sh(Ftl), Btr = sh(Ftr), Bbr = sh(Fbr), Bbl = sh(Fbl);
+  o += pbPl([[x0, yw], [x0 + w, yw], Fbr, Fbl], 'ffill', true) + pbPl([[x0 + w, yw], sh([x0 + w, yw]), Bbr, Fbr], 'ffill', true) + pbPl([[x0, yw], [x0 + w, yw], sh([x0 + w, yw]), sh([x0, yw])], 'ffill', true) +
+    pbPl([[x0, yw], [x0 + w, yw], sh([x0 + w, yw]), sh([x0, yw])], 'fl2', true) +
+    pbPl([Ftl, Ftr, Fbr, Fbl], 'fl', true) + pbPl([Ftl, Btl, Btr, Ftr], 'fl', true) + pbPl([Ftr, Btr, Bbr, Fbr], 'fl', true) + pbLn(Bbl, Fbl, 'fdash') + pbLn(Bbl, Bbr, 'fdash') + pbLn(Bbl, Btl, 'fdash') +
+    pbTx([x0 + w / 2, yb + 16], d.Lp + ' cm', 'ftm') + pbTx([x0 + dx / 2 - 6, y0 + dy / 2 - 2], d.lp + ' cm', 'ftm', 'end') + pbTx([x0 - 6, (y0 + yb) / 2 + 4], d.H2 + ' cm', 'ftm', 'end');
+  return svgFig(340, 200, o + pbTx([cx, 190], 'Aquarium 1', 'ftx') + pbTx([x0 + w / 2 + dx / 2, 190], 'Aquarium 2', 'ftx'),
+    'Aquarium 1 cylindrique et aquarium 2 en forme de pavé droit, remplis d\'eau');
 }
-pbProb({ id: 'p2.piscine-vidange', ch: 'gm', lvl: 2, pts: 4,
-  ru: 'Слить воду из бассейна', fr: 'Vider une piscine',
-  src: 'Polynésie septembre 2024 · exercice 5',
+pbProb({ id: 'p2.aquariums', ch: 'gm', lvl: 2, pts: 4,
+  ru: 'Какой аквариум выбрать', fr: 'Choisir un aquarium',
+  src: 'Asie 2025 · exercice 5',
   gen(r) {
-    let R, h, D, V, Vr, dm, Th, V1, t1, t0;
-    for (let t = 0; t < 60; t++) {
-      R = r.pick([3, 3.2, 3.5, 3.6, 4]); h = r.pick([1.2, 1.3, 1.5]); D = r.pick([9, 10.8, 12, 13.2, 14.1, 15]); Th = r.pick([1, 2]); V1 = r.pick([10, 20, 30]);
-      V = Math.PI * R * R * h; Vr = pbRd(V, 1); dm = D / 60; t1 = (Vr - V1) / dm; t0 = Vr / dm;
-      if (!pbTie(V, 1) && !pbTie(t1, 0) && !pbTie(t0, 0) && Vr - D * Th >= 5 && V1 < Vr - D * Th) break;
+    let d, H1, Lp, lp, H2, f, ff, Vmin, V1, V2, hx;
+    for (let t = 0; t < 300; t++) {
+      d = r.pick([24, 26, 28, 30, 32]); H1 = r.pick([22, 24, 25, 26, 28, 30]); Lp = r.pick([24, 25, 26, 28, 30]); lp = r.pick([20, 22, 24, 25, 28]); H2 = r.pick([24, 25, 26, 28, 30, 32]);
+      f = r.pick([[4, 5], [4, 5], [3, 4]]); ff = f[0] / f[1]; Vmin = r.pick([12, 15, 15, 18]);
+      V1 = Math.PI * (d / 2) * (d / 2) * ff * H1 / 1000; V2 = Lp * lp * ff * H2 / 1000; hx = Vmin * 1000 / (Math.PI * (d / 2) * (d / 2));
+      if ((V1 >= Vmin) !== (V2 >= Vmin) && Math.abs(V1 - Vmin) > 0.4 && Math.abs(V2 - Vmin) > 0.4 && !pbTie(V1, 1) && !pbTie(V2, 1) && !pbTie(hx, 1) && pbIsD(ff * H1, 1) && pbIsD(ff * H2, 1)) break;
     }
-    const left = Vr - D * Th, t0r = pbRd(t0), hh = Math.floor(t0r / 60), mm = t0r % 60, VrT = fx(Vr), dmT = fx(dm);
-    const ctx = L('La piscine d\'un camping est un bassin en forme de cylindre de rayon ' + nf(R) + ' m et de hauteur ' + nf(h) + ' m. En fin de saison, on vide le bassin plein avec une pompe dont le débit est de ' + nf(D) + ' m³ par heure. Rappel : le volume d\'un cylindre de rayon R et de hauteur h est $$V=\\pi\\times R^2\\times h$$.',
-      'Бассейн кемпинга имеет форму цилиндра радиусом ' + nf(R) + ' м и высотой ' + nf(h) + ' м. В конце сезона полный бассейн откачивают насосом, который выкачивает ' + nf(D) + ' м³ в час. Напоминание: объём цилиндра радиусом R и высотой h равен $$V=\\pi\\times R^2\\times h$$.');
-    return { ctx, fig: pbPisFig(R, h), qs: [
-      { q: L('Calculer le volume du bassin, en m³, arrondi au dixième.', 'Вычисли объём бассейна в м³, округлив до десятых.'), ans: pbNR(V, 1, 'm³'), sol: [
-        { t: '', tex: 'V=\\pi\\times ' + texNum(R) + '^2\\times ' + texNum(h) + '\\approx ' + texNum(pbK(V, 3)) + '\\text{ м}^3' },
-        'Округляем до десятых: ≈ ' + nf(Vr) + ' м³. Дальше в задаче берём это значение.'] },
-      { q: L('Le bassin est plein et on met la pompe en marche. Quel volume d\'eau reste-t-il à vider au bout de ' + Th + ' h ? Utiliser le volume arrondi de la question précédente.', 'Бассейн полный, насос включили. Какой объём воды останется через ' + Th + ' ч? Используй округлённый объём из предыдущего вопроса.'), ans: pbNE(left, 'm³'), sol: [
-        ['За ' + Th + ' ч насос откачает', fx(D) + '*' + Th + '=' + fx(D * Th), 'м³'],
-        ['Остаётся', VrT + '-' + fx(D * Th) + '=' + fx(left), 'м³']] },
-      { q: L('On note t la durée de fonctionnement de la pompe, en minutes. Quelle expression donne le volume d\'eau V(t), en m³, qui reste dans le bassin ?', 'Пусть t — время работы насоса в минутах. Какое выражение даёт объём воды V(t) в м³, который остаётся в бассейне?'), red: true,
-        ans: MQ(r, [[VrT, '-', dmT], [VrT, '-', fx(D)], [VrT, '-', fx(D * 60)], [dmT, 't-', VrT]].map(([a, o, b]) => '$$V(t)=' + texNum(a) + o + texNum(b) + (o === '-' ? 't' : '') + '$$'), 0),
-        sol: ['Время t в минутах, а насос задан в м³ в час. Сначала переводим расход в минуты: за 1 мин насос откачивает в 60 раз меньше, чем за час.',
-          ['', fx(D) + '/60=' + dmT, 'м³ в минуту'],
-          'За t минут уходит ' + nf(dm) + 't м³, а остаётся начальный объём минус откачанное: V(t) = ' + nf(Vr) + ' − ' + nf(dm) + 't.',
-          'С ' + nf(D) + 't единицы не согласованы (так было бы, если t в часах); ' + nf(D * 60) + ' получилось бы, если умножить на 60 вместо деления. А в выражении ' + nf(dm) + 't − ' + nf(Vr) + ' объём был бы отрицательным в начале.'] },
-      { q: L('Au bout de combien de minutes restera-t-il ' + V1 + ' m³ d\'eau dans le bassin ? Arrondir à la minute.', 'Через сколько минут в бассейне останется ' + V1 + ' м³ воды? Округли до минуты.'), ans: pbNR(t1, 0, 'min'), sol: [
-        'Ищем t, при котором V(t) = ' + V1 + ' — решаем уравнение.',
-        ['', VrT + '-' + dmT + 't=' + V1],
-        ['Переносим: откачать нужно ' + nf(pbRd(Vr - V1, 2)) + ' м³.', dmT + 't=' + fx(Vr - V1)],
-        ['', 't=' + fx(Vr - V1) + '/' + dmT + '≈' + pbK(t1, 2), 'мин'],
-        'Округляем до минуты: ' + pbRd(t1) + ' мин.'] },
-      { q: L('Combien de temps faut-il pour vider entièrement le bassin ? Donner le résultat en heures et minutes, arrondi à la minute.', 'Сколько времени нужно, чтобы полностью слить бассейн? Дай ответ в часах и минутах, округлив до минуты.'),
-        ans: multi([null, N(hh, { unit: 'h' })], [null, N(mm, { unit: 'min' })]), sol: [
-        'Бассейн пуст, когда V(t) = 0, то есть когда откачан весь объём.',
-        ['', 't=' + VrT + '/' + dmT + '≈' + pbK(t0, 2), 'мин'],
-        'Округляем: ' + t0r + ' мин. В часе 60 минут: ' + t0r + ' = ' + hh + ' × 60 + ' + mm + ', то есть ' + hh + ' ч ' + mm + ' мин.'] }] };
+    const rr = d / 2, h1 = +(ff * H1).toFixed(1), h2 = +(ff * H2).toFixed(1), s = V1 >= Vmin ? 1 : 2, o2 = 3 - s, fT = '$' + f[0] + '/' + f[1] + '$';
+    const V2ex = pbIsD(V2, 1), Vt = [null, pbS(V1, 1), V2ex ? nf(V2) : pbS(V2, 1)], F1 = V1 / ff, F2 = V2 / ff, V1d = 4 * V1;
+    const pf = r.pick([8, 9, 12, 15]), pa = r.pick([35, 39, 40, 45, 49]), red = r.pick([10, 15, 20]), tot = pf + pa, pay = tot * (100 - red) / 100;
+    const ctx = L('Un magasin vend des poissons combattants. Un poisson combattant a besoin d\'au moins ' + Vmin + ' L d\'eau. On remplit un aquarium d\'eau jusqu\'aux ' + fT + ' de sa hauteur. Aquarium 1 : un cylindre de diamètre ' + d + ' cm et de hauteur ' + H1 + ' cm. Aquarium 2 : un pavé droit de longueur ' + Lp + ' cm, de largeur ' + lp + ' cm et de hauteur ' + H2 + ' cm. Rappels : volume d\'un cylindre de rayon r et de hauteur h : $$V=\\pi\\times r^2\\times h$$ ; volume d\'un pavé droit : $$V=L\\times\\ell\\times h$$ ; 1 dm³ = 1 L.',
+      'Магазин продаёт рыбок-петушков («poissons combattants»). Одной такой рыбке нужно не меньше ' + Vmin + ' л воды. Аквариум наполняют водой до ' + fT + ' его высоты. Аквариум 1 — цилиндр диаметром ' + d + ' см и высотой ' + H1 + ' см. Аквариум 2 — прямоугольный параллелепипед длиной ' + Lp + ' см, шириной ' + lp + ' см и высотой ' + H2 + ' см. Напоминание: объём цилиндра радиусом r и высотой h: $$V=\\pi\\times r^2\\times h$$; объём параллелепипеда: $$V=L\\times\\ell\\times h$$; 1 дм³ = 1 л.');
+    const both = F1 >= Vmin && F2 >= Vmin;
+    const q3 = [L('L\'aquarium ' + s + ' : il contient environ ' + Vt[s] + ' L d\'eau, donc au moins ' + Vmin + ' L, alors que l\'aquarium ' + o2 + ' n\'en contient qu\'environ ' + Vt[o2] + ' L.', 'Аквариум ' + s + ': в нём примерно ' + Vt[s] + ' л воды, то есть не меньше ' + Vmin + ' л, а в аквариуме ' + o2 + ' — только примерно ' + Vt[o2] + ' л.'),
+      both ? L('Les deux aquariums conviennent : pleins, ils contiennent environ ' + nf(pbRd(F1, 1)) + ' L et ' + nf(pbRd(F2, 1)) + ' L, soit plus de ' + Vmin + ' L chacun.', 'Подходят оба: полные, они вмещают примерно ' + nf(pbRd(F1, 1)) + ' л и ' + nf(pbRd(F2, 1)) + ' л, то есть больше ' + Vmin + ' л каждый.')
+        : L('L\'aquarium ' + s + ' : plein, il contient environ ' + nf(pbRd(s === 1 ? F1 : F2, 1)) + ' L, soit plus de ' + Vmin + ' L.', 'Аквариум ' + s + ': полный, он вмещает примерно ' + nf(pbRd(s === 1 ? F1 : F2, 1)) + ' л, то есть больше ' + Vmin + ' л.'),
+      L('Avec un rayon de ' + d + ' cm, l\'aquarium 1 contient environ ' + nf(pbRd(V1d, 1)) + ' L d\'eau, donc ' + (V2 >= Vmin ? 'les deux aquariums conviennent.' : 'on choisit l\'aquarium 1.'), 'С радиусом ' + d + ' см в аквариуме 1 примерно ' + nf(pbRd(V1d, 1)) + ' л воды, значит, ' + (V2 >= Vmin ? 'подходят оба аквариума.' : 'выбираем аквариум 1.')),
+      L('Les deux aquariums conviennent : ils contiennent environ ' + nf(pbRd(V1 * 10, 0)) + ' L et ' + nf(pbRd(V2 * 10, 0)) + ' L d\'eau, car 1 L = 100 cm³.', 'Подходят оба: в них примерно ' + nf(pbRd(V1 * 10, 0)) + ' л и ' + nf(pbRd(V2 * 10, 0)) + ' л воды, потому что 1 л = 100 см³.')];
+    return { ctx, fig: pbAquFig({ d, H1, Lp, lp, H2, f }), qs: [
+      { q: L('Calculer le volume d\'eau, en litres, contenu dans l\'aquarium 1. Arrondir au dixième.', 'Вычисли объём воды в аквариуме 1 в литрах. Округли до десятых.'), ans: pbNR(V1, 1, 'L'), sol: [
+        'Вода в цилиндре — тоже цилиндр: тот же радиус, но высота не ' + H1 + ' см, а только ' + f[0] + '/' + f[1] + ' от неё.',
+        ['Радиус — половина диаметра, высота воды:', 'r=' + d + '/2=' + rr + ';h=' + f[0] + '/' + f[1] + '*' + H1 + '=' + fx(h1), 'см'],
+        { t: '', tex: 'V=\\pi\\times ' + rr + '^2\\times ' + texNum(fx(h1)) + '\\approx ' + fmtBig(pbK(V1 * 1000, 1)) + '\\text{ см}^3' },
+        '1 л = 1 дм³ = 10 × 10 × 10 = 1 000 см³, поэтому делим на 1 000: ≈ ' + pbS(V1, 1) + ' л.'] },
+      { q: L('Calculer le volume d\'eau, en litres, contenu dans l\'aquarium 2. Arrondir au dixième si nécessaire.', 'Вычисли объём воды в аквариуме 2 в литрах. Если нужно, округли до десятых.'), ans: V2ex ? pbNE(V2, 'L') : pbNR(V2, 1, 'L'), sol: [
+        'Вода занимает параллелепипед с тем же дном ' + Lp + ' × ' + lp + ' см и высотой ' + f[0] + '/' + f[1] + ' от ' + H2 + ' см.',
+        ['', f[0] + '/' + f[1] + '*' + H2 + '=' + fx(h2), 'см'],
+        { t: '', tex: 'V=' + Lp + '\\times ' + lp + '\\times ' + texNum(fx(h2)) + '=' + fmtBig(fx(Lp * lp * h2)) + '\\text{ см}^3' },
+        'Делим на 1 000: ' + (V2ex ? nf(V2) : '≈ ' + pbS(V2, 1)) + ' л.'] },
+      { q: L('Quel aquarium faut-il choisir pour un poisson combattant ? Choisir la réponse correctement justifiée.', 'Какой аквариум нужно выбрать для рыбки-петушка? Выбери ответ с верным обоснованием.'), red: true,
+        ans: MQ(r, q3, 0), sol: [
+        'Сравниваем с ' + Vmin + ' л именно объём воды — аквариум заполняют только до ' + f[0] + '/' + f[1] + ' высоты: ' + pbS(V1, 1) + ' л и ' + (V2ex ? nf(V2) : pbS(V2, 1)) + ' л. Подходит только аквариум ' + s + '.',
+        'Ошибки в других вариантах: взят объём полного аквариума (забыли про ' + f[0] + '/' + f[1] + '); в формулу цилиндра подставлен диаметр ' + d + ' см вместо радиуса ' + rr + ' см — объём выходит в 4 раза больше; при переводе делили на 100, хотя 1 л = 1 000 см³.'] },
+      { q: L('Jusqu\'à quelle hauteur faudrait-il remplir l\'aquarium 1 pour qu\'il contienne exactement ' + Vmin + ' L d\'eau ? Arrondir au millimètre.', 'До какой высоты нужно налить воду в аквариум 1, чтобы в нём было ровно ' + Vmin + ' л? Округли до миллиметра.'), ans: pbNR(hx, 1, 'cm'), sol: [
+        'Переводим объём в см³: ' + Vmin + ' л = ' + nf(Vmin * 1000) + ' см³. Объём воды = площадь дна × высота воды, поэтому высота = объём ÷ площадь дна.',
+        { t: '', tex: 'h=\\dfrac{' + fmtBig(String(Vmin * 1000)) + '}{\\pi\\times ' + rr + '^2}\\approx ' + texNum(pbK(hx, 3)) + '\\text{ см}' },
+        'Округляем до миллиметра (до десятых сантиметра): ≈ ' + pbS(hx, 1) + ' см. ' + (hx <= H1 ? 'Это не больше высоты аквариума (' + H1 + ' см): налить столько можно, но при обычном заполнении до ' + f[0] + '/' + f[1] + ' (' + nf(h1) + ' см) воды будет ' + (h1 >= hx ? 'достаточно.' : 'меньше нужного.') : 'Это больше высоты самого аквариума (' + H1 + ' см): столько воды в него вообще не поместится.')] },
+      { q: L('Un poisson combattant coûte ' + pf + ' €. Une famille achète un poisson et l\'aquarium ' + s + ', vendu ' + pa + ' €. Le vendeur fait une réduction de ' + red + ' % sur le prix total. Combien la famille va-t-elle payer ?', 'Рыбка стоит ' + pf + ' €. Семья покупает рыбку и аквариум ' + s + ' за ' + pa + ' €. Продавец делает скидку ' + red + ' % на всю покупку. Сколько заплатит семья?'), ans: pbNE(pay, '€'), sol: [
+        ['Полная стоимость:', pf + '+' + pa + '=' + tot, '€'],
+        'Скидка ' + red + ' % означает, что платят ' + (100 - red) + ' % цены, то есть умножают на ' + nf((100 - red) / 100) + '.',
+        ['', tot + '*' + fx((100 - red) / 100) + '=' + fx(pay), '€'],
+        'Можно и в два шага: скидка ' + tot + ' × ' + nf(red / 100) + ' = ' + nf(pbRd(tot * red / 100, 2)) + ' €, и ' + tot + ' − ' + nf(pbRd(tot * red / 100, 2)) + ' = ' + nf(pay) + ' €.'] }] };
   } });
 
 /* =====================================================================================================
