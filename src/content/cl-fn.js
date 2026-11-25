@@ -19,6 +19,8 @@ function clfSame(s1, s2, v) {
 }
 /* a sum of numbers as it is written: 5+(-2)+3 */
 const clfAddStr = ks => ks.map((k, i) => (i ? np(k) : String(k))).join('+');
+/* a number appended to a sum with its sign: 5 → '+5', -5 → '-5' */
+const clfPm = c => (c < 0 ? String(c) : '+' + c);
 /* SVG pieces (classes from 20-api.js, no colours) */
 const clfT = (x, y, s, a, cls, fs) => '<text x="' + (+x).toFixed(1) + '" y="' + (+y).toFixed(1) + '" class="' + (cls || 'ftx') + '" font-size="' + (fs || 15) + '" text-anchor="' + (a || 'middle') + '">' + s + '</text>';
 const clfLn = (x1, y1, x2, y2, cls) => '<line x1="' + (+x1).toFixed(1) + '" y1="' + (+y1).toFixed(1) + '" x2="' + (+x2).toFixed(1) + '" y2="' + (+y2).toFixed(1) + '" class="' + (cls || 'fl') + '"/>';
@@ -849,4 +851,147 @@ topic({ id: 'cl.programme-preuve', ch: 'cl', lvl: 3, calc: false, variants: 3,
       ['Записываем программу буквами, по шагам:', ['x'].concat(ops.map((o, i) => clfExpr(ops.slice(0, i + 1)))).join('→')],
       ['Раскрываем скобки и приводим подобные:', e + '=' + dev + '=' + res],
       'Вывод: при любом исходном числе результат ' + c.ru + '.'] };
+  } });
+
+/* =====================================================================================
+   FONCTIONS
+   ===================================================================================== */
+const clfFn = r => r.pick(['f', 'f', 'g', 'h']);
+/* a function given by a formula: f(x) = …, in input syntax */
+const clfDef = (f, e) => f + '(x)=' + e;
+/* a table of values (x on the first row); asked — index of the cell with «?» */
+const clfTd = s => '<td style="min-width:2.2em">' + s + '</td>';
+function clfValTab(f, xs, ys, asked) {
+  return '<table class="pblk tx">' + '<tr><th><i>x</i></th>' + xs.map(x => clfTd(clfLab(x))).join('') + '</tr>' +
+    '<tr><th><i>' + f + '</i>(<i>x</i>)</th>' + ys.map((y, i) => i === asked ? '<td class="tdq"><b>?</b></td>' : clfTd(y == null ? '' : clfLab(y))).join('') + '</tr></table>';
+}
+/* a spreadsheet: columns A, B, C…, row 1 — x, row 2 — f(x) (null = empty cell, asked — cell with «?») */
+function clfSheet(f, xs, ys, asked) {
+  const cols = 'ABCDEFGHIJ'.slice(0, xs.length + 1).split('');
+  return '<table class="pblk tx">' + '<tr><th></th>' + cols.map(c => '<th>' + c + '</th>').join('') + '</tr>' +
+    '<tr><th>1</th><td><i>x</i></td>' + xs.map(x => clfTd(clfLab(x))).join('') + '</tr>' +
+    '<tr><th>2</th><td><i>' + f + '</i>(<i>x</i>)</td>' + ys.map((y, i) => i === asked ? '<td class="tdq"><b>?</b></td>' : clfTd(y == null ? '' : clfLab(y))).join('') + '</tr></table>';
+}
+
+/* ---------- fn.vocabulaire ---------- */
+topic({ id: 'fn.vocabulaire', ch: 'fn', lvl: 1, calc: false, variants: 3,
+  ru: 'Образ и прообраз: слова и запись', fr: 'Image, antécédent, notation f(x)',
+  hints: [
+    'Функция — правило, которое каждому числу $x$ ставит в соответствие одно число $f(x)$. Запись $f(3)=7$ читается «f от 3 равно 7».',
+    'В $f(3)=7$ число $3$ — то, что подставляем: это прообраз («antécédent»); $7$ — то, что получаем: это образ («image»). Образ у числа всегда один, а прообразов у числа может быть несколько или ни одного.',
+    'Запись $$f : x \\mapsto 2x+1$$ означает то же, что $f(x)=2x+1$: «$x$ переходит в $2x+1$».'],
+  gen(r, vi) {
+    const f = clfFn(r); let a, b;
+    do { a = r.nz(-9, 12); b = r.nz(-9, 15); } while (a === b || b === 2 * a || a === 2 * b || a === -b);
+    const fa = '$' + f + '(' + a + ')=' + b + '$';
+    if (vi === 0) {
+      const right = r.pick([L('L\'image de $' + a + '$ par la fonction $' + f + '$ est $' + b + '$.', 'Образ числа $' + a + '$ при функции $' + f + '$ равен $' + b + '$.'), L('$' + a + '$ est un antécédent de $' + b + '$ par la fonction $' + f + '$.', '$' + a + '$ — прообраз числа $' + b + '$ при функции $' + f + '$.')]);
+      const wrong = r.sh([L('L\'image de $' + b + '$ par la fonction $' + f + '$ est $' + a + '$.', 'Образ числа $' + b + '$ при функции $' + f + '$ равен $' + a + '$.'), L('$' + b + '$ est un antécédent de $' + a + '$ par la fonction $' + f + '$.', '$' + b + '$ — прообраз числа $' + a + '$ при функции $' + f + '$.'),
+        L('$' + a + '$ est l\'image de $' + b + '$ par la fonction $' + f + '$.', '$' + a + '$ — образ числа $' + b + '$ при функции $' + f + '$.'), L('$' + f + '(' + b + ')=' + a + '$', '$' + f + '(' + b + ')=' + a + '$')]).slice(0, 3);
+      return { q: L('On sait que ' + fa + '. Parmi les affirmations suivantes, laquelle est vraie ?', 'Известно, что ' + fa + '. Какое из утверждений верно?'), ans: MQ(r, [right].concat(wrong), 0), sol: [
+        'В записи ' + fa + ' в скобках стоит число, которое подставляют, — прообраз («antécédent»): это $' + a + '$. Справа — результат, образ («image»): это $' + b + '$.',
+        'Значит, верно: «образ $' + a + '$ равен $' + b + '$» и «$' + a + '$ — прообраз $' + b + '$». Остальные утверждения путают местами образ и прообраз.'] };
+    }
+    if (vi === 1) {   /* vrai / faux */
+      const S4 = [[true, 'l\'image de $' + a + '$ par $' + f + '$ est $' + b + '$', 'образ числа $' + a + '$ при $' + f + '$ равен $' + b + '$'], [false, 'l\'image de $' + b + '$ par $' + f + '$ est $' + a + '$', 'образ числа $' + b + '$ при $' + f + '$ равен $' + a + '$'],
+        [true, '$' + a + '$ est un antécédent de $' + b + '$ par $' + f + '$', '$' + a + '$ — прообраз числа $' + b + '$ при $' + f + '$'], [false, '$' + b + '$ est un antécédent de $' + a + '$ par $' + f + '$', '$' + b + '$ — прообраз числа $' + a + '$ при $' + f + '$'],
+        [true, '$' + b + '$ a pour antécédent $' + a + '$ par $' + f + '$', 'у числа $' + b + '$ есть прообраз $' + a + '$ при $' + f + '$'], [false, '$' + b + '$ a pour image $' + a + '$ par $' + f + '$', 'образ числа $' + b + '$ при $' + f + '$ равен $' + a + '$'],
+        [false, '$' + f + '(' + b + ')=' + a + '$', '$' + f + '(' + b + ')=' + a + '$']];
+      const want = r() < 0.45, [ok, fr, ru] = r.pick(S4.filter(s => s[0] === want));
+      return { q: L('On sait que ' + fa + '. Affirmation : « ' + fr + ' ». Cette affirmation est-elle vraie ou fausse ?', 'Известно, что ' + fa + '. Утверждение: «' + ru + '». Это утверждение верно или неверно?'), ans: TF(ok), sol: [
+        'Запись ' + fa + ' говорит: подставили $' + a + '$ — получили $' + b + '$. Значит, $' + b + '$ — образ числа $' + a + '$, а $' + a + '$ — прообраз числа $' + b + '$.',
+        ok ? 'Утверждение говорит ровно это — оно верно.' : 'Утверждение меняет местами образ и прообраз: из ' + fa + ' не следует, что $' + f + '(' + b + ')=' + a + '$. Утверждение неверно.'] };
+    }
+    /* vi 2: complete the sentence */
+    const img = r() < 0.5;
+    const opts = [L('l\'image', 'образ'), L('un antécédent', 'прообраз'), L('l\'opposé', 'противоположное число'), L('le double', 'удвоенное число')];
+    return { q: L('On sait que ' + fa + '. Compléter la phrase : « $' + (img ? b : a) + '$ est … de $' + (img ? a : b) + '$ par la fonction $' + f + '$ ».', 'Известно, что ' + fa + '. Дополни фразу: «$' + (img ? b : a) + '$ — … числа $' + (img ? a : b) + '$ при функции $' + f + '$».'),
+      ans: MQ(r, opts, img ? 0 : 1), sol: [
+        'Подставили $' + a + '$ — получили $' + b + '$. То, что получаем, — образ («image»); то, что подставляем, — прообраз («antécédent»).',
+        img ? 'Поэтому $' + b + '$ — образ числа $' + a + '$: «l\'image».' : 'Поэтому $' + a + '$ — прообраз числа $' + b + '$: «un antécédent». Говорят «un», а не «l\'», потому что прообразов у числа может быть несколько.',
+        'Варианты «l\'opposé» и «le double» не подходят: $' + (img ? b : a) + '$ не равно ни $' + (img ? -a : -b) + '$, ни $' + (img ? 2 * a : 2 * b) + '$.'] };
+  } });
+
+/* ---------- fn.image-formule ---------- */
+topic({ id: 'fn.image-formule', ch: 'fn', lvl: 1, calc: false, variants: 4,
+  ru: 'Образ и прообраз по формуле', fr: 'Calculer une image ou un antécédent avec une formule',
+  hints: [
+    'Образ («image») числа $a$ — это $f(a)$: подставляем $a$ вместо $x$ в формулу и считаем. Отрицательное число — в скобках: $f(-2)=3*(-2)-5=-11$.',
+    'Прообраз («antécédent») числа $b$ — это такое $x$, что $f(x)=b$. Его находят, решая уравнение: например, $3x-5=7$, откуда $3x=12$ и $x=4$.',
+    'Не путай вопросы: «image de 4» — подставить 4 вместо $x$; «antécédent de 4» — решить уравнение $f(x)=4$.'],
+  gen(r, vi) {
+    const f = clfFn(r);
+    if (vi === 0) {   /* QCM — Polynésie 2026, Q8 */
+      let a, b, t, c, opts;
+      do { a = r.ri(2, 5); b = r.nz(-9, 9); t = r.ri(1, 6); c = a * t + b; opts = [a * c + b, t, a * c, 10 * a + c + b]; } while (c < 2 || c > 9 || !clfDistinct(opts));
+      const e = lin(a, b);
+      return { q: L('On considère la fonction affine $' + f + '$ définie par $' + clfDef(f, e) + '$. Quelle est l\'image de $' + c + '$ par la fonction $' + f + '$ ?', 'Дана аффинная функция $' + f + '$: $' + clfDef(f, e) + '$. Чему равен образ числа $' + c + '$ при функции $' + f + '$?'),
+        ans: MQ(r, opts.map(String), 0), sol: [
+          ['Образ числа ' + c + ' — это $' + f + '(' + c + ')$: подставляем ' + c + ' вместо $x$.', f + '(' + c + ')=' + clfSubLin(a, b, c) + '=' + (a * c) + clfPm(b) + '=' + opts[0]],
+          'Откуда неверные ответы: ' + t + ' — это прообраз числа ' + c + ' (решили уравнение $' + e + '=' + c + '$), а спрашивали образ; ' + a * c + ' — забыли слагаемое ' + nf(b) + '; ' + opts[3] + ' — прочитали $' + a + 'x$ как число «' + a + c + '».'] };
+    }
+    if (vi === 1) {   /* the image with a formula that is not affine */
+      const x0 = r.nz(-4, 5), tp = r.ri(0, 3); let e, sub, mid, val;
+      if (tp === 0) { const b = r.nz(-6, 6), c = r.nz(-9, 9); e = quad(1, b, c); sub = np(x0) + '^2' + (b < 0 ? '-' + (-b === 1 ? '' : -b + '*') : '+' + (b === 1 ? '' : b + '*')) + np(x0) + clfPm(c); mid = x0 * x0 + clfPm(b * x0) + clfPm(c); val = x0 * x0 + b * x0 + c; }
+      else if (tp === 1) { const a = r.ri(2, 4), c = r.nz(-9, 9); e = S(cf(a, 'x^2'), c); sub = a + '*' + np(x0) + '^2' + clfPm(c); mid = a + '*' + x0 * x0 + clfPm(c); val = a * x0 * x0 + c; }
+      else if (tp === 2) { const p = r.nz(-5, 5), q = r.nz(-5, 5); e = '(' + lin(1, p) + ')(' + lin(1, q) + ')'; sub = '(' + S(x0, p) + ')*(' + S(x0, q) + ')'; mid = np(x0 + p) + '*' + np(x0 + q); val = (x0 + p) * (x0 + q); }
+      else { const c = r.ri(5, 20); e = c + '-x^2'; sub = c + '-' + np(x0) + '^2'; mid = c + '-' + x0 * x0; val = c - x0 * x0; }
+      if (sub[0] === '+') sub = sub.slice(1);
+      return { q: L('On considère la fonction $' + f + '$ définie par $' + clfDef(f, e) + '$. Calculer l\'image de $' + x0 + '$ par la fonction $' + f + '$.', 'Дана функция $' + f + '$: $' + clfDef(f, e) + '$. Вычисли образ числа $' + x0 + '$ при функции $' + f + '$.'), ans: N(val), sol: [
+        ['Образ числа ' + nf(x0) + ' — это $' + f + '(' + x0 + ')$: подставляем ' + nf(x0) + ' вместо каждого $x$' + (x0 < 0 ? ' (в скобках)' : '') + ' и считаем по порядку действий.', f + '(' + x0 + ')=' + sub + '=' + mid + '=' + val]].concat(x0 < 0 && /\^2/.test(e) ? ['Квадрат отрицательного числа положителен: $' + np(x0) + '^2=' + x0 * x0 + '$.'] : []) };
+    }
+    /* vi 2: antecedent, linear · vi 3: antecedent, affine (sujet de référence 2027 n°1) */
+    let a, b = 0, t, c;
+    if (vi === 2) { do { a = r.nz(-9, 9); t = r.nz(-12, 12); } while (Math.abs(a) < 2); c = a * t; }
+    else { const big = r() < 0.4; do { a = big ? r.pick([10, 20, 25]) : r.nz(-9, 9); b = big ? r.pick([30, 40, 50, 60, 80]) : r.nz(-15, 15); t = big ? r.ri(2, 12) : r.nz(-9, 9); c = a * t + b; } while (Math.abs(a) < 2); }
+    const e = lin(a, b);
+    return { q: L('On considère la fonction $' + f + '$ définie par $' + clfDef(f, e) + '$. Déterminer l\'antécédent de $' + c + '$ par la fonction $' + f + '$.', 'Дана функция $' + f + '$: $' + clfDef(f, e) + '$. Найди прообраз числа $' + c + '$ при функции $' + f + '$.'), ans: N(t), sol: [
+      ['Прообраз числа ' + nf(c) + ' — это число $x$, для которого $' + f + '(x)=' + c + '$. Получаем уравнение:', e + '=' + c]].concat(clfSolveSteps(a, b, c, 'x')).concat(['Проверка: $' + f + '(' + t + ')=' + clfSubLin(a, b, t) + '=' + c + '$ — верно.']) };
+  } });
+
+/* ---------- fn.lecture-tableau ---------- */
+/* a function for a table: affine or a parabola, with its formula (input syntax) and the spreadsheet formula for cell B2 */
+function clfTabFn(r, quadOnly) {
+  if (!quadOnly && r() < 0.4) { const a = r.nz(-5, 5), b = r.nz(-9, 9); return { e: lin(a, b), v: x => a * x + b, cell: c => (a === 1 ? '' : a === -1 ? '-' : a + '*') + c + (b < 0 ? '-' + (-b) : '+' + b), wrong: c => (a === 1 ? '' : a === -1 ? '-' : a + '*') + c + (b < 0 ? '+' + (-b) : '-' + b) }; }
+  const s = r() < 0.75 ? 1 : -1, h = r.ri(-1, 2), k = r.nz(-6, 6), b = -2 * s * h, c = s * h * h + k;
+  return { e: quad(s, b, c), v: x => s * x * x + b * x + c, cell: cc => (s < 0 ? '-' : '') + cc + '^2' + (b ? (b < 0 ? '-' : '+') + (Math.abs(b) === 1 ? '' : Math.abs(b) + '*') + cc : '') + (c ? (c < 0 ? '-' : '+') + Math.abs(c) : ''), wrong: cc => cc + '*2' + (b ? (b < 0 ? '-' : '+') + (Math.abs(b) === 1 ? '' : Math.abs(b) + '*') + cc : '') + (c ? (c < 0 ? '-' : '+') + Math.abs(c) : ''), h };
+}
+topic({ id: 'fn.lecture-tableau', ch: 'fn', lvl: 1, calc: false, variants: 4,
+  ru: 'Образ и прообраз по таблице значений', fr: 'Lire une image ou un antécédent dans un tableau',
+  hints: [
+    'В таблице значений в первой строке стоят числа $x$ (прообразы), во второй — их образы $f(x)$. Образ числа — число под ним; прообраз числа — число над ним.',
+    'Прообразов у числа может быть несколько: ищи это число во второй строке везде, где оно встречается.',
+    'В электронной таблице («tableur») формула ссылается на ячейку: в B2 пишут =3*B1-2, и при протягивании вправо B1 сама меняется на C1, D1… Если вместо ссылки написать число или букву $x$, формула не сработает.'],
+  gen(r, vi) {
+    const f = clfFn(r), x0 = r.ri(-4, -1), xs = [0, 1, 2, 3, 4, 5].map(i => x0 + i);
+    if (vi === 0 || vi === 1) {
+      const F = clfTabFn(r, vi === 1), ys = xs.map(F.v);
+      if (vi === 0) {
+        const i = r.ri(0, 5);
+        return { q: L('Voici un tableau de valeurs de la fonction $' + f + '$. Quelle est l\'image de $' + xs[i] + '$ par la fonction $' + f + '$ ?', 'Вот таблица значений функции $' + f + '$. Чему равен образ числа $' + xs[i] + '$ при функции $' + f + '$?'),
+          fig: clfValTab(f, xs, ys), ans: N(ys[i]), sol: [
+            'Образ числа $' + xs[i] + '$ стоит во второй строке, прямо под ним: $' + f + '(' + xs[i] + ')=' + ys[i] + '$.',
+            'Типичная ошибка — искать $' + xs[i] + '$ во второй строке: так находят прообраз, а не образ.'] };
+      }
+      const cnt = {}; ys.forEach(y => cnt[y] = (cnt[y] || 0) + 1);
+      const vals = Object.keys(cnt).map(Number), two = vals.filter(y => cnt[y] > 1), y = two.length && r() < 0.6 ? r.pick(two) : r.pick(vals), ant = xs.filter((x, i) => ys[i] === y);
+      return { q: L('Voici un tableau de valeurs de la fonction $' + f + '$. D\'après ce tableau, donner tous les antécédents de $' + y + '$ par la fonction $' + f + '$.', 'Вот таблица значений функции $' + f + '$. По этой таблице найди все прообразы числа $' + y + '$ при функции $' + f + '$.'),
+        fig: clfValTab(f, xs, ys), ans: LIST(ant.join(',')), sol: [
+          'Прообраз — это $x$, у которого образ равен $' + y + '$. Ищем $' + y + '$ во второй строке и смотрим, что стоит над ним.',
+          ant.length > 1 ? 'Число $' + y + '$ встречается во второй строке дважды — над ним $' + ant[0] + '$ и $' + ant[1] + '$. Оба — прообразы: $' + f + '(' + ant[0] + ')=' + f + '(' + ant[1] + ')=' + y + '$.' : 'Число $' + y + '$ встречается во второй строке один раз — над ним $' + ant[0] + '$: $' + f + '(' + ant[0] + ')=' + y + '$.'] };
+    }
+    const F = clfTabFn(r), ys = xs.map(F.v);
+    if (vi === 2) {   /* QCM: the formula of cell B2 — Métropole sept. 2024 */
+      const opts = ['=' + F.cell('B1'), '=' + F.cell('A1'), '=' + F.cell('x'), '=' + F.cell(np(xs[0]))];
+      return { q: L('On a utilisé un tableur pour calculer les images de plusieurs nombres par la fonction $' + f + '$ définie par $' + clfDef(f, F.e) + '$. Quelle formule a-t-on saisie dans la cellule B2, avant de l\'étirer vers la droite ?', 'Электронной таблицей вычислили образы нескольких чисел при функции $' + f + '$: $' + clfDef(f, F.e) + '$. Какую формулу ввели в ячейку B2, прежде чем протянуть её вправо?'),
+        fig: clfSheet(f, xs, ys), ans: MQ(r, opts, 0), sol: [
+          'В B2 должен получиться образ числа из B1. Поэтому в формуле вместо $x$ стоит ссылка на ячейку B1. При протягивании вправо B1 сама превращается в C1, D1… — и каждая ячейка считает образ числа над собой.',
+          'Неверные: «' + opts[1] + '» ссылается на A1, где стоит буква $x$, а не число; «' + opts[2] + '» — таблица не знает, что такое $x$, нужна ссылка на ячейку; «' + opts[3] + '» — число вместо ссылки: формула даст правильный ответ только в B2, а при протягивании не изменится.'] };
+    }
+    /* vi 3: what does the cell show */
+    const i = r.ri(2, 5), col = 'BCDEFG'[i], shown = ys.map((y, j) => (j < 2 ? y : null));
+    return { q: L('Dans la cellule B2, on a saisi la formule ' + '=' + F.cell('B1') + ', puis on l\'a étirée vers la droite. Quel nombre s\'affiche dans la cellule ' + col + '2 ?', 'В ячейку B2 ввели формулу =' + F.cell('B1') + ' и протянули её вправо. Какое число будет в ячейке ' + col + '2?'),
+      fig: clfSheet(f, xs, shown, i), ans: N(ys[i]), sol: [
+        'При протягивании вправо ссылка B1 меняется на C1, D1… — в ячейке ' + col + '2 формула считает по числу из ' + col + '1, то есть $x=' + xs[i] + '$.',
+        ['Подставляем $' + xs[i] + '$ в формулу $' + clfDef(f, F.e) + '$:', f + '(' + xs[i] + ')=' + ys[i]]] };
   } });
