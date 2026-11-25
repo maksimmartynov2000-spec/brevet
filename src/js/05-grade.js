@@ -492,7 +492,8 @@ FORMS.primeFact = function (ast) {
   const isPrime = n => { if (n < 2 || !Number.isInteger(n)) return false; for (let i = 2; i * i <= n; i++) if (n % i === 0) return false; return true; };
   (function go(n, inExp) {
     if (!n || typeof n !== 'object') return;
-    if (n.t === 'n' && !inExp) { if (!isPrime(n.v)) bad = bad || GM(n.v + ' is not a prime number — break it down further.', n.v + ' — не простое число, разложи его дальше.'); else { if (seen[n.v]) bad = bad || GM('Write each prime once, using a power: for example 2 × 2 × 2 = 2^3.', 'Каждое простое число пиши один раз — через степень: например 2 × 2 × 2 = 2^3.'); seen[n.v] = 1; } }
+    /* on the brevet 2 × 2 × 3 × 7 and 2² × 3 × 7 are both accepted: repeated primes are fine */
+    if (n.t === 'n' && !inExp) { if (!isPrime(n.v)) bad = bad || GM(n.v + ' is not a prime number — break it down further.', n.v + ' — не простое число, разложи его дальше.'); else seen[n.v] = 1; }
     if (n.t === '^') { go(n.a, inExp); go(n.b, true); return; }
     if (n.t === '/' || n.t === '+' || n.t === '-' || n.t === 'f') bad = bad || GM('Write it as a product of prime powers, like 2^3 × 3^2 × 5.', 'Запиши как произведение степеней простых чисел, например 2^3 × 3^2 × 5.');
     ['a', 'b'].forEach(k => go(n[k], inExp));
