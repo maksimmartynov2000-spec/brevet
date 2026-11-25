@@ -61,8 +61,13 @@ const n20 = v => String(Math.round(v * 10) / 10).replace('.', ',');   /* 13,5 */
 /* ---------- bilingual text: French on screen, Russian in the same place behind «Перевод» ----------
    Both copies are laid out in one grid cell, so the block is always as tall as the longer one:
    switching the language changes nothing on the page except the words. */
+/* French typography, so a line never starts with « : » or « € »: no-break spaces before : ; ? ! » and after «,
+   and between a number and its unit (formulas in $…$ are left as they are) */
+const FR_UNIT = /(\d) (?=(?:mm|cm|dm|km|m|g|kg|mg|t|L|mL|cL|dL|h|min|s|ms|€|%|°|ha|ans?|jours?|élèves|personnes|euros)(?![\wÀ-ÿ]))/g;
+function frTypo(s) { return String(s).split(/(\$\$[^$]*\$\$|\$[^$]*\$)/).map((p, i) => i % 2 ? p : p.replace(/ ([:;?!»])/g, ' $1').replace(/« /g, '« ').replace(FR_UNIT, '$1 ')).join(''); }
 function bt(o, cls) {
   if (o == null) return '';
+  if (typeof o === 'object' && o.fr !== o.ru) o = { fr: frTypo(o.fr), ru: o.ru };
   if (typeof o !== 'object') return '<span' + (cls ? ' class="' + cls + '"' : '') + '>' + rt(o) + '</span>';
   if (o.fr === o.ru) return '<span' + (cls ? ' class="' + cls + '"' : '') + '>' + rt(o.fr) + '</span>';
   return '<span class="bi' + (cls ? ' ' + cls : '') + '"><span class="l-fr" lang="fr">' + rt(o.fr) + '</span><span class="l-ru" lang="ru">' + rt(o.ru) + '</span></span>';
