@@ -21,6 +21,13 @@ const staFt = (n, d) => '$' + n + '/' + d + '$';
 /* a fraction and its simplification, input syntax: 4/20=1/5 */
 const staFq = (n, d) => { const f = F(n, d); return n + '/' + d + (f.d !== d ? '=' + Fr.str(f) : ''); };
 const staWho = r => (r() < 0.5 ? { n: r.pick(PRENOMS_F), f: true } : { n: r.pick(PRENOMS_M), f: false });
+const staDe = n => (/^[AEIOUÉÈH]/.test(n) ? "d'" : 'de ') + n;                 /* «de Léa», «d'Alice», «d'Hugo» */
+const staUR = u => ({ min: 'мин', cm: 'см' }[u] || u);                          /* units in a Russian sentence */
+const staEt = a => (a.length > 1 ? a.slice(0, -1).join(', ') + ' et ' + a[a.length - 1] : String(a[0]));   /* «9, 6 et 8» */
+const staI = a => (a.length > 1 ? a.slice(0, -1).join(', ') + ' и ' + a[a.length - 1] : String(a[0]));
+/* a number with a noun: nominative («21 ученик», «24 ученика») and genitive («из 21 ученика», «из 25 учеников») */
+const staNum = (n, one, few, many) => n + ' ' + staPl(n, one, few, many);
+const staGen = (n, one, many) => n + ' ' + (n % 10 === 1 && n % 100 !== 11 ? one : many);
 const staG = (w, m, f) => (w.f ? f : m);
 function staPl(n, one, few, many) { const a = Math.abs(n) % 100, b = a % 10; return a > 10 && a < 20 ? many : b === 1 ? one : b >= 2 && b <= 4 ? few : many; }
 /* k distractors {v, ru}: values different from the right one and from each other */
@@ -127,7 +134,8 @@ const STA_FONT = "font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-s
 const STA_CW = {};
 [[' iljI.,:;\'!|’', 250], ['ftr()[]-', 330], ['cksvxyz?', 500], ['îïíì', 280], ['mw', 800], ['MW', 900], ['+=<>−×', 584], ['*', 389], ['/', 280], ['↻↺…', 1000], ['▾', 600], ['%', 889], ['°', 400]]
   .forEach(([cs, w]) => { for (const c of cs) STA_CW[c] = w; });
-function staTW(s) { let w = 0; for (const c of String(s)) w += STA_CW[c] || (/[A-ZÀ-Ý]/.test(c) ? 680 : 570); return w * 14 / 1000; }
+/* width of a label at 14 px: Helvetica metrics + 8 % (Inter, Roboto and SF are a little wider) */
+function staTW(s) { let w = 0; for (const c of String(s)) w += STA_CW[c] || (/[A-ZÀ-Ý]/.test(c) ? 680 : 570); return w * 14 * 1.08 / 1000; }
 const staEsc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 /* inline style: the theme's rule «.fig text» must not repaint the labels of the blocks */
 const staST = (x, y, s, fill, anc) => '<text x="' + fx(x, 1) + '" y="' + fx(y, 1) + '"' + (anc ? ' text-anchor="' + anc + '"' : '') + ' style="fill:' + fill + ';' + STA_FONT + '">' + staEsc(s) + '</text>';
@@ -252,9 +260,9 @@ topic({ id: 'st.moyenne', ch: 'st', lvl: 1, calc: false, variants: 4,
         { v: S, ru: 'это сумма оценок: её забыли разделить на количество оценок' },
         { v: S / 4, ru: 'сумму разделили на 4, а оценок 5' },
         { v: (s[0] + s[4]) / 2, ru: 'это середина между самой низкой и самой высокой оценкой: остальные оценки не учтены' },
-        { v: s[2], ru: 'это медиана — оценка в середине упорядоченного ряда; среднее считается иначе' }]).concat([{ v: m + 1, ru: 'ошибка в сложении' }, { v: m - 1, ru: 'ошибка в сложении' }]));
+        { v: s[2], ru: 'это медиана (оценка в середине упорядоченного ряда), а не среднее' }]).concat([{ v: m + 1, ru: 'ошибка в сложении' }, { v: m - 1, ru: 'ошибка в сложении' }]));
       ds.forEach(d => { d.t = nf(d.v); });
-      return { q: staL(`Les notes de ${w.n} au premier trimestre sont : ${staSF(a)}. Quelle est la moyenne de ces notes ?`, `Оценки ${w.n} за первый триместр: ${staSR(a)}. Чему равно среднее этих оценок?`),
+      return { q: staL(`Les notes ${staDe(w.n)} au premier trimestre sont : ${staSF(a)}. Quelle est la moyenne de ces notes ?`, `Оценки ${w.n} за первый триместр: ${staSR(a)}. Чему равно среднее этих оценок?`),
         ans: MQ(r, [nf(m)].concat(ds.map(d => d.t)), 0),
         sol: [
           'Среднее = сумма всех оценок ÷ их количество (здесь оценок 5).',
@@ -273,10 +281,10 @@ topic({ id: 'st.moyenne', ch: 'st', lvl: 1, calc: false, variants: 4,
     }
     const m = S / n, u = ctx === 'temp' ? '°C' : '', w = staWho(r), V = r.pick(STA_VILLES);
     const Q = {
-      notes: [`Voici les notes de mathématiques de ${w.n} ce trimestre : ${staSF(a)}. Calculer la moyenne de ces notes.`, `Вот оценки ${w.n} по математике за этот триместр: ${staSR(a)}. Вычисли среднее этих оценок.`],
+      notes: [`Voici les notes de mathématiques ${staDe(w.n)} ce trimestre : ${staSF(a)}. Calculer la moyenne de ces notes.`, `Вот оценки ${w.n} по математике за этот триместр: ${staSR(a)}. Вычисли среднее этих оценок.`],
       serie: [`On donne la série suivante : ${staSF(a)}. Calculer la moyenne de cette série.`, `Дан ряд: ${staSR(a)}. Вычисли среднее этого ряда.`],
       buts: [`Voici le nombre de buts marqués par une équipe de football lors de ses ${n} derniers matchs : ${staSF(a)}. Calculer le nombre moyen de buts par match.`, `Вот сколько голов забила футбольная команда в ${n} последних матчах: ${staSR(a)}. Вычисли среднее число голов за матч.`],
-      livres: [`On a demandé à ${n} élèves combien de livres ils ont lus pendant les vacances. Voici leurs réponses : ${staSF(a)}. Calculer le nombre moyen de livres lus par élève.`, `${n} учеников спросили, сколько книг они прочитали за каникулы. Их ответы: ${staSR(a)}. Вычисли среднее число книг на одного ученика.`],
+      livres: [`On a demandé à ${n} élèves combien de livres ils ont lus pendant les vacances. Voici leurs réponses : ${staSF(a)}. Calculer le nombre moyen de livres lus par élève.`, `${staNum(n, 'ученика', 'учеников', 'учеников')} спросили, сколько книг они прочитали за каникулы. Их ответы: ${staSR(a)}. Вычисли среднее число книг на одного ученика.`],
       temp: [`Voici les températures relevées à 7 h du matin à ${V[0]} pendant ${n === 7 ? 'une semaine' : 'cinq jours'} : ${staSF(a, '°C')}. Calculer la température moyenne.`, `Вот температура в 7 утра в ${V[1]} в течение ${n === 7 ? 'недели' : 'пяти дней'}: ${staSR(a, '°C')}. Вычисли среднюю температуру.`]
     }[ctx];
     return { q: staL(Q[0], Q[1]), ans: N(fx(m), u ? { unit: u } : {}), sol: [
@@ -310,11 +318,11 @@ topic({ id: 'st.moyenne-ponderee', ch: 'st', lvl: 2, calc: false, variants: 4,
       const m = S / N0, u = C === 'trajet' ? 'min' : '';
       const T = { freres: ['Nombre de frères et sœurs', 'Effectif'], buts: ['Nombre de buts', 'Nombre de matchs'], notes: ['Note', 'Effectif'], pointures: ['Pointure', 'Effectif'], trajet: ['Temps (min)', 'Effectif'] }[C];
       const Q = {
-        freres: [`Le tableau ci-dessous donne le nombre de frères et sœurs des ${N0} élèves d'une classe. Calculer le nombre moyen de frères et sœurs par élève.`, `В таблице — сколько братьев и сестёр у каждого из ${N0} учеников класса. Вычисли среднее число братьев и сестёр на одного ученика.`],
+        freres: [`Le tableau ci-dessous donne le nombre de frères et sœurs des ${N0} élèves d'une classe. Calculer le nombre moyen de frères et sœurs par élève.`, `В таблице — сколько братьев и сестёр у каждого из ${staGen(N0, 'ученика', 'учеников')} класса. Вычисли среднее число братьев и сестёр на одного ученика.`],
         buts: [`Le tableau ci-dessous donne le nombre de buts marqués par une équipe de football lors des ${N0} matchs de sa saison. Calculer le nombre moyen de buts par match.`, `В таблице — сколько голов забивала футбольная команда в ${N0} матчах сезона. Вычисли среднее число голов за матч.`],
-        notes: [`Le tableau ci-dessous donne les notes obtenues par les ${N0} élèves d'une classe à un contrôle. Calculer la note moyenne de la classe.`, `В таблице — оценки ${N0} учеников класса за контрольную. Вычисли средний балл класса.`],
-        pointures: [`Le tableau ci-dessous donne la pointure des ${N0} élèves d'une classe de 3e. Calculer la pointure moyenne de ces élèves. Arrondir au dixième.`, `В таблице — размер обуви ${N0} учеников класса 3e. Вычисли средний размер обуви. Округли до десятых.`],
-        trajet: [`On a demandé aux ${N0} élèves d'une classe combien de minutes ils mettent pour venir au collège. Les réponses sont données dans le tableau ci-dessous. Calculer le temps de trajet moyen. Arrondir au dixième.`, `${N0} учеников класса спросили, сколько минут они добираются до колледжа. Ответы — в таблице. Вычисли среднее время в пути. Округли до десятых.`]
+        notes: [`Le tableau ci-dessous donne les notes obtenues par les ${N0} élèves d'une classe à un contrôle. Calculer la note moyenne de la classe.`, `В таблице — оценки ${staGen(N0, 'ученика', 'учеников')} класса за контрольную. Вычисли средний балл класса.`],
+        pointures: [`Le tableau ci-dessous donne la pointure des ${N0} élèves d'une classe de 3e. Calculer la pointure moyenne de ces élèves. Arrondir au dixième.`, `В таблице — размер обуви ${staGen(N0, 'ученика', 'учеников')} класса 3e. Вычисли средний размер обуви. Округли до десятых.`],
+        trajet: [`On a demandé aux ${N0} élèves d'une classe combien de minutes ils mettent pour venir au collège. Les réponses sont données dans le tableau ci-dessous. Calculer le temps de trajet moyen. Arrondir au dixième.`, `Ученикам класса (всего их ${N0}) задали вопрос: сколько минут они добираются до колледжа? Ответы — в таблице. Вычисли среднее время в пути. Округли до десятых.`]
       }[C];
       const steps = [
         ['Каждое значение встречается столько раз, сколько указано во второй строке, и столько же раз входит в сумму. Поэтому сумма всех ' + N0 + ' значений — это сумма произведений «значение × количество»:', vals.map((v, i) => v + '*' + e[i]).join('+') + '=' + S],
@@ -346,7 +354,7 @@ topic({ id: 'st.moyenne-ponderee', ch: 'st', lvl: 2, calc: false, variants: 4,
         { v: M + 0.5, ru: 'арифметическая ошибка' }]);
       ds.forEach(d => { d.t = nf(d.v); });
       return { q: staL(`Au dernier contrôle de mathématiques, les ${nA} élèves de 3e A ont obtenu une moyenne de ${nf(mA)} et les ${nB} élèves de 3e B une moyenne de ${nf(mB)}. Quelle est la moyenne de l'ensemble des ${nA + nB} élèves ?`,
-        `На последней контрольной по математике ${nA} учеников 3e A получили в среднем ${nf(mA)}, а ${nB} учеников 3e B — в среднем ${nf(mB)}. Чему равно среднее всех ${nA + nB} учеников?`),
+        `В 3e A ${staNum(nA, 'ученик', 'ученика', 'учеников')}, их средняя оценка за последнюю контрольную по математике — ${nf(mA)}; в 3e B ${staNum(nB, 'ученик', 'ученика', 'учеников')}, их средняя оценка — ${nf(mB)}. Чему равна средняя оценка всех ${staGen(nA + nB, 'ученика', 'учеников')}?`),
         ans: MQ(r, [nf(M)].concat(ds.map(d => d.t)), 0), sol: [
           ['Сумма оценок класса = среднее × число учеников (ведь среднее = сумма ÷ количество). Для 3e A:', nA + '*' + fx(mA) + '=' + fx(nA * mA)],
           ['Для 3e B:', nB + '*' + fx(mB) + '=' + fx(nB * mB)],
@@ -382,8 +390,8 @@ topic({ id: 'st.moyenne-objectif', ch: 'st', lvl: 3, calc: false, variants: 4,
         if (xx >= 6 && xx <= 20 && xx !== mm) { a = aa; m = mm; x = xx; k = kk; break; }
       }
       const S = staSum(a), T = (k + 1) * m;
-      return { q: staL(`${w.n} a obtenu ${staSF(a)} à ses ${STA_NUM_FR[k]} premiers contrôles de mathématiques. Quelle note doit-${il} obtenir au contrôle suivant pour avoir exactement ${m} de moyenne sur ces ${STA_NUM_FR[k + 1]} contrôles ?`,
-        `${w.n} ${staG(w, 'получил', 'получила')} ${staSR(a)} за первые ${STA_NUM_RU[k]} контрольные по математике. Какую оценку нужно получить за следующую контрольную, чтобы среднее по ${k === 3 ? 'четырём' : 'пяти'} контрольным было ровно ${m}?`),
+      return { q: staL(`${w.n} a obtenu ${staEt(a)} à ses ${STA_NUM_FR[k]} premiers contrôles de mathématiques. Quelle note doit-${il} obtenir au contrôle suivant pour avoir exactement ${m} de moyenne sur ces ${STA_NUM_FR[k + 1]} contrôles ?`,
+        `${w.n} ${staG(w, 'получил', 'получила')} ${staI(a)} за первые ${STA_NUM_RU[k]} контрольные по математике. Какую оценку нужно получить за следующую контрольную, чтобы среднее по ${k === 3 ? 'четырём' : 'пяти'} контрольным было ровно ${m}?`),
         ans: N(x), sol: [
           ['Среднее = сумма ÷ количество, значит, сумма = среднее × количество. Чтобы среднее по ' + (k + 1) + ' контрольным было ' + m + ', сумма всех оценок должна быть:', (k + 1) + '*' + m + '=' + T],
           ['Сумма уже полученных оценок:', staPlus(a) + '=' + S],
@@ -397,8 +405,8 @@ topic({ id: 'st.moyenne-objectif', ch: 'st', lvl: 3, calc: false, variants: 4,
         if (dd % 2 === 0 && dd / 2 >= 6 && dd / 2 <= 20) { a = aa; m = mm; d = dd; break; }
       }
       const S = staSum(a), x = d / 2;
-      return { q: staL(`${w.n} a obtenu ${staSF(a)} à trois contrôles de coefficient 1. Le prochain contrôle compte coefficient 2. Quelle note doit-${il} obtenir à ce contrôle pour avoir exactement ${m} de moyenne ?`,
-        `${w.n} ${staG(w, 'получил', 'получила')} ${staSR(a)} за три контрольные с коэффициентом 1. Следующая контрольная идёт с коэффициентом 2. Какую оценку нужно за неё получить, чтобы среднее стало ровно ${m}?`),
+      return { q: staL(`${w.n} a obtenu ${staEt(a)} à trois contrôles de coefficient 1. Le prochain contrôle compte coefficient 2. Quelle note doit-${il} obtenir à ce contrôle pour avoir exactement ${m} de moyenne ?`,
+        `${w.n} ${staG(w, 'получил', 'получила')} ${staI(a)} за три контрольные с коэффициентом 1. Следующая контрольная идёт с коэффициентом 2. Какую оценку нужно за неё получить, чтобы среднее стало ровно ${m}?`),
         ans: N(x), sol: [
           'Коэффициент 2 значит, что новая оценка считается два раза. Всего «оценок» будет 3 + 2 = 5.',
           ['Чтобы среднее было ' + m + ', сумма с учётом коэффициентов должна быть:', '5*' + m + '=' + 5 * m],
@@ -477,19 +485,19 @@ topic({ id: 'st.mediane', ch: 'st', lvl: 1, calc: false, variants: 3,
     if (n % 2) {
       const k = (n + 1) / 2; med = s[k - 1];
       st = [
-        'Медиана делит упорядоченный ряд пополам, поэтому сначала расставляем значения по возрастанию («dans l\'ordre croissant»): ' + staSR(s, u) + '.',
+        'Медиана делит упорядоченный ряд пополам, поэтому сначала расставляем значения по возрастанию («dans l\'ordre croissant»): ' + staSR(s, staUR(u)) + '.',
         ['Значений ' + n + ' — нечётное число. Серединное значение стоит на месте номер', '(' + n + '+1)/2=' + k],
-        'Слева от него ' + (k - 1) + ' ' + staPl(k - 1, 'значение', 'значения', 'значений') + ' и справа столько же. ' + k + '-е значение упорядоченного ряда — ' + nf(med) + (u ? ' ' + u : '') + '. Это медиана.'];
+        'Слева от него ' + (k - 1) + ' ' + staPl(k - 1, 'значение', 'значения', 'значений') + ' и справа столько же. ' + k + '-е значение упорядоченного ряда — ' + nf(med) + (u ? ' ' + staUR(u) : '') + '. Это медиана.'];
       if (new Set(a).size < n) st.push('Одинаковые значения записываем столько раз, сколько они встречаются, — иначе места сдвинутся.');
     } else {
       const k = n / 2, a1 = s[k - 1], a2 = s[k]; med = (a1 + a2) / 2;
       st = [
-        'Сначала расставляем значения по возрастанию: ' + staSR(s, u) + '.',
+        'Сначала расставляем значения по возрастанию: ' + staSR(s, staUR(u)) + '.',
         'Значений ' + n + ' — чётное число, поэтому посередине стоят два значения: ' + k + '-е и ' + (k + 1) + '-е, то есть ' + nf(a1) + ' и ' + nf(a2) + '.',
-        a1 === a2 ? 'Оба равны ' + nf(a1) + ', значит, медиана равна ' + nf(a1) + (u ? ' ' + u : '') + '.' : ['Любое число между ними делит ряд на две равные половины; договорились брать середину между ними:', '(' + fx(a1) + '+' + fx(a2) + ')/2=' + fx(med), u]];
+        a1 === a2 ? 'Оба равны ' + nf(a1) + ', значит, медиана равна ' + nf(a1) + (u ? ' ' + staUR(u) : '') + '.' : ['Любое число между ними делит ряд на две равные половины; договорились брать середину между ними:', '(' + fx(a1) + '+' + fx(a2) + ')/2=' + fx(med), u]];
     }
     const QN = {
-      notes: n % 2 ? [`Voici les notes de ${w.n} en ${mat[0]} ce trimestre : ${staSF(a)}. Déterminer la médiane de ces notes.`, `Вот оценки ${w.n} по ${mat[1]} за этот триместр: ${staSR(a)}. Найди медиану этих оценок.`]
+      notes: n % 2 ? [`Voici les notes ${staDe(w.n)} en ${mat[0]} ce trimestre : ${staSF(a)}. Déterminer la médiane de ces notes.`, `Вот оценки ${w.n} по ${mat[1]} за этот триместр: ${staSR(a)}. Найди медиану этих оценок.`]
         : [`Voici les notes obtenues par ${n} élèves à un contrôle : ${staSF(a)}. Déterminer la note médiane.`, `Вот оценки ${n} учеников за контрольную: ${staSR(a)}. Найди медианную оценку.`],
       temp: [`On a relevé la température minimale à ${V[0]} pendant les ${STA_NUM_FR[n]} premiers jours de ${mois[0]} : ${staSF(a, '°C')}. Déterminer la médiane de cette série.`, `Минимальная температура в ${V[1]} в первые ${STA_NUM_RU[n]} дней ${mois[1]}: ${staSR(a, '°C')}. Найди медиану этого ряда.`],
       serie: n % 2 ? [`Déterminer la médiane de la série : ${staSF(a)}.`, `Найди медиану ряда: ${staSR(a)}.`] : [`On considère la série : ${staSF(a)}. Déterminer sa médiane.`, `Дан ряд: ${staSR(a)}. Найди его медиану.`],
@@ -505,7 +513,7 @@ topic({ id: 'st.mediane', ch: 'st', lvl: 1, calc: false, variants: 3,
       { v: s[k], ru: 'это ' + (k + 1) + '-е значение: место медианы посчитано неверно' },
       { v: s[k - 2], ru: 'это ' + (k - 1) + '-е значение: место медианы посчитано неверно' }]);
     ds.forEach(d => { d.t = nf(d.v); });
-    const Q = ctx === 'notes' ? [`Voici les notes de ${w.n} en ${mat[0]} : ${staSF(a)}. Quelle est la médiane de ces notes ?`, `Вот оценки ${w.n} по ${mat[1]}: ${staSR(a)}. Чему равна медиана этих оценок?`]
+    const Q = ctx === 'notes' ? [`Voici les notes ${staDe(w.n)} en ${mat[0]} : ${staSF(a)}. Quelle est la médiane de ces notes ?`, `Вот оценки ${w.n} по ${mat[1]}: ${staSR(a)}. Чему равна медиана этих оценок?`]
       : [`On considère la série : ${staSF(a)}. Quelle est la médiane de cette série ?`, `Дан ряд: ${staSR(a)}. Чему равна медиана этого ряда?`];
     return { q: staL(Q[0], Q[1]), ans: MQ(r, [nf(med)].concat(ds.map(d => d.t)), 0), sol: st.concat([staWhy(ds)]) };
   } });
@@ -546,9 +554,9 @@ topic({ id: 'st.mediane-tableau', ch: 'st', lvl: 2, calc: false, variants: 4,
       else { const b = r.ri(35, 37); vals = [0, 1, 2, 3, 4, 5].map(i => b + i); }
       const N0 = r.ri(15, 31), e = staSplit(r, N0, 6, 1), M = staMedSteps(vals, e);
       const Q = {
-        notes: [`Le tableau ci-dessous donne les notes obtenues par les ${N0} élèves d'une classe à un contrôle. Déterminer la note médiane.`, `В таблице — оценки ${N0} учеников класса за контрольную. Найди медианную оценку.`, 'Note'],
-        livres: [`Le tableau ci-dessous donne le nombre de livres lus pendant l'été par chacun des ${N0} élèves d'une classe. Déterminer la médiane de cette série.`, `В таблице — сколько книг прочитал за лето каждый из ${N0} учеников класса. Найди медиану этого ряда.`, 'Nombre de livres'],
-        pointures: [`Le tableau ci-dessous donne la pointure des ${N0} joueurs d'un club de handball. Déterminer la pointure médiane.`, `В таблице — размер обуви ${N0} игроков гандбольного клуба. Найди медианный размер обуви.`, 'Pointure']
+        notes: [`Le tableau ci-dessous donne les notes obtenues par les ${N0} élèves d'une classe à un contrôle. Déterminer la note médiane.`, `В таблице — оценки ${staGen(N0, 'ученика', 'учеников')} класса за контрольную. Найди медианную оценку.`, 'Note'],
+        livres: [`Le tableau ci-dessous donne le nombre de livres lus pendant l'été par chacun des ${N0} élèves d'une classe. Déterminer la médiane de cette série.`, `В таблице — сколько книг прочитал за лето каждый из ${staGen(N0, 'ученика', 'учеников')} класса. Найди медиану этого ряда.`, 'Nombre de livres'],
+        pointures: [`Le tableau ci-dessous donne la pointure des ${N0} joueurs d'un club de handball. Déterminer la pointure médiane.`, `В таблице — размер обуви ${staGen(N0, 'игрока', 'игроков')} гандбольного клуба. Найди медианный размер обуви.`, 'Pointure']
       }[C];
       return { q: staL(Q[0], Q[1]), fig: staTab([[Q[2]].concat(vals), ['Effectif'].concat(e)]), ans: N(fx(M.med)),
         sol: [['Всего значений («effectif total») — сумма второй строки:', e.join('+') + '=' + N0]].concat(M.st) };
@@ -563,26 +571,26 @@ topic({ id: 'st.mediane-tableau', ch: 'st', lvl: 2, calc: false, variants: 4,
         `На столбчатой диаграмме — оценки учеников ${cl} за последнюю контрольную по ${mat[1]}. a. Сколько учеников писали контрольную? b. Чему равна медианная оценка?`),
         fig: staBars(vals, e, { xt: 'Notes' }),
         ans: multi([staL('a. Nombre d\'élèves :', 'a. Число учеников:'), N(N0)], [staL('b. Note médiane :', 'b. Медианная оценка:'), N(fx(M.med))]),
-        sol: [['a. Высота каждого столбика — число учеников с этой оценкой. Складываем высоты:', e.filter(x => x).join('+') + '=' + N0], 'b. Оценки на оси уже идут по возрастанию.'].concat(M.st) };
+        sol: [['a. Высота каждого столбика — число учеников с этой оценкой. Складываем высоты:', e.filter(x => x).join('+') + '=' + N0], 'b. Ищем медиану этих ' + N0 + ' оценок.'].concat(M.st) };
     }
     if (vi === 2) {   /* what a median means */
       const C = r.pick([
         { fr: "les salaires mensuels des employés d'une entreprise", ru: 'месячных зарплат сотрудников компании', v: r.ri(18, 26) * 100, u: '€', who: ['des employés', 'сотрудников'], verb: ['gagnent', 'получают'],
           moy: ['Le salaire moyen est égal à', 'Средняя зарплата равна'], ext: ["L'écart entre le salaire le plus élevé et le salaire le plus bas est de", 'Разница между самой высокой и самой низкой зарплатой равна'] },
-        { fr: "les temps de trajet des élèves d'un collège", ru: 'времени в пути учеников колледжа', v: r.ri(15, 35), u: 'min', who: ['des élèves', 'учеников'], verb: ['mettent', 'тратят на дорогу'],
+        { fr: "les temps de trajet des élèves d'un collège", ru: 'времени в пути учеников колледжа', v: r.ri(15, 35), u: 'min', uR: 'мин', who: ['des élèves', 'учеников'], verb: ['mettent', 'тратят на дорогу'],
           moy: ['Le temps de trajet moyen est égal à', 'Среднее время в пути равно'], ext: ["L'écart entre le trajet le plus long et le trajet le plus court est de", 'Разница между самой долгой и самой короткой дорогой равна'] },
-        { fr: "les tailles des joueurs d'un club de basket", ru: 'роста игроков баскетбольного клуба', v: r.ri(176, 194), u: 'cm', who: ['des joueurs', 'игроков'], verb: ['mesurent', 'имеют рост'],
+        { fr: "les tailles des joueurs d'un club de basket", ru: 'роста игроков баскетбольного клуба', v: r.ri(176, 194), u: 'cm', uR: 'см', who: ['des joueurs', 'игроков'], verb: ['mesurent', 'имеют рост'],
           moy: ['La taille moyenne est égale à', 'Средний рост равен'], ext: ["L'écart entre le joueur le plus grand et le joueur le plus petit est de", 'Разница в росте между самым высоким и самым низким игроком равна'] }]);
-      const V = C.u === '€' ? eur(C.v) : nf(C.v) + ' ' + C.u;
-      return { q: staL(`La médiane de la série des ${C.fr.replace(/^les /, '')} est ${V}. Parmi les affirmations suivantes, laquelle est forcément vraie ?`, `Медиана ${C.ru} равна ${V}. Какое из утверждений обязательно верно?`),
+      const V = C.u === '€' ? eur(C.v) : nf(C.v) + ' ' + C.u, VR = C.u === '€' ? V : nf(C.v) + ' ' + C.uR;
+      return { q: staL(`La médiane de la série des ${C.fr.replace(/^les /, '')} est ${V}. Parmi les affirmations suivantes, laquelle est forcément vraie ?`, `Медиана ${C.ru} равна ${VR}. Какое из утверждений обязательно верно?`),
         ans: MQ(r, [
-          staL(`Au moins la moitié ${C.who[0]} ${C.verb[0]} ${V} ou moins.`, `Не меньше половины ${C.who[1]} ${C.verb[1]} ${V} или меньше.`),
-          staL(`La moitié ${C.who[0]} ${C.verb[0]} exactement ${V}.`, `Половина ${C.who[1]} ${C.verb[1]} ровно ${V}.`),
-          staL(`${C.moy[0]} ${V}.`, `${C.moy[1]} ${V}.`),
-          staL(`${C.ext[0]} ${V}.`, `${C.ext[1]} ${V}.`)], 0),
+          staL(`Au moins la moitié ${C.who[0]} ${C.verb[0]} ${V} ou moins.`, `Не меньше половины ${C.who[1]} ${C.verb[1]} ${VR} или меньше.`),
+          staL(`La moitié ${C.who[0]} ${C.verb[0]} exactement ${V}.`, `Половина ${C.who[1]} ${C.verb[1]} ровно ${VR}.`),
+          staL(`${C.moy[0]} ${V}.`, `${C.moy[1]} ${VR}.`),
+          staL(`${C.ext[0]} ${V}.`, `${C.ext[1]} ${VR}.`)], 0),
         sol: [
-          'Медиана делит упорядоченный ряд пополам: не меньше половины значений не больше медианы, и не меньше половины — не меньше её. Отсюда верное утверждение: не меньше половины ' + C.who[1] + ' — ' + V + ' или меньше.',
-          '«Ровно ' + V + ' у половины» — неверно: медиана может вообще не совпадать ни с одним значением ряда.',
+          'Медиана делит упорядоченный ряд пополам: не меньше половины значений не больше медианы, и не меньше половины — не меньше её. Отсюда верное утверждение: не меньше половины ' + C.who[1] + ' — ' + VR + ' или меньше.',
+          '«Ровно ' + VR + ' у половины» — неверно: медиана может вообще не совпадать ни с одним значением ряда.',
           'Среднее — другая характеристика: одно очень большое значение заметно поднимает среднее, а медиану почти не меняет.',
           'Разница между наибольшим и наименьшим значением — это размах («étendue»), с медианой он не связан.'] };
     }
@@ -670,7 +678,7 @@ topic({ id: 'st.etendue', ch: 'st', lvl: 1, calc: false, variants: 4,
       if (!a.includes(x)) break;
     }
     const lo3 = Math.min(lo, x), hi3 = Math.max(hi, x), e3 = hi3 - lo3, w = staWho(r);
-    const Q3 = C === 'notes' ? [`Les notes de ${w.n} en sciences sont : ${staSF(a)}. ${w.f ? 'Elle' : 'Il'} obtient ensuite la note ${x}. Quelle est l'étendue de la nouvelle série de notes ?`, `Оценки ${w.n} по естественным наукам: ${staSR(a)}. Потом ${staG(w, 'он получил', 'она получила')} оценку ${x}. Найди размах нового ряда оценок.`]
+    const Q3 = C === 'notes' ? [`Les notes ${staDe(w.n)} en sciences sont : ${staSF(a)}. ${w.f ? 'Elle' : 'Il'} obtient ensuite la note ${x}. Quelle est l'étendue de la nouvelle série de notes ?`, `Оценки ${w.n} по естественным наукам: ${staSR(a)}. Потом ${staG(w, 'он получил', 'она получила')} оценку ${x}. Найди размах нового ряда оценок.`]
       : [`On considère la série : ${staSF(a)}. On ajoute la valeur ${nf(x)} à cette série. Quelle est l'étendue de la nouvelle série ?`, `Дан ряд: ${staSR(a)}. К нему добавили значение ${nf(x)}. Найди размах нового ряда.`];
     return { q: staL(Q3[0], Q3[1]), ans: N(e3), sol: [
       'Размах зависит только от двух крайних значений. Сейчас наименьшее — ' + nf(lo) + ', наибольшее — ' + nf(hi) + ', размах ' + e + '.',
@@ -706,9 +714,9 @@ topic({ id: 'st.effectifs-frequences', ch: 'st', lvl: 1, calc: false, variants: 
     if (vi === 1) {   /* frequency in percent from a table */
       const T = r.pick([20, 25, 50]), e = staSplit(r, T, 4, 2), j = r.ri(0, 3), p = e[j] * 100 / T;
       const cat = [['à pied', 'пешком', 'À pied'], ['à vélo', 'на велосипеде', 'Vélo'], ['en bus', 'на автобусе', 'Bus'], ['en voiture', 'на машине', 'Voiture']];
-      const grp = T === 50 ? ['les 50 élèves de deux classes de 3e', '50 учеников двух классов 3e'] : [`les ${T} élèves d'une classe`, `${T} учеников класса`];
-      return { q: staL(`On a demandé à ${grp[0]} comment ils viennent au collège. Les résultats sont donnés dans le tableau ci-dessous. Quelle est la fréquence, en pourcentage, des élèves qui viennent ${cat[j][0]} ?`,
-        `${grp[1].charAt(0).toUpperCase() + grp[1].slice(1)} спросили, как они добираются до колледжа. Результаты — в таблице. Какова частота (в процентах) учеников, которые добираются ${cat[j][1]}?`),
+      const grp = T === 50 ? ['aux 50 élèves de deux classes de 3e', 'Ученикам двух классов 3e (всего их 50)'] : [`aux ${T} élèves d'une classe`, `Ученикам класса (всего их ${T})`];
+      return { q: staL(`On a demandé ${grp[0]} comment ils viennent au collège. Les résultats sont donnés dans le tableau ci-dessous. Quelle est la fréquence, en pourcentage, des élèves qui viennent ${cat[j][0]} ?`,
+        `${grp[1]} задали вопрос, как они добираются до колледжа. Результаты — в таблице. Какова частота (в процентах) учеников, которые добираются ${cat[j][1]}?`),
         fig: staTab([['Moyen de transport'].concat(cat.map(c => c[2])), ['Effectif'].concat(e)]), ans: N(fx(p), { unit: '%' }), sol: [
           ['Частота = количество ÷ общее количество. Всего учеников:', e.join('+') + '=' + T],
           ['Частота:', e[j] + '/' + T + '=' + fx(e[j] / T)],
@@ -721,13 +729,14 @@ topic({ id: 'st.effectifs-frequences', ch: 'st', lvl: 1, calc: false, variants: 
       const part = T * fr0[0] / fr0[1], f = fr0[0] / fr0[1], ans = neg ? T - part : part;
       let Q, M;
       if (form === 'pct') {
-        Q = [`Dans un collège de ${T} élèves, ${nf(100 * f)} % des élèves participent à un concours de mathématiques. Combien d'élèves ${neg ? 'ne participent pas' : 'participent'} à ce concours ?`, `В колледже ${T} учеников, ${nf(100 * f)} % из них участвуют в математическом конкурсе. Сколько учеников ${neg ? 'не участвуют' : 'участвуют'} в конкурсе?`];
+        Q = T >= 100 ? [`Dans un collège de ${T} élèves, ${nf(100 * f)} % des élèves participent à un concours de mathématiques. Combien d'élèves ${neg ? 'ne participent pas' : 'participent'} à ce concours ?`, `В колледже ${staNum(T, 'ученик', 'ученика', 'учеников')}, ${nf(100 * f)} % из них участвуют в математическом конкурсе. Сколько учеников ${neg ? 'не участвуют' : 'участвуют'} в конкурсе?`]
+          : [`Parmi les ${T} élèves de 3e d'un collège, ${nf(100 * f)} % participent à un concours de mathématiques. Combien d'élèves de 3e ${neg ? 'ne participent pas' : 'participent'} à ce concours ?`, `Среди ${staGen(T, 'ученика', 'учеников')} 3e колледжа ${nf(100 * f)} % участвуют в математическом конкурсе. Сколько учеников 3e ${neg ? 'не участвуют' : 'участвуют'} в конкурсе?`];
         M = T + '*' + fx(100 * f) + '/100=' + part;
       } else if (form === 'frac') {
-        Q = [`Dans une classe de ${T} élèves, les ${staFt(fr0[0], fr0[1])} des élèves déjeunent à la cantine. Combien d'élèves ${neg ? 'ne déjeunent pas' : 'déjeunent'} à la cantine ?`, `В классе ${T} учеников, ${staFt(fr0[0], fr0[1])} из них обедают в столовой. Сколько учеников ${neg ? 'не обедают' : 'обедают'} в столовой?`];
+        Q = [`Dans une classe de ${T} élèves, les ${staFt(fr0[0], fr0[1])} des élèves déjeunent à la cantine. Combien d'élèves ${neg ? 'ne déjeunent pas' : 'déjeunent'} à la cantine ?`, `В классе ${staNum(T, 'ученик', 'ученика', 'учеников')}, ${staFt(fr0[0], fr0[1])} из них обедают в столовой. Сколько учеников ${neg ? 'не обедают' : 'обедают'} в столовой?`];
         M = fr0[0] + '/' + fr0[1] + '*' + T + '=' + part;
       } else {
-        Q = [`Dans un club de sport de ${T} adhérents, la fréquence des adhérents qui ont moins de 15 ans est ${nf(f)}. Combien d'adhérents ${neg ? 'ont 15 ans ou plus' : 'ont moins de 15 ans'} ?`, `В спортивном клубе ${T} членов; частота тех, кому меньше 15 лет, равна ${nf(f)}. Сколько членов клуба ${neg ? '15 лет или старше' : 'младше 15 лет'}?`];
+        Q = [`Dans un club de sport de ${T} adhérents, la fréquence des adhérents qui ont moins de 15 ans est ${nf(f)}. Combien d'adhérents ${neg ? 'ont 15 ans ou plus' : 'ont moins de 15 ans'} ?`, `В спортивном клубе ${staNum(T, 'член', 'члена', 'членов')}; частота тех, кому меньше 15 лет, равна ${nf(f)}. Сколько членов клуба ${neg ? '15 лет или старше' : 'младше 15 лет'}?`];
         M = fx(f) + '*' + T + '=' + part;
       }
       const st = [['Количество = частота × общее количество (ведь частота = количество ÷ общее количество):', M]];
@@ -795,15 +804,15 @@ topic({ id: 'st.diagrammes', ch: 'st', lvl: 1, calc: false, variants: 4,
       do { c = staSplit(r, T, 4, mn); } while (new Set(c).size < 3 || c.some(x => x * u > 180));
       const parts = c.map((x, i) => ({ lab: 'ABCD'[i] + ' : ' + x * u + '°', deg: x * u, cls: 'fc' + (i + 1) })), j = r.ri(0, 3), L0 = 'ABCD'[j], dg = c[j] * u;
       return { q: staL(`Le diagramme circulaire ci-dessous donne la répartition des réponses de ${T} élèves à une question à choix multiple (réponses A, B, C et D). Combien d'élèves ont choisi la réponse ${L0} ?`,
-        `Круговая диаграмма показывает, как ${T} учеников ответили на вопрос с выбором ответа (варианты A, B, C и D). Сколько учеников выбрали ответ ${L0}?`),
+        `Круговая диаграмма показывает ответы ${staGen(T, 'ученика', 'учеников')} на вопрос с выбором ответа (варианты A, B, C и D). Сколько учеников выбрали ответ ${L0}?`),
         fig: staPie(parts), ans: N(c[j]), sol: [
-          'Весь круг (360°) — это все ' + T + ' учеников. Сектор ' + L0 + ' занимает ' + dg + '°, то есть долю ' + staFt(dg, 360) + ' круга.',
+          'Весь круг (360°) — это все ученики (их ' + T + '). Сектор ' + L0 + ' занимает ' + dg + '°, то есть долю ' + staFt(dg, 360) + ' круга.',
           ['Учеников:', T + '*' + dg + '/360=' + c[j]],
           'Удобнее так: на одного ученика приходится 360° ÷ ' + T + ' = ' + nf(u) + '°, а ' + dg + ' ÷ ' + nf(u) + ' = ' + c[j] + '.'] };
     }
     /* histogram */
     const C = r.pick(['taille', 'trajet']);
-    const b = C === 'taille' ? [140, 150, 160, 170, 180, 190] : [0, 10, 20, 30, 40, 50], u = C === 'taille' ? 'cm' : 'min';
+    const b = C === 'taille' ? [140, 150, 160, 170, 180, 190] : [0, 10, 20, 30, 40, 50], u = C === 'taille' ? 'см' : 'мин';
     let e = [];
     do { e = [r.ri(1, 6), r.ri(3, 11), r.ri(3, 12), r.ri(2, 10), r.ri(1, 6)]; } while (new Set(e).size < 4);
     const fig = staBars(null, e, { bounds: b, xt: C === 'taille' ? 'Taille (cm)' : 'Temps de trajet (min)', label: 'histogramme' });
@@ -836,7 +845,7 @@ topic({ id: 'st.diagramme-circulaire', ch: 'st', lvl: 2, calc: false, variants: 
     if (vi === 0) {   /* the angle of a sector */
       const T = r.pick([18, 20, 24, 30, 36, 40, 45, 60, 72, 90]), e = staSplit(r, T, 4, Math.max(1, Math.ceil(T / 12))), j = r.ri(0, 3), dg = e[j] * 360 / T, f = F(e[j], T);
       return { q: staL(`${T} élèves ont indiqué leur activité préférée le mercredi après-midi (voir le tableau). On veut représenter ces résultats par un diagramme circulaire. Quelle est la mesure, en degrés, de l'angle du secteur « ${acts[j][0]} » ?`,
-        `${T} учеников назвали любимое занятие в среду после обеда (см. таблицу). Результаты хотят изобразить круговой диаграммой. Какой угол (в градусах) у сектора «${acts[j][0]}»?`),
+        `Ученики (всего их ${T}) назвали любимое занятие в среду после обеда (см. таблицу). Результаты хотят изобразить круговой диаграммой. Какой угол (в градусах) у сектора «${acts[j][0]}»?`),
         fig: staTab([['Activité'].concat(acts.map(a => a[0])), ['Effectif'].concat(e)]), ans: N(dg, { unit: '°' }), sol: [
           'Весь круг 360° соответствует всем ' + T + ' ученикам, а угол сектора пропорционален количеству.',
           ['Доля учеников, выбравших «' + acts[j][0] + '»:', staFq(e[j], T)],
@@ -867,7 +876,7 @@ topic({ id: 'st.diagramme-circulaire', ch: 'st', lvl: 2, calc: false, variants: 
         `На круговой диаграмме сектор «${acts[j][0]}» имеет угол ${dg}° и соответствует ${e} ученикам. Сколько всего учеников опросили?`),
         ans: N(T), sol: [
           ['Сектор ' + dg + '° — это доля круга', dg + '/360=' + Fr.str(f)],
-          'Значит, ' + e + ' ' + staPl(e, 'ученик', 'ученика', 'учеников') + ' — это ' + staFt(f.n, f.d) + ' всех учеников' + (f.n === 1 ? ', и всех учеников в ' + f.d + ' раз больше.' : '.'),
+          'Значит, ' + e + ' ' + staPl(e, 'ученик', 'ученика', 'учеников') + ' — это ' + staFt(f.n, f.d) + ' всех учеников' + (f.n === 1 ? ', и всех учеников в ' + f.d + ' ' + staPl(f.d, 'раз', 'раза', 'раз') + ' больше.' : '.'),
           ['Всего учеников:', e + '*360/' + dg + '=' + T],
           'Проверка: ' + staFt(e, T) + ' × 360° = ' + dg + '°.'] };
     }
@@ -888,7 +897,7 @@ topic({ id: 'st.diagramme-circulaire', ch: 'st', lvl: 2, calc: false, variants: 
     lg.forEach((l, k) => { s += staRc(22 + k * 108, 290, 14, 14, 'fc' + (k + 1)) + staTx(42 + k * 108, 302, l[0], 'ftx', 'start'); });
     const fig = staTab([[CX.h].concat(lg.map(l => l[0])), ['Effectif'].concat(e)]) + svgFig(340, 312, s, 'quatre diagrammes circulaires');
     return { q: staL(`On a demandé à ${T} élèves de ${niv} ${CX.fr}. Les résultats sont donnés dans le tableau. Quel diagramme circulaire représente ces résultats ?`,
-      `${T} учеников ${niv} спросили, ${CX.ru}. Результаты — в таблице. Какая круговая диаграмма изображает эти результаты?`),
+      `Ученикам ${niv} (всего их ${T}) задали вопрос, ${CX.ru}. Результаты — в таблице. Какая круговая диаграмма изображает эти результаты?`),
       fig, ans: MQF([staL('Diagramme A', 'Диаграмма A'), staL('Diagramme B', 'Диаграмма B'), staL('Diagramme C', 'Диаграмма C'), staL('Diagramme D', 'Диаграмма D')], c),
       sol: [
         'Находим долю каждой категории и угол её сектора (доля × 360°): ' + lg.map((l, k) => l[0] + ' — ' + staFt(e[k], T) + ' = ' + staFt(sh[k], 12) + ', угол ' + sh[k] * 30 + '°').join('; ') + '.',
@@ -920,7 +929,8 @@ topic({ id: 'st.proba-simple', ch: 'st', lvl: 1, calc: false, variants: 5,
           { v: b / (T - b), t: staFt(b, T - b), ru: 'это сравнение с остальными шарами, а делить надо на все шары' },
           { v: 1 / 3, t: staFt(1, 3), ru: 'цветов три, но они не равновозможны: шаров разных цветов разное количество' },
           { v: b / o, t: staFt(b, o), ru: 'разделили на число шаров только одного другого цвета' },
-          { v: (T - b) / T, t: staFt(T - b, T), ru: 'это вероятность вынуть шар другого цвета' }]);
+          { v: (T - b) / T, t: staFt(T - b, T), ru: 'это вероятность вынуть шар другого цвета' },
+          { v: 1 / T, t: staFt(1, T), ru: 'это вероятность вынуть один определённый шар, а подходящих шаров ' + b }].filter(c => c.v < 1));
         if (ds.length === 3 && new Set(n).size === 3) break;
       }
       const b = n[j], right = r() < 0.5 ? staFt(b, T) : '$' + Fr.str(F(b, T)) + '$';
@@ -963,20 +973,22 @@ topic({ id: 'st.proba-simple', ch: 'st', lvl: 1, calc: false, variants: 5,
         ['la dame de pique', 'даму пик', 1, 'Дама пик в колоде одна.'],
         ['un trèfle ou un as', 'трефу или туза', per + 3, 'Треф ' + per + ', тузов 4, но туз треф попал в оба списка — считаем его один раз: ' + per + ' + 4 − 1 = ' + (per + 3) + '.']]);
       return { q: staL(`On tire au hasard une carte dans un jeu de ${n} cartes bien mélangé. ${desc[0]} Les cœurs et les carreaux sont rouges, les piques et les trèfles sont noirs. Quelle est la probabilité de tirer ${E[0]} ? ${irr[0]}`,
-        `Из хорошо перемешанной колоды в ${n} карт наугад берут одну карту. ${desc[1]} Червы и бубны — красные, пики и трефы — чёрные. Какова вероятность вытянуть ${E[1]}? ${irr[1]}`),
-        ans: FRA(F(E[2], n)), sol: ['Любая из ' + n + ' карт может быть вытянута с одинаковой вероятностью: ' + n + ' равновозможных исходов.', E[3], ['', 'P=' + staFq(E[2], n)]] };
+        `Из хорошо перемешанной колоды в ${n} карты наугад берут одну карту. ${desc[1]} Червы и бубны — красные, пики и трефы — чёрные. Какова вероятность вытянуть ${E[1]}? ${irr[1]}`),
+        ans: FRA(F(E[2], n)), sol: ['Любая из ' + n + ' карт может быть вытянута с одинаковой вероятностью: ' + n + ' равновозможных ' + staPl(n, 'исход', 'исхода', 'исходов') + '.', E[3], ['', 'P=' + staFq(E[2], n)]] };
     }
     if (vi === 3) {   /* a box of sweets */
       const C = r.pick(['beignets', 'bonbons', 'jetons']);
-      const fl = C === 'beignets' ? [['à l\'abricot', 'с абрикосом'], ['à la pomme', 'с яблоком'], ['à la framboise', 'с малиной'], ['au chocolat', 'с шоколадом']] : C === 'bonbons' ? [['à la fraise', 'клубничных'], ['à la menthe', 'мятных'], ['au citron', 'лимонных'], ['à l\'orange', 'апельсиновых']] : [['rouges', 'красных'], ['verts', 'зелёных'], ['jaunes', 'жёлтых'], ['bleus', 'синих']];
+      const fl = C === 'beignets' ? [['à l\'abricot', 'с абрикосом', 'с абрикосом'], ['à la pomme', 'с яблоком', 'с яблоком'], ['à la framboise', 'с малиной', 'с малиной'], ['au chocolat', 'с шоколадом', 'с шоколадом']]
+        : C === 'bonbons' ? [['à la fraise', 'клубничных', 'клубничную'], ['à la menthe', 'мятных', 'мятную'], ['au citron', 'лимонных', 'лимонную'], ['à l\'orange', 'апельсиновых', 'апельсиновую']]
+          : [['rouges', 'красных', 'красный'], ['verts', 'зелёных', 'зелёный'], ['jaunes', 'жёлтых', 'жёлтый'], ['bleus', 'синих', 'синий']];
       const k = r.pick([2, 3, 3]), n = []; for (let i = 0; i < k; i++) n.push(r.ri(2, 12));
       const T = staSum(n), j = r.ri(0, k - 1), lst = n.map((x, i) => x + ' ' + fl[i][0]), lstR = n.map((x, i) => fl[i][1] + ' — ' + x);
-      const Q = C === 'beignets' ? [`Une boîte opaque contient des beignets tous identiques d'aspect : ${lst.map(x => x.replace(/^(\d+)/, '$1 beignets')).join(' ; ')}. On pioche un beignet au hasard. Quelle est la probabilité qu'il soit ${fl[j][0]} ? ${irr[0]}`,
+      const Q = C === 'beignets' ? [`Une boîte opaque contient des beignets tous identiques d'aspect : ${staEt(lst.map(x => x.replace(/^(\d+)/, '$1 beignets')))}. On pioche un beignet au hasard. Quelle est la probabilité qu'il soit ${fl[j][0]} ? ${irr[0]}`,
         `В непрозрачной коробке пончики, на вид одинаковые; начинка: ${lstR.join(', ')}. Наугад достают один пончик. Какова вероятность, что он ${fl[j][1]}? ${irr[1]}`]
-        : C === 'bonbons' ? [`Un sachet contient ${lst.map(x => x.replace(/^(\d+)/, '$1 bonbons')).join(', ')}. On prend un bonbon au hasard dans le sachet. Quelle est la probabilité de prendre un bonbon ${fl[j][0]} ? ${irr[0]}`,
-          `В пакете конфеты: ${lstR.join(', ')}. Наугад берут одну конфету. Какова вероятность взять одну из ${fl[j][1]}? ${irr[1]}`]
-          : [`Une urne contient ${lst.map(x => x.replace(/^(\d+)/, '$1 jetons')).join(', ')}, indiscernables au toucher. On tire un jeton au hasard. Quelle est la probabilité de tirer un jeton ${fl[j][0].replace(/s$/, '')} ? ${irr[0]}`,
-            `В урне жетоны, на ощупь не различимые: ${lstR.join(', ')}. Наугад вынимают один жетон. Какова вероятность вынуть один из ${fl[j][1]}? ${irr[1]}`];
+        : C === 'bonbons' ? [`Un sachet contient ${staEt(lst.map(x => x.replace(/^(\d+)/, '$1 bonbons')))}. On prend un bonbon au hasard dans le sachet. Quelle est la probabilité de prendre un bonbon ${fl[j][0]} ? ${irr[0]}`,
+          `В пакете конфеты: ${lstR.join(', ')}. Наугад берут одну конфету. Какова вероятность взять ${fl[j][2]} конфету? ${irr[1]}`]
+          : [`Une urne contient ${staEt(lst.map(x => x.replace(/^(\d+)/, '$1 jetons')))}, indiscernables au toucher. On tire un jeton au hasard. Quelle est la probabilité de tirer un jeton ${fl[j][0].replace(/s$/, '')} ? ${irr[0]}`,
+            `В урне жетоны, на ощупь не различимые: ${lstR.join(', ')}. Наугад вынимают один жетон. Какова вероятность вынуть ${fl[j][2]} жетон? ${irr[1]}`];
       return { q: staL(Q[0], Q[1]), ans: FRA(F(n[j], T)), sol: [
         'Все предметы одинаковы на вид и на ощупь, выбор наугад — исходы равновозможны.',
         ['Всего:', n.join('+') + '=' + T],
@@ -1014,9 +1026,9 @@ topic({ id: 'st.proba-contraire', ch: 'st', lvl: 2, calc: false, variants: 4,
       const pt = dec ? nf(pd) : staFt(fr0[0], fr0[1]);
       const C = r.pick([
         [`La probabilité qu'il pleuve demain à ${V[0]} est ${pt}. Quelle est la probabilité qu'il ne pleuve pas demain ?`, `Вероятность того, что завтра в ${V[1]} пойдёт дождь, равна ${pt}. Какова вероятность, что дождя завтра не будет?`, 'пойдёт дождь', 'дождя не будет'],
-        [`La probabilité que le bus de ${w.n} soit en retard un jour donné est ${pt}. Quelle est la probabilité qu'il ne soit pas en retard ?`, `Вероятность того, что автобус ${w.n} в какой-то день опоздает, равна ${pt}. Какова вероятность, что он не опоздает?`, 'автобус опоздает', 'автобус не опоздает'],
+        [`La probabilité que le bus ${staDe(w.n)} soit en retard un jour donné est ${pt}. Quelle est la probabilité qu'il ne soit pas en retard ?`, `Вероятность того, что автобус ${w.n} в какой-то день опоздает, равна ${pt}. Какова вероятность, что он не опоздает?`, 'автобус опоздает', 'автобус не опоздает'],
         [`À une tombola, la probabilité qu'un ticket soit gagnant est ${pt}. Quelle est la probabilité qu'un ticket ne soit pas gagnant ?`, `В лотерее вероятность того, что билет выигрышный, равна ${pt}. Какова вероятность, что билет не выигрышный?`, 'билет выигрышный', 'билет не выигрышный'],
-        [`La probabilité que l'équipe de ${w.n} gagne son prochain match est ${pt}. Quelle est la probabilité qu'elle ne le gagne pas ?`, `Вероятность того, что команда ${w.n} выиграет следующий матч, равна ${pt}. Какова вероятность, что она его не выиграет?`, 'команда выиграет', 'команда не выиграет']]);
+        [`La probabilité que l'équipe ${staDe(w.n)} gagne son prochain match est ${pt}. Quelle est la probabilité qu'elle ne le gagne pas ?`, `Вероятность того, что команда ${w.n} выиграет следующий матч, равна ${pt}. Какова вероятность, что она его не выиграет?`, 'команда выиграет', 'команда не выиграет']]);
       const ans = dec ? N(fx(1 - pd)) : FRA(F(fr0[1] - fr0[0], fr0[1]));
       return { q: staL(C[0], C[1]), ans, sol: [
         'События «' + C[2] + '» и «' + C[3] + '» противоположны: ровно одно из них обязательно произойдёт.',
@@ -1115,7 +1127,7 @@ topic({ id: 'st.proba-2epreuves', ch: 'st', lvl: 3, calc: true, variants: 5,
         rem ? 'Шар возвращают в мешок, поэтому во втором испытании состав мешка тот же: вероятности на втором уровне дерева такие же, как на первом.'
           : 'Первый шар не возвращают: во втором испытании в мешке ' + (T - 1) + ' ' + staPl(T - 1, 'шар', 'шара', 'шаров') + ', и шаров того цвета, что вынули первым, на один меньше.',
         { t: 'Дерево опыта (R — красный, N — чёрный):', svg: tree },
-        'Событию подходит ' + (path.length > 1 ? 'два пути: ' : 'путь ') + names + '. Вероятность пути — произведение вероятностей на его ветках' + (path.length > 1 ? ', а вероятности путей складываем:' : ':'),
+        (path.length > 1 ? 'Событию подходят два пути: ' : 'Событию подходит путь ') + names + '. Вероятность пути — произведение вероятностей на его ветках' + (path.length > 1 ? ', а вероятности путей складываем:' : ':'),
         ['', pf.map(x => x[0] + '*' + x[1]).join('+') + '=' + path.map(x => x[0] + '/' + den).join('+') + (path.length > 1 ? '=' + num + '/' + den : '') + (F(num, den).d !== den ? '=' + Fr.str(F(num, den)) : '')]];
       return { q: staL(`Un sac contient ${a} boules rouges et ${b} boules noires, indiscernables au toucher. On tire une boule au hasard et on note sa couleur${rem ? ', puis on la remet dans le sac' : ' ; on ne la remet pas dans le sac'}. On tire ensuite une deuxième boule. Quelle est la probabilité d'obtenir ${E[0]} ? ${irr[0]}`,
         `В мешке шары, на ощупь не различимые: красных — ${a}, чёрных — ${b}. Наугад вынимают шар и смотрят на цвет${rem ? ', потом кладут его обратно' : '; обратно его не кладут'}. Затем вынимают второй шар. Какова вероятность получить ${E[1]}? ${irr[1]}`),
@@ -1171,18 +1183,18 @@ topic({ id: 'st.proba-frequence', ch: 'st', lvl: 2, calc: false, variants: 4,
     const w = staWho(r);
     if (vi === 0) {   /* a frequency, as a decimal */
       const C = r.pick(['punaise', 'basket', 'de']);
-      const n = C === 'basket' ? r.pick([20, 25, 40, 50]) : r.pick([50, 200, 250, 400, 500]), k = r.ri(Math.round(n * 0.15), Math.round(n * 0.8));
+      const n = C === 'basket' ? r.pick([20, 25, 40, 50]) : r.pick([50, 200, 250, 400, 500]), k = C === 'de' ? Math.round(n * r.ri(12, 21) / 100) : r.ri(Math.round(n * 0.15), Math.round(n * 0.8));   /* a fair die: about 1/6 */
       const Q = {
-        punaise: [`${w.n} lance ${n} fois une punaise. Elle retombe ${k} fois « pointe en haut ». Quelle est la fréquence de l'issue « pointe en haut » ? Donner le résultat sous forme décimale.`, `${w.n} подбрасывает канцелярскую кнопку ${n} раз; ${k} раз она падает остриём вверх. Какова частота исхода «остриём вверх»? Запиши ответ десятичной дробью.`],
+        punaise: [`${w.n} lance ${n} fois une punaise. Elle retombe ${k} fois « pointe en haut ». Quelle est la fréquence de l'issue « pointe en haut » ? Donner le résultat sous forme décimale.`, `${w.n} подбрасывает канцелярскую кнопку ${n} раз; ${staNum(k, 'раз', 'раза', 'раз')} она падает остриём вверх. Какова частота исхода «остриём вверх»? Запиши ответ десятичной дробью.`],
         basket: [`Lors d'un entraînement de basket, ${w.n} a tenté ${n} lancers francs et en a réussi ${k}. Quelle est la fréquence de réussite ? Donner le résultat sous forme décimale.`, `На тренировке по баскетболу ${w.n} ${staG(w, 'сделал', 'сделала')} ${n} штрафных бросков и ${k} из них ${staG(w, 'забросил', 'забросила')}. Какова частота попаданий? Запиши ответ десятичной дробью.`],
-        de: [`On a lancé ${n} fois un dé et obtenu ${k} fois le 6. Quelle est la fréquence d'apparition du 6 ? Donner le résultat sous forme décimale.`, `Игральную кость бросили ${n} раз, шестёрка выпала ${k} раз. Какова частота выпадения шестёрки? Запиши ответ десятичной дробью.`]
+        de: [`On a lancé ${n} fois un dé et obtenu ${k} fois le 6. Quelle est la fréquence d'apparition du 6 ? Donner le résultat sous forme décimale.`, `Игральную кость бросили ${n} раз, шестёрка выпала ${staNum(k, 'раз', 'раза', 'раз')}. Какова частота выпадения шестёрки? Запиши ответ десятичной дробью.`]
       }[C];
       return { q: staL(Q[0], Q[1]), ans: N(fx(k / n), { dec: true }), sol: [
         ['Частота = число появлений ÷ число испытаний:', k + '/' + n + '=' + fx(k / n)],
         'В процентах это ' + nf(100 * k / n) + ' %.'] };
     }
     if (vi === 1) {   /* law of large numbers, QCM */
-      const C = r.pick(['piece', 'de', 'sac']), a = r.ri(2, 7), b = r.ri(3, 9);
+      const C = r.pick(['piece', 'de', 'sac']), a = r.ri(2, 7); let b = r.ri(3, 9); if (b === a || b === 2 * a) b = b === 9 ? 3 : b + 1;   /* a/(a+b) ≠ 1/2 and a/b ≠ 1/2 */
       const D = {
         piece: [['On lance une pièce équilibrée.', 'Подбрасывают честную монету.'], ['de « pile »', '«pile»'], '1/2', [['$1/2$', 'devient exactement égale à', 'станет в точности равна', 'частота «гуляет» около вероятности; например, при нечётном числе бросков она вообще не может быть ровно $1/2$'], ['1', 'se rapproche de', 'приближается к', '1 значило бы, что «pile» выпадает почти всегда'], ['$1/2$', 'reste toujours égale à', 'всё время остаётся равной', 'после первого броска частота равна 0 или 1, а не $1/2$']]],
         de: [['On lance un dé équilibré à six faces.', 'Бросают честную игральную кость.'], ['du 6', 'шестёрки'], '1/6', [['$1/6$', 'devient exactement égale à', 'станет в точности равна', 'частота «гуляет» около вероятности и не обязана совпасть с ней точно'], ['$1/2$', 'se rapproche de', 'приближается к', 'у шестёрки один шанс из шести, а не один из двух'], ['$1/6$', 'reste toujours égale à', 'всё время остаётся равной', 'после первого броска частота равна 0 или 1']]],
@@ -1202,7 +1214,7 @@ topic({ id: 'st.proba-frequence', ch: 'st', lvl: 2, calc: false, variants: 4,
       let k = Math.round(n * R / T + (r() - 0.5) * n / T * 0.6);
       if (Math.round(k / n * T) !== R) k = Math.round(n * R / T);
       return { q: staL(`Un sac contient ${T} boules, rouges ou blanches. On effectue ${nf(n)} tirages d'une boule, en remettant à chaque fois la boule dans le sac. On obtient ${k} fois une boule rouge. Combien de boules rouges le sac contient-il probablement ?`,
-        `В мешке ${T} шаров, красных и белых. Шар вынимают ${nf(n)} раз, каждый раз возвращая его обратно. Красный выпал ${k} раз. Сколько красных шаров, вероятно, в мешке?`),
+        `В мешке ${T} шаров, красных и белых. Шар вынимают ${nf(n)} раз, каждый раз возвращая его обратно. Красный выпал ${staNum(k, 'раз', 'раза', 'раз')}. Сколько красных шаров, вероятно, в мешке?`),
         ans: N(R), sol: [
           ['Частота красного:', k + '/' + n + '=' + fx(k / n)],
           'Испытаний много, поэтому частота близка к вероятности. А вероятность вынуть красный = число красных ÷ ' + T + '.',
@@ -1212,12 +1224,12 @@ topic({ id: 'st.proba-frequence', ch: 'st', lvl: 2, calc: false, variants: 4,
     /* the coin has no memory */
     const m = r.ri(4, 8);
     if (r() < 0.5) {
-      return { q: staL(`${w.n} a lancé ${m} fois de suite une pièce équilibrée et a obtenu « face » à chaque fois. Quelle est la probabilité d'obtenir « pile » au lancer suivant ?`, `${w.n} ${staG(w, 'подбросил', 'подбросила')} честную монету ${m} раз подряд, и каждый раз выпадал «face». Какова вероятность, что при следующем броске выпадет «pile»?`),
+      return { q: staL(`${w.n} a lancé ${m} fois de suite une pièce équilibrée et a obtenu « face » à chaque fois. Quelle est la probabilité d'obtenir « pile » au lancer suivant ?`, `${w.n} ${staG(w, 'подбросил', 'подбросила')} честную монету ${staNum(m, 'раз', 'раза', 'раз')} подряд, и каждый раз выпадал «face». Какова вероятность, что при следующем броске выпадет «pile»?`),
         ans: MQ(r, [staL('$1/2$', '$1/2$'), staL('Plus de $1/2$, car « pile » doit bientôt sortir.', 'Больше $1/2$: «pile» должен вот-вот выпасть.'), staL('Moins de $1/2$, car la pièce semble favoriser « face ».', 'Меньше $1/2$: монета, похоже, «любит» «face».'), staL('On ne peut pas la calculer.', 'Её нельзя вычислить.')], 0), sol: [
           'Монета не помнит прошлых бросков: каждый бросок проходит в тех же условиях, и у честной монеты две равновозможные стороны. Вероятность «pile» — $1/2$, как и раньше.',
           'Серия из ' + m + ' одинаковых результатов — просто случайность. Закон больших чисел говорит о частоте на очень большом числе бросков, а не о том, что результаты «выравниваются» в ближайших бросках.'] };
     }
-    return { q: staL(`${w.n} a lancé ${m} fois de suite un dé équilibré à six faces et n'a jamais obtenu de 6. Quelle est la probabilité d'obtenir 6 au lancer suivant ?`, `${w.n} ${staG(w, 'бросил', 'бросила')} честную игральную кость ${m} раз подряд, и шестёрка ни разу не выпала. Какова вероятность, что при следующем броске выпадет 6?`),
+    return { q: staL(`${w.n} a lancé ${m} fois de suite un dé équilibré à six faces et n'a jamais obtenu de 6. Quelle est la probabilité d'obtenir 6 au lancer suivant ?`, `${w.n} ${staG(w, 'бросил', 'бросила')} честную игральную кость ${staNum(m, 'раз', 'раза', 'раз')} подряд, и шестёрка ни разу не выпала. Какова вероятность, что при следующем броске выпадет 6?`),
       ans: MQ(r, [staL('$1/6$', '$1/6$'), staL('Plus de $1/6$, car le 6 doit bientôt sortir.', 'Больше $1/6$: шестёрка должна вот-вот выпасть.'), staL('Moins de $1/6$, car ce dé semble défavoriser le 6.', 'Меньше $1/6$: эта кость, похоже, «не любит» шестёрку.'), staL('On ne peut pas la calculer.', 'Её нельзя вычислить.')], 0), sol: [
         'Кость не помнит прошлых бросков: шесть граней по-прежнему равновозможны, вероятность шестёрки — $1/6$.',
         'Серия без шестёрок — случайность; закон больших чисел говорит о частоте на очень большом числе бросков, а не о «долгах» в следующих бросках.'] };
@@ -1261,6 +1273,7 @@ topic({ id: 'al.scratch-lire', ch: 'al', lvl: 1, calc: false, variants: 4,
     /* programs with an input */
     const T = r.pick([0, 1, 2, 3]);
     const steps = [[[r.pick(['*', '+']), 0], ['-', 0]], [['+', 0], ['*', 0]], [['*', 0], ['+', 0], ['*', 0]], [['-', 0], ['*', 0], ['+', 0]]][T].map(([o]) => [o, o === '*' ? r.ri(2, 5) : r.ri(2, 9)]);
+    if (steps[0][0] === '+' && steps[1][0] === '-' && steps[0][1] === steps[1][1]) steps[1][1] = steps[0][1] === 9 ? 2 : steps[0][1] + 1;   /* +3 then −3 would give the input back */
     if (vi === 2) {   /* which expression: QCM */
       const b = r.ri(2, 5), K = r.pick([0, 1, 2, 3]); let a = r.ri(2, 9); if (a === b) a = b + r.ri(1, 4);   /* a ≠ b: otherwise two options coincide */
       let bs, right, wrong, st;
@@ -1285,7 +1298,7 @@ topic({ id: 'al.scratch-lire', ch: 'al', lvl: 1, calc: false, variants: 4,
       return { q: staL('On exécute le script ci-dessous et on saisit un nombre $x$. Quelle expression donne le nombre dit par le lutin ?', 'Запускают скрипт и вводят число $x$. Какое выражение задаёт число, которое скажет спрайт?'),
         fig: staScratch(blocks), ans: MQ(r, ['$' + right + '$'].concat(wrong.map(e => '$' + e + '$')), 0), sol: ['Число, которое ввели, хранится в «réponse», то есть réponse = x.'].concat(st) };
     }
-    let x0 = r.ri(-3, 12); if (vi === 1 && r() < 0.75) x0 = r.ri(1, 12);
+    let x0 = r.ri(-3, 12); if ((vi === 1 && r() < 0.75) || x0 === 0) x0 = r.ri(1, 12);
     const res = staApply(x0, steps);
     const blocks = [STA_B.flag(), STA_B.ask('Choisis un nombre.'), STA_B.set('x', STA_REP)].concat(staCalcBlocks(steps, 'x')).concat([STA_B.say(staVr('x'), 2)]);
     let y = x0; const trace = steps.map(s => { const y2 = staApply(y, [s]); const t = [staStepRu(s, 'x') + ':', (s[0] === '+' ? np(y) + '+' + s[1] : s[0] === '-' ? np(y) + '-' + s[1] : np(y) + '*' + s[1]) + '=' + y2]; y = y2; return t; });
@@ -1312,7 +1325,7 @@ topic({ id: 'al.scratch-boucle', ch: 'al', lvl: 2, calc: false, variants: 4,
       const cands = [trap, n + 1, n - 1, n + 2, n === 8 ? 6 : 8, 4, 3].filter(k => k && k !== n && STA_POLY[k]);
       const ds = []; cands.forEach(k => { if (ds.length < 3 && !ds.includes(k)) ds.push(k); });
       const bs = [STA_B.flag(), STA_B.clear(), STA_B.pen(), STA_B.rep(n, [STA_B.fwd(L0), STA_B.rt(t)])];
-      const st = ['Блок «répéter ' + n + ' fois» повторяет «avancer» и «tourner» ' + n + ' раз: получится ' + n + ' одинаковых сторон по ' + L0 + ' шагов.',
+      const st = ['Блок «répéter ' + n + ' fois» повторяет «avancer» и «tourner» ' + staNum(n, 'раз', 'раза', 'раз') + ': получится ' + n + ' ' + (n < 5 ? 'одинаковые стороны' : 'одинаковых сторон') + ' по ' + L0 + ' шагов.',
         'После каждой стороны спрайт поворачивает на ' + t + '°, всего ' + n + ' × ' + t + '° = 360° — ровно один оборот, поэтому фигура замыкается и все углы у неё равны. Это ' + STA_POLY[n][1] + '.'];
       if (trap) st.push('Ловушка: ' + t + '° — это угол внутри фигуры «' + STA_POLY[trap][1] + '», но спрайт поворачивает на внешний угол. Для ' + (trap === 3 ? 'треугольника нужен поворот 120°' : 'шестиугольника нужен поворот 60°') + '.');
       return { q: staL('Le lutin exécute le script ci-dessous. Quelle figure dessine-t-il ?', 'Спрайт выполняет скрипт ниже. Какую фигуру он нарисует?'), fig: staScratch(bs),
@@ -1323,7 +1336,7 @@ topic({ id: 'al.scratch-boucle', ch: 'al', lvl: 2, calc: false, variants: 4,
       const bs = [STA_B.flag(), STA_B.pen(), STA_B.rep('…', [STA_B.fwd(L0), STA_B.rt('…')])];
       return { q: staL(`${w.n} veut dessiner ${STA_POLY[n][0]} avec le script ci-dessous. Par quelles valeurs doit-on compléter les lignes 3 et 5 ?`, `${w.n} хочет нарисовать ${STA_POLY[n][1]} с помощью скрипта ниже. Какими числами нужно заполнить строки 3 и 5?`),
         fig: staScratch(bs, { num: true }), ans: multi([staL('ligne 3 :', 'строка 3:'), N(n)], [staL('ligne 5 :', 'строка 5:'), N(360 / n, { unit: '°' })]), sol: [
-          'У фигуры «' + STA_POLY[n][1] + '» ' + n + ' равных сторон, поэтому «avancer» и «tourner» повторяем ' + n + ' раз: в строке 3 — ' + n + '.',
+          'У фигуры «' + STA_POLY[n][1] + '» ' + n + ' ' + (n < 5 ? 'равные стороны' : 'равных сторон') + ', поэтому «avancer» и «tourner» повторяем ' + staNum(n, 'раз', 'раза', 'раз') + ': в строке 3 — ' + n + '.',
           ['Обойдя фигуру, спрайт поворачивается в сумме на полный оборот 360°, и все повороты одинаковые:', '360/' + n + '=' + 360 / n, '°'],
           'Ловушка: поворачивать надо на внешний угол, а не на угол внутри фигуры' + (n === 4 ? ' (у квадрата они случайно совпадают — оба по 90°).' : ' (у этой фигуры внутренний угол ' + (180 - 360 / n) + '°).')] };
     }
@@ -1383,7 +1396,7 @@ topic({ id: 'al.scratch-conditions', ch: 'al', lvl: 2, calc: false, variants: 4,
       const st = ['Проверяем условие: ' + v + ' ' + cmp + ' ' + t + ' — ' + (ok ? 'верно.' : 'неверно.') + (v === t ? ' Неравенство строгое, а ' + v + ' равно ' + t + ', а не ' + (cmp === '>' ? 'больше' : 'меньше') + '.' : ''),
         'Значит, выполняется часть «' + (ok ? 'alors' : 'sinon') + '», а другая часть пропускается.',
         ['', money ? v + '*' + (ok ? k1 : k2) + '=' + res : ok ? v + '*' + k1 + '=' + res : v + o2 + k2 + '=' + res, money ? '€' : '']];
-      if (money) return { q: staL(`Un cinéma utilise le script ci-dessous pour calculer le prix à payer, en euros, par un groupe. Quel prix le lutin affiche-t-il pour un groupe de ${v} personnes ?`, `Кинотеатр считает стоимость билетов для группы (в евро) с помощью скрипта ниже. Какую цену покажет спрайт для группы из ${v} человек?`),
+      if (money) return { q: staL(`Un cinéma utilise le script ci-dessous pour calculer le prix à payer, en euros, par un groupe. Quel prix le lutin affiche-t-il pour un groupe de ${v} personnes ?`, `Кинотеатр считает стоимость билетов для группы (в евро) с помощью скрипта ниже. Какую цену покажет спрайт для группы из ${staGen(v, 'человека', 'человек')}?`),
         fig: staScratch(bs), ans: N(res, { unit: '€' }), sol: st.concat(['Смысл скрипта: больше ' + t + ' мест — скидка, место стоит ' + k1 + ' € вместо ' + k2 + ' €.']) };
       return { q: staL(`On exécute le script ci-dessous et on saisit le nombre ${v}. Quel nombre le lutin dit-il ?`, `Запускают скрипт и вводят число ${v}. Какое число скажет спрайт?`), fig: staScratch(bs), ans: N(res), sol: st };
     }
@@ -1392,10 +1405,10 @@ topic({ id: 'al.scratch-conditions', ch: 'al', lvl: 2, calc: false, variants: 4,
       const pool = []; for (let x = 11; x <= 75; x++) if (x % k) pool.push(x);
       const trap = pool.filter(x => (k === 3 ? x % 10 === 3 || Math.floor(x / 10) === 3 : k === 4 ? x % 2 === 0 : k === 5 ? String(x).includes('5') : x % 10 === 1 || x % 10 === 3));
       const wr = r.sh(trap).slice(0, 2); r.sh(pool).forEach(x => { if (wr.length < 3 && !wr.includes(x)) wr.push(x); });
-      const bs = [STA_B.flag(), STA_B.ask('Donne un nombre entier.'), STA_B.si(staCmp(staOp(STA_REP, 'modulo', k), '=', 0), [STA_B.say('Gagné !')], [STA_B.say('Perdu !')])];
+      const bs = [STA_B.flag(), STA_B.ask('Donne un entier.'), STA_B.set('n', STA_REP), STA_B.si(staCmp(staOp(staVr('n'), 'modulo', k), '=', 0), [STA_B.say('Gagné !')], [STA_B.say('Perdu !')])];
       return { q: staL('On exécute le script ci-dessous. Pour lequel des nombres suivants le lutin dit-il « Gagné ! » ?', 'Запускают скрипт ниже. При каком из этих чисел спрайт скажет «Gagné !»?'), fig: staScratch(bs),
         ans: MQ(r, [String(right)].concat(wr.map(String)), 0), sol: [
-          '«réponse modulo ' + k + '» — остаток от деления введённого числа на ' + k + '. Условие «остаток = 0» верно, когда число делится на ' + k + ' без остатка.',
+          'В n записано введённое число. «n modulo ' + k + '» — остаток от деления n на ' + k + '. Условие «остаток = 0» верно, когда число делится на ' + k + ' без остатка.',
           ['Подходит ' + right + ':', right + '=' + k + '*' + right / k + '+0'],
           'Остальные дают остаток: ' + wr.map(x => x + ' = ' + k + ' × ' + Math.floor(x / k) + ' + ' + x % k).join('; ') + '.' + (k === 3 ? ' Цифра 3 в записи числа не делает его кратным 3.' : k === 4 ? ' Чётное число не обязательно делится на 4.' : '')] };
     }
@@ -1481,7 +1494,7 @@ topic({ id: 'al.tableur-formule', ch: 'al', lvl: 1, calc: false, variants: 4,
     return { q: staL(`Dans la feuille de calcul ci-dessous, on a saisi dans la cellule ${cellT} la formule ${f}. Quel nombre s'affiche dans cette cellule ?`, `В ячейку ${cellT} таблицы ниже ввели формулу ${f}. Какое число она покажет?`),
       fig: staSheet(rows), ans: N(fx(res)), sol: [
         '«' + rng + '» — ячейки столбца B со 2-й по ' + (k + 1) + '-ю строку: ' + vals.join(', ') + '.',
-        ['«SOMME» — сумма:', vals.join('+') + '=' + S]].concat(tot ? [] : [['«MOYENNE» — среднее: сумма ÷ количество (' + k + ' чисел):', S + '/' + k + '=' + fx(res)]]) };
+        ['«SOMME» — сумма:', vals.join('+') + '=' + S]].concat(tot ? [] : [['«MOYENNE» — среднее: сумма ÷ количество (' + staNum(k, 'число', 'числа', 'чисел') + '):', S + '/' + k + '=' + fx(res)]]) };
   } });
 
 topic({ id: 'al.tableur-recopie', ch: 'al', lvl: 2, calc: false, variants: 4,

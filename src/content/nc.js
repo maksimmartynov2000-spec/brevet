@@ -8,7 +8,7 @@ const ncD = (n, k) => decT(n, k || 0);
 /* decimal in input syntax → plain text: '-4.7' → '−4,7', '311200000' → '311 200 000' (no float formatting, so 4,57e-7 never appears) */
 function ncTxt(s) {
   s = String(s); const neg = s[0] === '-'; if (neg) s = s.slice(1);
-  let [i, d] = s.split('.'); if (i.length >= 5) i = i.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  let [i, d] = s.split('.'); if (i.length >= 5) i = i.replace(/\B(?=(\d{3})+(?!\d))/g, '\u202f');   /* the same narrow no-break space as nf() */
   return (neg ? '−' : '') + i + (d ? ',' + d : '');
 }
 /* integer n · 10^-k → plain text: ncN(-47, 1) → '−4,7' */
@@ -102,7 +102,7 @@ topic({ id: 'nc.relatifs-addsub', ch: 'nc', lvl: 1, calc: false, variants: 5,
           'Проверка по термометру: от ' + nf(t1) + ' до 0 — ' + (-t1) + ' ' + ncPl(-t1, 'градус', 'градуса', 'градусов') + ', от 0 до ' + t2 + ' — ещё ' + t2 + ', всего ' + (t2 - t1) + '.'] };
     }
     if (kind === 1) {   /* the temperature falls below zero */
-      const t1 = r.ri(-4, 9); const d = t1 + r.ri(2, 9); const t2 = t1 - d;
+      const t1 = r.ri(-4, 9), d = Math.max(t1, 0) + r.ri(2, 9), t2 = t1 - d;   /* the morning is always below zero */
       return { q: L('Le soir, le thermomètre indique ' + nf(t1) + ' °C. Pendant la nuit, la température baisse de ' + d + ' °C. Quelle température indique le thermomètre le matin ?',
         'Вечером термометр показывает ' + nf(t1) + ' °C. За ночь температура понижается на ' + d + ' °C. Что показывает термометр утром?'),
         ans: N(t2, { unit: '°C' }), sol: [
@@ -314,7 +314,7 @@ topic({ id: 'nc.decimaux', ch: 'nc', lvl: 1, calc: false, variants: 5,
       const opts = [right].concat([A, B, C, D].map(x => sg * x).filter(x => x !== right)).map(x => ncN(x, 3));
       const tx = x => ncN(sg * x, 3);
       return { q: L('Parmi les nombres suivants, lequel est le plus ' + (big ? 'grand' : 'petit') + ' ?', 'Какое из этих чисел самое ' + (big ? 'большое' : 'маленькое') + '?'), ans: ncMQ(r, opts), sol: [
-        'Сравниваем по разрядам слева направо. Целые части одинаковые (' + (neg ? '−' : '') + w + '), поэтому смотрим на десятые: ' + c + ' у числа ' + tx(A) + ', ' + (c - 1) + ' у чисел ' + tx(B) + ' и ' + tx(D) + ', 0 у числа ' + tx(C) + '.',
+        'Сравниваем по разрядам слева направо. Целые части одинаковые (' + (neg && w ? '−' : '') + w + '), поэтому смотрим на десятые: ' + c + ' у числа ' + tx(A) + ', ' + (c - 1) + ' у чисел ' + tx(B) + ' и ' + tx(D) + ', 0 у числа ' + tx(C) + '.',
         neg ? 'Для отрицательных чисел всё наоборот: чем дальше от нуля, тем меньше число. Дальше всех от нуля ' + tx(A) + ', ближе всех — ' + tx(C) + '. Значит, самое ' + (big ? 'большое' : 'маленькое') + ' — ' + ncN(right, 3) + '.'
           : 'Значит, самое ' + (big ? 'большое' : 'маленькое') + ' — ' + ncN(right, 3) + '.',
         'Длина записи ничего не говорит о величине: ' + ncN(A, 3) + ' = ' + ncTxt(dec(A, 3)) + ' (дописанные нули число не меняют). Сравнивают разряды слева направо, а не количество цифр.'] };
@@ -367,7 +367,7 @@ topic({ id: 'nc.calcul-mental', ch: 'nc', lvl: 1, calc: false, variants: 5,
       const t = r.ri(0, 3); let m, res, st;
       if (t === 0) { const a = r.ri(3, 49), tot = r.pick([10, 100]), b = r.ri(1, tot === 10 ? 9 : 99), c = tot - b; m = a + '*' + b + '+' + a + '*' + c; res = a * tot;
         st = [['Оба произведения содержат множитель ' + a + ': это ' + ncTimes(b) + ' по ' + a + ' и ещё ' + ncTimes(c) + ' по ' + a + ', всего ' + ncTimes(tot) + ' по ' + a + '.', m + '=' + a + '*(' + b + '+' + c + ')=' + a + '*' + tot + '=' + res]]; }
-      else if (t === 1) { const a = r.ri(3, 49), b = r.ri(11, 99), c = b - 10; m = a + '*' + b + '-' + a + '*' + c; res = a * 10;
+      else if (t === 1) { const a = r.ri(3, 49), b = r.ri(12, 99), c = b - 10; m = a + '*' + b + '-' + a + '*' + c; res = a * 10;
         st = [['Общий множитель ' + a + ': было ' + ncTimes(b) + ' по ' + a + ', убрали ' + ncTimes(c) + ' по ' + a + ', осталось ' + ncTimes(b - c) + '.', m + '=' + a + '*(' + b + '-' + c + ')=' + a + '*10=' + res]]; }
       else if (t === 2) { const [x, y] = r.pick([[4, 25], [25, 4], [2, 5], [5, 2], [20, 5], [50, 2], [2, 50]]), n = r.ri(3, 49); m = x + '*' + n + '*' + y; res = x * n * y;
         st = [['Множители можно переставлять — произведение от этого не меняется. Удобно сначала перемножить ' + x + ' и ' + y + ':', x + '*' + y + '=' + (x * y)], ['', n + '*' + (x * y) + '=' + res]]; }
@@ -384,7 +384,7 @@ topic({ id: 'nc.calcul-mental', ch: 'nc', lvl: 1, calc: false, variants: 5,
         ['Diviser un nombre par 0,1 revient à :', 'Разделить число на 0,1 — это то же самое, что:', ['le multiplier par 10', 'умножить его на 10'], [['le diviser par 10', 'разделить его на 10'], ['le multiplier par 0,01', 'умножить его на 0,01'], ['le diviser par 100', 'разделить его на 100']], 'Разделить на 0,1 — узнать, сколько десятых в числе. В каждой единице 10 десятых, поэтому десятых в 10 раз больше, чем единиц.', '7÷0.1=70=7*10'],
         ['Multiplier un nombre par 25 revient à :', 'Умножить число на 25 — это то же самое, что:', ['le multiplier par 100, puis diviser le résultat par 4', 'умножить его на 100, а результат разделить на 4'], [['le multiplier par 100, puis diviser le résultat par 2', 'умножить его на 100, а результат разделить на 2'], ['le multiplier par 10, puis diviser le résultat par 4', 'умножить его на 10, а результат разделить на 4'], ['le multiplier par 4, puis diviser le résultat par 100', 'умножить его на 4, а результат разделить на 100']], '25 — четверть от 100: 100 ÷ 4 = 25. Поэтому умножить на 25 — то же, что умножить на 100 и взять четверть результата.', '8*25=200=8*100÷4'],
         ['Prendre le quart d\'un nombre revient à le multiplier par :', 'Взять четверть числа — то же самое, что умножить его на:', ['0,25', '0,25'], [['4', '4'], ['0,4', '0,4'], ['0,04', '0,04']], 'Четверть — это 1/4 = 25/100 = 0,25.', '20*0.25=5=20÷4'],
-        ['Prendre les trois quarts d\'un nombre revient à le multiplier par :', 'Взять три четверти числа — то же самое, что умножить его на:', ['0,75', '0,75'], [['3,4', '3,4'], ['0,34', '0,34'], ['1,25', '1,25']], 'Три четверти — это 3/4 = 75/100 = 0,75.', '20*0.75=15=20÷4*3'],
+        ['Prendre les trois quarts d\'un nombre revient à le multiplier par :', 'Взять три четверти числа — то же самое, что умножить его на:', ['0,75', '0,75'], [['3,4', '3,4'], ['0,34', '0,34'], ['1,25', '1,25']], 'Три четверти — это 3/4 = 75/100 = 0,75.', '20*0.75=15=(20÷4)*3'],
         ['Prendre le cinquième d\'un nombre revient à le multiplier par :', 'Взять пятую часть числа — то же самое, что умножить его на:', ['0,2', '0,2'], [['5', '5'], ['0,5', '0,5'], ['0,05', '0,05']], 'Пятая часть — это 1/5 = 2/10 = 0,2.', '30*0.2=6=30÷5']]);
       return { q: L(fr, ru), ans: ncMQ(r, [ok].concat(bad).map(o => L(o[0], o[1]))), sol: [why, ['Проверка на примере:', ex],
         'Проверь себя по смыслу: умножение на число меньше 1 уменьшает число, а деление на число меньше 1 — увеличивает.'] };
@@ -755,7 +755,7 @@ topic({ id: 'nc.puissances', ch: 'nc', lvl: 2, calc: false, variants: 5,
       else if (t === 1) { let a, b; do { a = r.nz(-5, 9); b = r.nz(-5, 9); } while (a === b); e = a - b; m = ncPw(10, a) + '/' + ncPw(10, b); chain = m + '=10^(' + a + '-' + ncE(b) + ')=' + ncPw(10, e);
         why = 'При делении степеней 10 показатели вычитаются: множители 10 в знаменателе сокращаются с множителями в числителе.'; }
       else if (t === 2) { let a; do a = r.nz(-4, 5); while (a === 1); const b = r.ri(2, 4); e = a * b; m = '(' + ncPw(10, a) + ')^' + b; chain = m + '=10^(' + a + '*' + b + ')=' + ncPw(10, e);
-        why = 'Степень степени: $' + m + '$ — это $' + ncPw(10, a) + '$, взятое множителем ' + ncTimes(b) + '. Показатель ' + a + ' складывается сам с собой ' + ncTimes(b) + ', то есть показатели перемножаются.'; }
+        why = 'Степень степени: $' + m + '$ — это $' + ncPw(10, a) + '$, взятое множителем ' + ncTimes(b) + '. Показатель ' + nf(a) + ' складывается сам с собой ' + ncTimes(b) + ', то есть показатели перемножаются.'; }
       else if (t === 3) { let a, b; do { a = r.ri(2, 4); b = r.nz(-6, 3); } while (!(2 * a + b)); e = 2 * a + b; m = '100^' + a + '*' + ncPw(10, b); chain = m + '=(10^2)^' + a + '*' + ncPw(10, b) + '=10^' + (2 * a) + '*' + ncPw(10, b) + '=' + ncPw(10, e);
         why = '100 = $10^2$, поэтому $100^' + a + '=(10^2)^' + a + '=10^' + (2 * a) + '$. Дальше показатели складываются.'; }
       else if (t === 4) { const [c, ce] = r.pick([['1000', 3], ['0.01', -2], ['0.1', -1], ['100', 2], ['0.001', -3]]); let b; do b = r.nz(-6, 7); while (!(ce + b)); e = ce + b; m = c + '*' + ncPw(10, b); chain = m + '=' + ncPw(10, ce) + '*' + ncPw(10, b) + '=' + ncPw(10, e);
@@ -1002,4 +1002,311 @@ topic({ id: 'nc.racines-simpl', ch: 'nc', lvl: 3, calc: false, variants: 4,
       'Проверка: $$\\left(\\frac{' + p + '}{' + s + '}\\right)^2=\\frac{' + p * p + '}{' + s * s + '}$$.'] };
   } });
 
-/* @@NC-END@@ */
+/* ===================== MULTIPLES, DIVISORS, PRIME NUMBERS ===================== */
+const ncDS = n => String(n).split('').reduce((s, c) => s + +c, 0);                 /* the sum of the digits */
+const ncDSt = n => String(n).split('').join(' + ') + ' = ' + ncDS(n);              /* «2 + 0 + 2 + 5 = 9» */
+topic({ id: 'nc.arith-diviseurs', ch: 'nc', lvl: 1, calc: false, variants: 5,
+  ru: 'Делители, кратные, простые числа', fr: 'Multiples, diviseurs et nombres premiers',
+  hints: [
+    '$b$ — делитель $a$ («un diviseur»), если $a$ делится на $b$ без остатка; тогда $a$ — кратное $b$ («un multiple»). Делители удобно искать парами: $36=1*36=2*18=3*12=4*9=6*6$.',
+    'Признаки делимости: на 2 — последняя цифра чётная; на 5 — 0 или 5 на конце; на 10 — 0 на конце; на 3 (на 9) — сумма цифр делится на 3 (на 9). Почему для 9: $10=9+1$, $100=99+1$, … — поэтому каждая цифра даёт при делении на 9 тот же остаток, что и сама.',
+    'Простое число («un nombre premier») — ровно два делителя: 1 и само число. 1 — не простое. Чтобы проверить число до 100, достаточно попробовать делители 2, 3, 5 и 7: следующий кандидат, 11, даёт $11*11=121$ — это уже больше 100.'],
+  gen(r, vi) {
+    if (vi === 0) {   /* divisibility by 3 or 9 of two numbers (in the spirit of Asie 2026 Q4) */
+      const d = r.pick([3, 9]), want = r.ri(0, 3), dv = n => ncDS(n) % d === 0; let A, B;
+      do { A = r.ri(1000, 9999); B = A + r.ri(1, 40); } while ((dv(A) && dv(B) ? 0 : dv(A) ? 1 : dv(B) ? 2 : 3) !== want);
+      const opts = [L('Les deux nombres sont divisibles par ' + d + '.', 'Оба числа делятся на ' + d + '.'), L('Seul N est divisible par ' + d + '.', 'На ' + d + ' делится только N.'),
+        L('Seul P est divisible par ' + d + '.', 'На ' + d + ' делится только P.'), L('Aucun des deux n\'est divisible par ' + d + '.', 'Ни одно из них не делится на ' + d + '.')];
+      return { q: L('On considère les nombres N = ' + A + ' et P = ' + B + '. Que peut-on dire de leur divisibilité par ' + d + ' ?', 'Даны числа N = ' + A + ' и P = ' + B + '. Что можно сказать об их делимости на ' + d + '?'),
+        ans: MQF(opts, want), sol: [
+          'Признак делимости на ' + d + ': число делится на ' + d + ', если сумма его цифр делится на ' + d + '. Делить само число не нужно.',
+          'N: ' + ncDSt(A) + (dv(A) ? ' — делится на ' : ' — не делится на ') + d + '. P: ' + ncDSt(B) + (dv(B) ? ' — делится на ' : ' — не делится на ') + d + '.',
+          'Почему признак работает: $10=9+1$, $100=99+1$, $1000=999+1$, а 9, 99, 999 делятся и на 9, и на 3. Значит, число отличается от суммы своих цифр на число, кратное 9, — и делится на ' + d + ' тогда же, когда сумма цифр.'] };
+    }
+    if (vi === 1) {   /* all the divisors */
+      const n = r.pick([12, 18, 20, 24, 28, 30, 32, 36, 40, 42, 44, 45, 48, 50, 52, 54, 56, 60, 63, 64, 66, 70, 72, 75, 78, 80, 84, 88, 90, 96, 98, 100]), ds = factorsOf(n), pairs = [];
+      for (let a = 1; a * a <= n; a++) if (n % a === 0) pairs.push(a + '*' + (n / a));
+      return { q: L('Donner la liste de tous les diviseurs de ' + n + '.', 'Запиши все делители числа ' + n + '.'), ans: LIST(ds.join(',')), sol: [
+        ['Ищем делители парами: если ' + n + ' = a × b, то a и b — оба делители. Перебираем a = 1, 2, 3, …:', n + '=' + pairs.join('=')],
+        'Перебор можно остановить, когда a × a становится больше ' + n + ': дальше пары повторялись бы, только множители поменялись бы местами.',
+        'Делители ' + n + ': ' + ds.join(', ') + ' — всего ' + ds.length + '.'] };
+    }
+    if (vi === 2) {   /* which one is prime */
+      const P = [13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97];
+      const T = [[1, '1 — не простое: у него только один делитель, а у простого числа их ровно два'], [21, '21 = 3 × 7'], [27, '27 = 3 × 9'], [33, '33 = 3 × 11'], [39, '39 = 3 × 13 (сумма цифр 12 делится на 3)'], [49, '49 = 7 × 7'],
+        [51, '51 = 3 × 17 (сумма цифр 6 делится на 3)'], [57, '57 = 3 × 19 (сумма цифр 12 делится на 3)'], [69, '69 = 3 × 23'], [77, '77 = 7 × 11'], [81, '81 = 9 × 9'], [87, '87 = 3 × 29 (сумма цифр 15 делится на 3)'], [91, '91 = 7 × 13'], [93, '93 = 3 × 31']];
+      const inv = r() < 0.35, ps = r.sh(P).slice(0, inv ? 3 : 1), ts = r.sh(T).slice(0, inv ? 1 : 3), right = inv ? ts[0][0] : ps[0];
+      const why = list => (list.length > 1 ? list.slice(0, -1).join(', ') + ' и ' + list[list.length - 1] + ' не делятся' : list[0] + ' не делится') + ' ни на 2, ни на 3, ни на 5, ни на 7, а следующий кандидат даёт 11 × 11 = 121 — это больше ' + (list.length > 1 ? 'каждого из них' : list[0]) + '. Значит, ' + (list.length > 1 ? 'они простые.' : list[0] + ' — простое.');
+      return { q: inv ? L('Parmi les nombres suivants, lequel n\'est pas un nombre premier ?', 'Какое из этих чисел не является простым?') : L('Parmi les nombres suivants, lequel est un nombre premier ?', 'Какое из этих чисел простое?'),
+        ans: ncMQ(r, [right].concat(ps.concat(ts.map(t => t[0])).filter(x => x !== right)).map(String)), sol: [
+          'Простое число имеет ровно два делителя: 1 и само себя. Если найдётся ещё один делитель — число не простое.',
+          ts.map(t => t[1]).join('; ') + '.',
+          why(ps.slice().sort((a, b) => a - b))] };
+    }
+    if (vi === 3) {   /* divisibility criteria on bigger numbers (sujet de référence 2027 n°2, Q4) */
+      const kind = r.ri(0, 2), d = [9, 6, 15][kind];
+      const dg = len => { let s = String(r.ri(1, 9)); for (let i = 1; i < len; i++) s += r.ri(0, 9); return +s; };
+      const cls = n => kind === 0 ? (ncDS(n) % 9 === 0 ? 0 : ncDS(n) % 3 === 0 ? 1 : 2) : kind === 1 ? (n % 2 === 0 ? (ncDS(n) % 3 === 0 ? 0 : 2) : (ncDS(n) % 3 === 0 ? 1 : 3)) : (n % 5 === 0 ? (ncDS(n) % 3 === 0 ? 0 : 2) : (ncDS(n) % 3 === 0 ? 1 : 3));
+      const need = kind === 0 ? [0, 1, 2, 2] : [0, 1, 2, 3], got = [], len = kind === 0 ? 5 : 4;
+      for (const c of need) { let n, g = 0; do { n = dg(len); if (kind === 0 && got.length) n = Math.floor(n / 10) * 10 + got[0] % 10; } while ((cls(n) !== c || got.includes(n)) && g++ < 400); got.push(n); }
+      const tell = n => n + ': ' + (kind === 1 ? (n % 2 ? 'нечётное' : 'чётное') + ', ' : kind === 2 ? 'оканчивается на ' + (n % 10) + ', ' : '') + 'сумма цифр ' + ncDS(n) + (kind === 0 ? (ncDS(n) % 9 === 0 ? ' — делится на 9.' : ncDS(n) % 3 === 0 ? ' — делится на 3, но не на 9.' : ' — не делится даже на 3.') : (ncDS(n) % 3 === 0 ? ' — делится на 3.' : ' — не делится на 3.'));
+      return { q: L('Parmi les nombres suivants, lequel est divisible par ' + d + ' ?', 'Какое из этих чисел делится на ' + d + '?'), ans: ncMQ(r, got.map(String)), sol: [
+        kind === 0 ? 'Признак делимости на 9: сумма цифр делится на 9. Если сумма делится только на 3 — число делится на 3, но не на 9.'
+          : kind === 1 ? 'Число делится на 6, если оно делится и на 2, и на 3: $6=2*3$, а у 2 и 3 нет общих делителей, кроме 1. Значит, нужно чётное число с суммой цифр, кратной 3.'
+            : 'Число делится на 15, если оно делится и на 3, и на 5: $15=3*5$. Значит, нужно число, которое оканчивается на 0 или 5, с суммой цифр, кратной 3.',
+        got.map(tell).join(' '),
+        'Ответ: ' + got[0] + '.'] };
+    }
+    /* vi === 4: euclidean division */
+    const t = r.ri(0, 2);
+    if (t === 0) { const b = r.ri(7, 25), q = r.ri(5, 30), rr = r.ri(1, b - 1), a = b * q + rr;
+      return { q: L('Effectuer la division euclidienne de ' + a + ' par ' + b + '.', 'Выполни деление с остатком: ' + a + ' на ' + b + '.'),
+        ans: multi([L('Quotient :', 'Неполное частное:'), N(q)], [L('Reste :', 'Остаток:'), N(rr)]), sol: [
+          'Ищем, сколько раз ' + b + ' целиком помещается в ' + a + ': ' + b + ' × ' + q + ' = ' + b * q + ' ≤ ' + a + ', а ' + b + ' × ' + (q + 1) + ' = ' + b * (q + 1) + ' уже больше ' + a + '. Значит, частное ' + q + '.',
+          ['Остаток — то, что не поместилось:', a + '-' + b * q + '=' + rr],
+          ['Проверка: остаток меньше делителя (' + rr + ' < ' + b + '), и', a + '=' + b + '*' + q + '+' + rr]] }; }
+    if (t === 1) { const b = r.pick([6, 12]), q = r.ri(8, 40), rr = r.ri(1, b - 1), a = b * q + rr;
+      return { q: L('On range ' + a + ' œufs dans des boîtes de ' + b + '. Combien de boîtes pleines obtient-on ? Combien d\'œufs reste-t-il ?', 'Нужно разложить ' + a + ' ' + ncPl(a, 'яйцо', 'яйца', 'яиц') + ' по коробкам, в каждую помещается ' + b + '. Сколько получится полных коробок? Сколько яиц останется?'),
+        ans: multi([L('Boîtes pleines :', 'Полных коробок:'), N(q)], [L('Œufs restants :', 'Осталось яиц:'), N(rr)]), sol: [
+          'Это деление с остатком («division euclidienne») ' + a + ' на ' + b + ': частное — число полных коробок, остаток — лишние яйца.',
+          ['', a + '=' + b + '*' + q + '+' + rr],
+          'Остаток ' + rr + ' меньше ' + b + ' — на ещё одну полную коробку не хватает.'] }; }
+    const b = r.pick([8, 9, 12, 15, 16]), q = r.ri(5, 15), rr = r.ri(1, b - 1), a = b * q + rr;
+    return { q: L(a + ' élèves partent en sortie dans des minibus de ' + b + ' places. Combien de minibus faut-il au minimum ?', a + ' ' + ncPl(a, 'ученик едет', 'ученика едут', 'учеников едут') + ' на экскурсию в микроавтобусах на ' + b + ' мест. Какое наименьшее число микроавтобусов нужно?'),
+      ans: N(q + 1), sol: [
+        ['Деление с остатком:', a + '=' + b + '*' + q + '+' + rr],
+        q + ' ' + ncPl(q, 'микроавтобус', 'микроавтобуса', 'микроавтобусов') + ' заполняются целиком, но остаются ещё ' + rr + ' — им тоже нужно место. Поэтому нужен ещё один микроавтобус: ' + q + ' + 1 = ' + (q + 1) + '.',
+        'Частая ошибка — ответить ' + q + ' (просто частное): тогда ' + rr + ' ' + ncPl(rr, 'ученик останется', 'ученика останутся', 'учеников останутся') + ' без места.'] };
+  } });
+
+/* ===================== PRIME FACTORISATION ===================== */
+/* the primes of n with repetition: 60 → [2, 2, 3, 5] */
+const ncPrimes = n => { const out = []; pfac(n).forEach(([p, e]) => { for (let i = 0; i < e; i++) out.push(p); }); return out; };
+/* a list of factors in input syntax, equal ones grouped as a power unless flat: [2, 2, 3, 25] → '2^2*3*25' */
+function ncFac(list, flat) {
+  const s = list.slice().sort((a, b) => a - b); if (flat) return s.join('*');
+  const out = []; s.forEach(v => { const last = out[out.length - 1]; if (last && last[0] === v) last[1]++; else out.push([v, 1]); });
+  return out.map(([v, e]) => (e > 1 ? v + '^' + e : String(v))).join('*');
+}
+/* successive divisions: «1050 ÷ 2 = 525; 525 ÷ 3 = 175; …» */
+function ncDivChain(n) { const out = []; let m = n; ncPrimes(n).forEach(p => { out.push(m + ' ÷ ' + p + ' = ' + (m / p)); m /= p; }); return out.join('; '); }
+topic({ id: 'nc.arith-decomp', ch: 'nc', lvl: 2, calc: false, variants: 5,
+  ru: 'Разложение на простые множители', fr: 'Décomposition en produit de facteurs premiers',
+  hints: [
+    'Делим число по очереди на простые числа 2, 3, 5, 7, 11… — на каждое, пока делится без остатка. Все делители, на которые делили, и составляют разложение: $60=2*2*3*5=2^2*3*5$.',
+    'В разложении — только простые множители: $4*5*13$ — ещё не разложение на простые множители, ведь $4=2*2$. Одинаковые множители записывают степенью.',
+    'Общие делители двух чисел составлены из их общих простых множителей. Наибольшее число одинаковых наборов («lots») — наибольший общий делитель: общие множители в наименьшей степени. Первая встреча двух циклов — наименьшее общее кратное: все множители в наибольшей степени.'],
+  gen(r, vi) {
+    const mk = (lo, hi, ok) => { let n, k; do { n = 1; k = r.ri(3, 6); for (let i = 0; i < k; i++) n *= r.pick([2, 2, 2, 3, 3, 5, 5, 7, 11]); } while (n < lo || n > hi || !ok(pfac(n))); return n; };
+    if (vi === 0) {   /* decompose */
+      const n = mk(24, 1100, fs => fs.length >= 2), fs = pfac(n);
+      return { q: L('Décomposer ' + nf(n) + ' en produit de facteurs premiers.', 'Разложи число ' + nf(n) + ' на простые множители.'),
+        ans: XP(pfStr(fs), { forms: ['primeFact'], help: GM('', 'Простые множители через ×, одинаковые — степенью: например <code>2^3*5</code>') }), sol: [
+          'Делим на простые числа по порядку — сначала на 2, пока делится, потом на 3, на 5, на 7… Каждый раз проверяем признаки делимости.',
+          ncDivChain(n) + '.',
+          ['Все множители простые. Одинаковые записываем степенью:', nf(n).replace(/\s/g, '') + '=' + ncFac(ncPrimes(n), true) + '=' + pfStr(fs)]] };
+    }
+    if (vi === 1) {   /* multiple choice (Asie 2025, Polynésie 2025) */
+      for (;;) {
+        const n = mk(60, 1000, fs => fs.length >= 2 && fs.some(f => f[1] >= 2)), ps = ncPrimes(n), fs = pfac(n);
+        const dist = fs.map(f => f[0]), sq = fs.filter(f => f[1] >= 2).map(f => f[0]);
+        const [p1, p2] = r.sh(dist).slice(0, 2), e1 = ps.slice(); e1.splice(e1.indexOf(p1), 1); e1.splice(e1.indexOf(p2), 1); e1.push(p1 * p2);
+        const s = r.pick(sq), e2 = ps.slice(); e2.splice(e2.indexOf(s), 1); e2.splice(e2.indexOf(s), 1); e2.push(s * s);
+        const drop = r.pick(dist), e3 = ps.slice(); e3.splice(e3.indexOf(drop), 1);
+        const opts = [pfStr(fs), ncFac(e1), ncFac(e2, r() < 0.5), ncFac(e3)]; if (new Set(opts).size < 4) continue;
+        return { q: L('Parmi les propositions suivantes, laquelle est la décomposition en produit de facteurs premiers de ' + nf(n) + ' ?', 'Какая из записей — разложение числа ' + nf(n) + ' на простые множители?'),
+          ans: ncMQ(r, opts.map(o => '$' + o + '$')), sol: [
+            'В разложении на простые множители все множители — простые числа, а их произведение равно самому числу. Проверяем оба условия.',
+            '$' + opts[1] + '$: ' + (p1 * p2) + ' — не простое (' + (p1 * p2) + ' = ' + Math.min(p1, p2) + ' × ' + Math.max(p1, p2) + '). $' + opts[2] + '$: ' + (s * s) + ' — не простое (' + (s * s) + ' = ' + s + ' × ' + s + ').',
+            '$' + opts[3] + '$: все множители простые, но произведение равно ' + nf(n / drop) + ', а не ' + nf(n) + ' — потерян множитель ' + drop + '.',
+            ['Верный вариант: все множители простые, и', nf(n).replace(/\s/g, '') + '=' + pfStr(fs)]] };
+      }
+    }
+    if (vi === 2) {   /* simplifying a fraction with the decompositions */
+      let g, p, q; do { g = r.pick([6, 10, 12, 14, 15, 18, 20, 21, 22, 24, 28, 30, 35, 36, 42]); p = r.ri(2, 9); q = r.ri(2, 9); } while (gcd(p, q) !== 1 || p === q || g * Math.max(p, q) > 400);
+      const A = g * p, B = g * q;
+      return { q: L('On donne les décompositions en produit de facteurs premiers : $' + A + '=' + pfStr(pfac(A)) + '$ et $' + B + '=' + pfStr(pfac(B)) + '$. Écrire la fraction $' + A + '/' + B + '$ sous forme irréductible.',
+        'Даны разложения на простые множители: $' + A + '=' + pfStr(pfac(A)) + '$ и $' + B + '=' + pfStr(pfac(B)) + '$. Запиши дробь $' + A + '/' + B + '$ в виде несократимой дроби.'), ans: FRA(F(A, B)), sol: [
+          'Общие простые множители числителя и знаменателя (каждый столько раз, сколько он входит в оба разложения): $' + pfStr(pfac(g)) + '=' + g + '$. Это наибольший общий делитель ' + A + ' и ' + B + '.',
+          ['Сокращаем дробь на ' + g + ' — значение не меняется:', '(' + pfStr(pfac(A)) + ')/(' + pfStr(pfac(B)) + ')=(' + g + '*' + p + ')/(' + g + '*' + q + ')=' + p + '/' + q],
+          'У ' + p + ' и ' + q + ' общих простых множителей не осталось — дробь несократимая.'] };
+    }
+    if (vi === 3) {   /* the largest number of identical lots (DNB 2021, 2022, 2025) */
+      let g, p, q; do { g = r.pick([6, 8, 9, 10, 12, 14, 15, 16, 18, 20, 21, 24, 28, 30]); p = r.ri(2, 9); q = r.ri(2, 9); } while (gcd(p, q) !== 1 || p === q || g * Math.max(p, q) > 300);
+      const a = g * p, b = g * q, k = r.ri(0, 2);
+      const C = [
+        [L('Un fleuriste dispose de ' + a + ' roses et de ' + b + ' tulipes. Il veut composer le plus grand nombre possible de bouquets identiques en utilisant toutes les fleurs. Combien de bouquets peut-il composer, et que contient chaque bouquet ?',
+          'У флориста ' + a + ' ' + ncPl(a, 'роза', 'розы', 'роз') + ' и ' + b + ' ' + ncPl(b, 'тюльпан', 'тюльпана', 'тюльпанов') + '. Он хочет составить как можно больше одинаковых букетов, использовав все цветы. Сколько букетов получится и что будет в каждом?'),
+          L('Nombre de bouquets :', 'Букетов:'), L('Roses par bouquet :', 'Роз в букете:'), L('Tulipes par bouquet :', 'Тюльпанов в букете:'), 'Состав одного букета:', 'букетов', 'цветы'],
+        [L('Un chocolatier a fabriqué ' + a + ' truffes au café et ' + b + ' truffes à la noix de coco. Il veut les répartir dans le plus grand nombre possible de boîtes identiques, en utilisant toutes les truffes. Combien de boîtes peut-il préparer, et que contient chaque boîte ?',
+          'Шоколатье сделал ' + a + ' ' + ncPl(a, 'трюфель', 'трюфеля', 'трюфелей') + ' с кофе и ' + b + ' — с кокосом. Он хочет разложить их в как можно большее число одинаковых коробок, использовав все трюфели. Сколько коробок получится и что будет в каждой?'),
+          L('Nombre de boîtes :', 'Коробок:'), L('Truffes au café par boîte :', 'Трюфелей с кофе в коробке:'), L('Truffes à la noix de coco par boîte :', 'Трюфелей с кокосом в коробке:'), 'Состав одной коробки:', 'коробок', 'трюфели'],
+        [L('Pour une sortie, un professeur doit répartir ' + a + ' garçons et ' + b + ' filles en groupes. Il veut le plus grand nombre possible de groupes, avec le même nombre de garçons et le même nombre de filles dans chaque groupe. Combien de groupes peut-il former, et qui y a-t-il dans chaque groupe ?',
+          'Для экскурсии учитель делит ' + a + ' ' + ncPl(a, 'мальчика', 'мальчиков', 'мальчиков') + ' и ' + b + ' ' + ncPl(b, 'девочку', 'девочки', 'девочек') + ' на группы. Он хочет как можно больше групп, чтобы в каждой было одинаковое число мальчиков и одинаковое число девочек. Сколько групп получится и кто будет в каждой?'),
+          L('Nombre de groupes :', 'Групп:'), L('Garçons par groupe :', 'Мальчиков в группе:'), L('Filles par groupe :', 'Девочек в группе:'), 'Состав одной группы:', 'групп', 'дети']][k];
+      const cm = pfac(g);
+      return { q: C[0], ans: multi([C[1], N(g)], [C[2], N(p)], [C[3], N(q)]), sol: [
+        'Число ' + C[5] + ' должно делить и ' + a + ', и ' + b + ': используются все ' + C[6] + ', и всё раскладывается поровну. Самое большое такое число — наибольший общий делитель.',
+        ['Раскладываем оба числа на простые множители:', a + '=' + pfStr(pfac(a)) + ';' + b + '=' + pfStr(pfac(b))],
+        ['Общие множители, каждый в наименьшей степени (в той, что есть в обоих разложениях):', pfStr(cm) + '=' + g],
+        [C[4], a + '÷' + g + '=' + p + ';' + b + '÷' + g + '=' + q],
+        'Проверка: у ' + p + ' и ' + q + ' нет общих делителей, кроме 1, — значит, наборы уже нельзя разделить на ещё более мелкие одинаковые части, и ' + g + ' — действительно наибольшее число.'] };
+    }
+    /* vi === 4: the first time two cycles meet again (Polynésie 2023) */
+    const POOL = [6, 8, 9, 10, 12, 14, 15, 16, 18, 20, 21, 24, 30, 36, 40, 45, 48, 60, 72];
+    let x, y, l; do { [x, y] = r.sh(POOL).slice(0, 2); l = lcm2(x, y); } while (x % y === 0 || y % x === 0 || l > 360 || l === x * y && r() < 0.5);
+    const k = r.ri(0, 2), C = [
+      [L('Deux bus partent ensemble du terminus. Le bus de la ligne A revient au terminus toutes les ' + x + ' minutes, celui de la ligne B toutes les ' + y + ' minutes. Au bout de combien de minutes les deux bus seront-ils de nouveau ensemble au terminus pour la première fois ?',
+        'Два автобуса одновременно отправляются с конечной остановки. Автобус линии A возвращается туда каждые ' + x + ' мин, автобус линии B — каждые ' + y + ' мин. Через сколько минут оба автобуса впервые снова окажутся на конечной одновременно?'), 'min'],
+      [L('Deux coureurs partent en même temps de la ligne de départ d\'une piste. Le premier fait un tour en ' + x + ' secondes, le second en ' + y + ' secondes. Au bout de combien de secondes se retrouveront-ils pour la première fois ensemble sur la ligne de départ ?',
+        'Два бегуна одновременно стартуют на круговой дорожке. Первый пробегает круг за ' + x + ' с, второй — за ' + y + ' с. Через сколько секунд они впервые снова окажутся на линии старта одновременно?'), 's'],
+      [L('Deux phares s\'allument en même temps. Le premier s\'allume toutes les ' + x + ' secondes, le second toutes les ' + y + ' secondes. Au bout de combien de secondes s\'allumeront-ils de nouveau en même temps pour la première fois ?',
+        'Два маяка вспыхнули одновременно. Первый вспыхивает каждые ' + x + ' с, второй — каждые ' + y + ' с. Через сколько секунд они впервые снова вспыхнут одновременно?'), 's']][k];
+    return { q: C[0], ans: N(l, { unit: C[1] }), sol: [
+      'Нужный момент делится и на ' + x + ', и на ' + y + ' (каждый прошёл целое число циклов). Первый такой момент — наименьшее общее кратное.',
+      ['Раскладываем на простые множители:', x + '=' + pfStr(pfac(x)) + ';' + y + '=' + pfStr(pfac(y))],
+      ['Берём каждый простой множитель в наибольшей степени — тогда число делится на оба, а меньшего такого нет:', pfStr(pfac(l)) + '=' + l],
+      'Проверка: ' + l + ' ÷ ' + x + ' = ' + (l / x) + ' и ' + l + ' ÷ ' + y + ' = ' + (l / y) + ' — целые числа. Перемножать ' + x + ' × ' + y + ' = ' + (x * y) + ' — слишком много' + (l === x * y ? ' в общем случае, хотя здесь совпало: у чисел нет общих множителей.' : ': встреча случится раньше.')] };
+  } });
+
+/* ===================== ROUNDING AND TRUNCATION ===================== */
+const NC_PREC = [['à l\'unité', 'до единиц', 'единиц'], ['au dixième', 'до десятых', 'десятых'], ['au centième', 'до сотых', 'сотых']];
+/* n · 10^-t rounded (half up) / truncated to k decimals, as integers of 10^-k */
+const ncRound = (n, t, k) => Math.floor((n + 5 * Math.pow(10, t - k - 1)) / Math.pow(10, t - k));
+const ncTrunc = (n, t, k) => Math.floor(n / Math.pow(10, t - k));
+/* why n · 10^-t rounds the way it does to k decimals */
+function ncRoundWhy(n, t, k) {
+  const P = Math.pow(10, t - k), lo = ncTrunc(n, t, k), next = Math.floor(n / Math.pow(10, t - k - 1)) % 10, mid = dec(lo * 10 + 5, k + 1), up = next >= 5, exact = n % P === P / 2;
+  return 'Число ' + ncN(n, t) + ' лежит между ' + ncTxt(dec(lo, k)) + ' и ' + ncTxt(dec(lo + 1, k)) + '; середина — ' + ncTxt(mid) + '. Следующая цифра после разряда ' + NC_PREC[k][2] + ' — ' + next
+    + (exact ? ': число ровно посередине, а в этом случае по правилу округляют вверх — до ' + ncTxt(dec(lo + 1, k)) + '.' : up ? ': это 5 или больше, значит, число больше середины — ближе к ' + ncTxt(dec(lo + 1, k)) + ', округляем вверх.' : ': это меньше 5, значит, число меньше середины — ближе к ' + ncTxt(dec(lo, k)) + '.');
+}
+topic({ id: 'nc.arrondi', ch: 'nc', lvl: 1, calc: false, variants: 5,
+  ru: 'Округление и усечение', fr: 'Arrondi et troncature',
+  hints: [
+    'Найди разряд, до которого округляешь (десятые — первая цифра после запятой, сотые — вторая), и посмотри на следующую цифру справа.',
+    'Округлить — найти ближайшее число с нужной точностью. Если следующая цифра 0–4, число ближе к меньшему значению: разряд не меняется. Если 5–9 — ближе к большему (или ровно посередине): разряд увеличиваем на 1.',
+    'Усечение («troncature») — просто отбросить цифры после нужного разряда, ничего не увеличивая. При округлении бывает перенос: $4.96$ до десятых — это $5.0$ (9 десятых + 1 десятая = 10 десятых = 1 единица).'],
+  gen(r, vi) {
+    if (vi === 0) {   /* round a decimal */
+      const k = r.ri(0, 2), t = k + r.ri(1, 2); let n; do n = r.ri(Math.pow(10, t) + 1, 60 * Math.pow(10, t)); while (n % 10 === 0);
+      if (r() < 0.25) {   /* sometimes a 9 in the rounding place and a big digit after it: a carry */
+        const T = Math.pow(10, t - k - 1), base = Math.floor(Math.floor(n / (10 * T)) / 10) * 10 + 9;
+        n = base * 10 * T + r.ri(5, 9) * T + (T > 1 ? r.ri(1, T - 1) : 0);
+      }
+      const key = dec(ncRound(n, t, k), k);
+      return { q: L('Arrondir ' + ncN(n, t) + ' ' + NC_PREC[k][0] + '.', 'Округли ' + ncN(n, t) + ' ' + NC_PREC[k][1] + '.'), ans: N(key, { dp: k }), sol: [
+        ncRoundWhy(n, t, k), ['', ncD(n, t) + '≈' + key],
+        k ? 'В ответе ровно ' + k + ' ' + ncPl(k, 'знак', 'знака', 'знаков') + ' после запятой — даже если последний из них 0: он показывает точность.' : 'Округление до единиц — ответ целое число.'] };
+    }
+    if (vi === 1) {   /* truncation and rounding side by side */
+      const k = r.ri(0, 2), t = k + r.ri(2, 3); let n; do n = r.ri(Math.pow(10, t) + 1, 40 * Math.pow(10, t)); while (n % 10 === 0 || (r() < 0.75 && Math.floor(n / Math.pow(10, t - k - 1)) % 10 < 5));
+      const tr = dec(ncTrunc(n, t, k), k), ro = dec(ncRound(n, t, k), k);
+      return { q: L('Donner la troncature et l\'arrondi ' + NC_PREC[k][0] + ' du nombre ' + ncN(n, t) + '.', 'Найди усечение и округление числа ' + ncN(n, t) + ' ' + NC_PREC[k][1] + '.'),
+        ans: multi([L('Troncature :', 'Усечение:'), N(tr, { dp: k })], [L('Arrondi :', 'Округление:'), N(ro, { dp: k })]), sol: [
+          'Усечение («troncature») — отбрасываем все цифры после разряда ' + NC_PREC[k][2] + ', ничего не меняя: ' + ncTxt(tr) + '.',
+          'Округление («arrondi») — ближайшее число с той же точностью. ' + ncRoundWhy(n, t, k),
+          tr === ro ? 'Здесь усечение и округление совпали: следующая цифра меньше 5.' : 'Здесь они различаются: усечение никогда не увеличивает число, а округление может.'] };
+    }
+    if (vi === 2) {   /* round a fraction */
+      let p, q; do { q = r.pick([3, 6, 7, 9, 11, 12]); p = r.ri(1, 3 * q); } while (p % q === 0 || 1000 % q === 0);
+      const k = r.ri(1, 2), digits = Math.floor(p * Math.pow(10, k + 1) / q), key = dec(Math.floor((2 * p * Math.pow(10, k) + q) / (2 * q)), k);
+      return { q: L('Donner l\'arrondi ' + NC_PREC[k][0] + ' de $' + p + '/' + q + '$.', 'Округли $' + p + '/' + q + '$ ' + NC_PREC[k][1] + '.'), ans: N(key, { dp: k }), sol: [
+        'Делим ' + p + ' на ' + q + ' столбиком, пока не получим на одну цифру больше, чем нужно: ' + p + ' ÷ ' + q + ' = ' + ncTxt(dec(digits, k + 1)) + '…',
+        'Следующая цифра после разряда ' + NC_PREC[k][2] + ' — ' + (digits % 10) + (digits % 10 >= 5 ? ': 5 или больше — округляем вверх.' : ': меньше 5 — разряд не меняется.'),
+        ['', p + '/' + q + '≈' + key]] };
+    }
+    if (vi === 3) {   /* multiple choice: carrying over, rounding twice */
+      if (r() < 0.5) {   /* x = w,9de with d ≥ 5 → (w+1),0 */
+        const w = r.ri(1, 19), d = r.ri(5, 9), e = r.ri(1, 9), n = w * 1000 + 900 + d * 10 + e;
+        const opts = [dec(w * 10 + 10, 1), dec(w * 10 + 9, 1), w + ',10', dec(ncRound(n, 3, 2), 2)].map(s => s.includes(',') ? s : ncTxt(s));
+        return { q: L('L\'arrondi au dixième de ' + ncN(n, 3) + ' est :', 'Округление числа ' + ncN(n, 3) + ' до десятых равно:'), ans: ncMQ(r, opts), sol: [
+          ncRoundWhy(n, 3, 1),
+          'Девять десятых плюс одна десятая — это десять десятых, то есть целая единица: ' + w + ' превращается в ' + (w + 1) + ', а в разряде десятых остаётся 0. Ноль пишем — он показывает, что округлили до десятых.',
+          '«' + w + ',10» — частая ошибка: 10 нельзя записать в одном разряде, единица переходит в целую часть. ' + opts[1] + ' — это усечение, а не округление; ' + opts[3] + ' — округление до сотых.'] };
+      }
+      const w = r.ri(1, 19), b = r.ri(0, 8), d = r.ri(5, 9), n = w * 1000 + b * 100 + 40 + d;   /* x = w,b4d: rounding twice gives a wrong answer */
+      const opts = [dec(w * 10 + b, 1), dec(w * 10 + b + 1, 1), dec(w * 100 + b * 10 + 5, 2), dec(w * 100 + b * 10 + 4, 2)].map(ncTxt);
+      return { q: L('L\'arrondi au dixième de ' + ncN(n, 3) + ' est :', 'Округление числа ' + ncN(n, 3) + ' до десятых равно:'), ans: ncMQ(r, opts), sol: [
+        ncRoundWhy(n, 3, 1),
+        'Ответ ' + opts[1] + ' — «двойное округление»: сначала до сотых (' + opts[2] + '), потом до десятых. Так нельзя: округляют исходное число, а ' + ncN(n, 3) + ' меньше середины ' + ncTxt(dec(w * 100 + b * 10 + 5, 2)) + '.',
+        opts[2] + ' — округление до сотых, ' + opts[3] + ' — усечение до сотых; а нужна точность до десятых.'] };
+    }
+    /* vi === 4: round to tens, hundreds, thousands */
+    const k = r.ri(1, 3), P = Math.pow(10, k), name = [['', ''], ['à la dizaine', 'до десятков'], ['à la centaine', 'до сотен'], ['au millier', 'до тысяч']][k]; let n; do n = r.ri(1000, 99999); while (n % P === 0);
+    const lo = Math.floor(n / P) * P, hi = lo + P, mid = lo + P / 2, res = n >= mid ? hi : lo;
+    return { q: L('Arrondir ' + nf(n) + ' ' + name[0] + '.', 'Округли ' + nf(n) + ' ' + name[1] + '.'), ans: N(res), sol: [
+      'Число ' + nf(n) + ' лежит между ' + nf(lo) + ' и ' + nf(hi) + ' — соседними «круглыми» числами, кратными ' + nf(P) + '. Середина между ними — ' + nf(mid) + '.',
+      n === mid ? nf(n) + ' ровно посередине — в этом случае по правилу округляют вверх.' : n > mid ? nf(n) + ' больше середины — значит, ближе к ' + nf(hi) + ': округляем вверх.' : nf(n) + ' меньше середины — значит, ближе к ' + nf(lo) + '.',
+      ['', n + '≈' + res]] };
+  } });
+
+/* ===================== FICHES ===================== */
+fiche({ ch: 'nc', id: 'nc.relatifs', ru: 'Относительные числа', fr: 'Les nombres relatifs', body: [
+  'Относительное число — число со знаком: $-4.7$, $3$. Расстояние до нуля — то же число без знака. Противоположное число («l\'opposé») — то же расстояние до нуля с другим знаком: к $-5$ противоположное $5$, в сумме они дают 0.',
+  'Сложение. Знаки одинаковые — складываем расстояния до нуля, знак сохраняем. Знаки разные — из большего расстояния вычитаем меньшее и берём знак того числа, которое дальше от нуля.',
+  'Вычитание — сложение с противоположным: $a-b=a+(-b)$. Поэтому $5-(-2)=5+2$: списать долг — всё равно что получить деньги.',
+  'Умножение и деление: числа без знаков перемножаем (делим), а знак — по правилу: одинаковые знаки — «плюс», разные — «минус». Много множителей: чётное число минусов — «плюс», нечётное — «минус».',
+  'Сравнение: из двух отрицательных больше то, которое ближе к нулю: $-2.1 > -2.5$.'],
+  ex: [['Сложение', '-4.7+3.5=-1.2'], ['Вычитание', '3-(-5)=3+5=8'], ['Умножение', '(-4)*(-9)=36'], ['Деление', '(-42)÷6=-7']] });
+fiche({ ch: 'nc', id: 'nc.ordre', ru: 'Порядок действий', fr: 'Les priorités opératoires', body: [
+  'Порядок: 1) скобки (начиная с внутренних); 2) степени; 3) умножение и деление; 4) сложение и вычитание.',
+  'Действия одного уровня выполняют слева направо: $20-5+3=18$, а не 12.',
+  'Черта дроби работает как скобки: числитель и знаменатель считают отдельно, потом делят.',
+  'Названия: сумма — «la somme», разность — «la différence», произведение — «le produit», частное — «le quotient». Выражение называют по последнему действию: $5+3*4$ — сумма, $(5+3)*4$ — произведение.'],
+  ex: [['Умножение раньше', '5+3*4=5+12=17'], ['Скобки', '(5+3)*4=8*4=32'], ['Слева направо', '20-5+3=15+3=18'], ['Черта дроби', '(12+8)/(7-3)=20/4=5']] });
+fiche({ ch: 'nc', id: 'nc.ecritures', ru: 'Дроби: записи, сравнение, доля от числа', fr: 'Écritures et comparaison des fractions', body: [
+  'Десятичная запись — дробь со знаменателем 10, 100, 1000…: $0.75=75/100=3/4$, $1.2=12/10=6/5$.',
+  'Дробь → десятичная: раздели числитель на знаменатель или домножь дробь до знаменателя 10, 100, 1000: $7/4=175/100=1.75$. Бывает и бесконечная запись: $1/3$ = 0,333… — тогда берут округлённое значение.',
+  'Дробь от количества: «$3/4$ от 20» — это 20 : 4 × 3 = 15. «Дробь от дроби» — произведение: $2/3$ от $3/4$ — это $$\\frac{2}{3}\\times\\frac{3}{4}=\\frac{1}{2}$$.',
+  'Сравнение: приведи к общему знаменателю или переведи в десятичную запись. При одинаковых знаменателях больше та дробь, у которой больше числитель; при одинаковых числителях — та, у которой меньше знаменатель (доли крупнее).',
+  'На числовой прямой единицу делят на $b$ равных частей (считаем промежутки, а не штрихи); точка на $a$-м делении от нуля имеет абсциссу $a/b$.',
+  'Обратное число («l\'inverse») к $a/b$ — это $b/a$: их произведение равно 1. Противоположное («l\'opposé») — с другим знаком: к $2/5$ противоположное $-2/5$, а обратное $5/2$.'],
+  ex: [['Десятичная → дробь', '0.75=75/100=3/4'], ['Дробь → десятичная', '7/4=175/100=1.75'], ['Доля от числа', '3/4*20=15'], ['Сравнение', '5/6=15/18>14/18=7/9']] });
+fiche({ ch: 'nc', id: 'nc.puissances-sci', ru: 'Степени и научная запись', fr: 'Puissances et notation scientifique', body: [
+  '$a^n$ — произведение $n$ множителей, равных $a$: $2^3=2*2*2=8$. По определению $a^1=a$, $a^0=1$ (при $a ≠ 0$) и $a^(-n)=1/a^n$.',
+  'Знак: $(-2)^4=16$, $(-2)^3=-8$ — чётная степень отрицательного числа положительна, нечётная отрицательна. А $-2^4=-16$: без скобок степень относится только к 2.',
+  'Степени 10: $10^n$ — единица и $n$ нулей, $10^(-n)$ — единица на $n$-м месте после запятой. $10^a*10^b=10^(a+b)$, $10^a/10^b=10^(a-b)$, $(10^a)^b=10^(a*b)$.',
+  'Научная запись («notation scientifique»): $a*10^n$, где $1 ≤ a < 10$. Число больше 10 — показатель положительный, меньше 1 — отрицательный.',
+  'Приставки: кило- (k) $10^3$, мега- (M) $10^6$, гига- (G) $10^9$, тера- (T) $10^12$; милли- (m) $10^(-3)$, микро- (µ) $10^(-6)$, нано- (n) $10^(-9)$.'],
+  ex: [['Умножение', '10^3*10^(-5)=10^(-2)'], ['Степень степени', '(10^2)^3=10^6'], ['Научная запись', '0.00458=4.58*10^(-3)'], ['Произведение', '(5*10^4)*(3*10^(-2))=15*10^2=1.5*10^3']] });
+fiche({ ch: 'nc', id: 'nc.racine-carree', ru: 'Квадратный корень', fr: 'La racine carrée', body: [
+  '$√a$ (при $a ≥ 0$) — положительное число, квадрат которого равен $a$: $√49=7$, потому что $7^2=49$. $√0=0$, $√1=1$.',
+  'Полные квадраты: 1, 4, 9, 16, 25, 36, 49, 64, 81, 100, 121, 144, 169, 196, 225.',
+  '$(√a)^2=a$ и $√(a^2)=a$ (при $a ≥ 0$). Корень из суммы — не сумма корней: $√(9+16)=5$, а $√9+√16=7$.',
+  'Оценка: если $49 < 50 < 64$, то $7 < √50 < 8$ — у большего числа и корень больше.',
+  'Сверх программы 3e: $√(a*b)=√a*√b$, поэтому $√50=√25*√2=5√2$.'],
+  ex: [['Квадрат корня', '(2√5)^2=4*5=20'], ['Сначала под корнем', '√(36+64)=√100=10'], ['Сумма на разность', '(5+2√3)(5-2√3)=25-12=13'], ['Упрощение', '√50=√25*√2=5√2']] });
+fiche({ ch: 'nc', id: 'nc.arithmetique', ru: 'Делители и простые числа', fr: 'Arithmétique', body: [
+  'Если $a=b*k$ ($k$ — целое), то $b$ — делитель $a$ («un diviseur»), а $a$ — кратное $b$ («un multiple»). Деление с остатком («la division euclidienne»): $a=b*q+r$, где $0 ≤ r < b$.',
+  'Признаки делимости: на 2 — последняя цифра чётная; на 5 — оканчивается на 0 или 5; на 10 — на 0; на 3 и на 9 — сумма цифр делится на 3 (на 9).',
+  'Простое число («un nombre premier») имеет ровно два делителя: 1 и само себя. Простые до 30: 2, 3, 5, 7, 11, 13, 17, 19, 23, 29. 1 — не простое; 2 — единственное чётное простое.',
+  'Разложение на простые множители: делим на 2, 3, 5, 7… пока не дойдём до 1. Каждое целое число больше 1 раскладывается единственным образом.',
+  'Наибольшее число одинаковых наборов — наибольший общий делитель: общие простые множители в наименьшей степени. Первая встреча двух циклов — наименьшее общее кратное: все простые множители в наибольшей степени.'],
+  ex: [['Разложение', '360=2^3*3^2*5'], ['Общий делитель', '126=2*3^2*7; 90=2*3^2*5; 2*3^2=18'], ['Общее кратное', '12=2^2*3; 18=2*3^2; 2^2*3^2=36']] });
+
+/* ===================== DICTIONARY ===================== */
+gloss('un nombre relatif', 'относительное число', 'число со знаком «+» или «−»: −4,7 ; 3');
+gloss('l\'opposé', 'противоположное число', 'то же расстояние до нуля, другой знак: −5 и 5, в сумме 0');
+gloss('l\'inverse', 'обратное число', 'произведение с числом равно 1: 2/3 и 3/2');
+gloss('la somme', 'сумма', 'результат сложения');
+gloss('la différence', 'разность', 'результат вычитания');
+gloss('le produit', 'произведение', 'результат умножения');
+gloss('le quotient', 'частное', 'результат деления');
+gloss('les priorités opératoires', 'порядок действий', 'скобки, потом × и ÷, потом + и −');
+gloss('la moitié, le tiers, le quart', 'половина, треть, четверть');
+gloss('le dixième, le centième, le millième', 'десятая, сотая, тысячная', 'доли единицы и разряды после запятой');
+gloss('l\'abscisse', 'абсцисса', 'число, которым отмечена точка на числовой прямой');
+gloss('l\'ordre croissant', 'порядок возрастания', 'от меньшего к большему; décroissant — от большего к меньшему');
+gloss('une puissance', 'степень', '2⁵ — пятая степень числа 2');
+gloss('l\'exposant', 'показатель степени', 'в 2⁵ это 5');
+gloss('la notation scientifique', 'научная запись (стандартный вид числа)', 'a × 10ⁿ, где 1 ≤ a < 10');
+gloss('la racine carrée', 'квадратный корень', '√49 = 7, потому что 7² = 49');
+gloss('un carré parfait', 'полный квадрат', 'квадрат целого числа: 1, 4, 9, 16…');
+gloss('un diviseur', 'делитель', '3 — делитель 12');
+gloss('un multiple', 'кратное', '12 — кратное 3');
+gloss('un nombre premier', 'простое число', 'ровно два делителя: 1 и само число');
+gloss('la décomposition en produit de facteurs premiers', 'разложение на простые множители', '60 = 2² × 3 × 5');
+gloss('la division euclidienne', 'деление с остатком', '145 = 12 × 12 + 1: частное 12, остаток 1');
+gloss('le reste', 'остаток', 'при делении с остатком он меньше делителя');
+gloss('l\'arrondi', 'округлённое значение', 'ближайшее число с нужной точностью');
+gloss('la troncature', 'усечение', 'отбросить цифры после нужного разряда, не округляя');

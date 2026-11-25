@@ -563,8 +563,8 @@ topic({ id: 'ge.pythagore-calc', ch: 'ge', lvl: 2, calc: true, variants: 3,
     S.poly([P0, P1, P2], 'fl'); S.seg(P0, P2, 'fhl'); geoRightMark(S, P1, P0, P2, 8);
     geoSegLab(S, P0, P2, 'rampe : ' + nf(Lg) + ' m', P1); geoSegLab(S, P1, P2, nf(hgt) + ' m', P0); geoSegLab(S, P0, P1, '?', P2);
     const key = geoRound(x, 2).toFixed(2);
-    return { q: L('Une rampe d’accès rectiligne mesure ' + nf(Lg) + ' m de long et permet de monter de ' + nf(hgt) + ' m. Quelle est la distance horizontale entre le bas et le haut de la rampe ? Arrondir au centimètre.',
-      'Прямой пандус длиной ' + nf(Lg) + ' м поднимается на высоту ' + nf(hgt) + ' м. Каково расстояние по горизонтали между началом и концом пандуса? Округли до сантиметра.'), fig: S.svg('rampe d’accès (la figure n’est pas à l’échelle)'), ans: N(key, { dp: 2, unit: 'm' }),
+    return { q: L('Une rampe d’accès rectiligne mesure ' + nf(Lg) + ' m de long et permet de monter de ' + nf(hgt) + ' m (la figure n’est pas à l’échelle). Quelle est la distance horizontale entre le bas et le haut de la rampe ? Arrondir au centimètre.',
+      'Прямой пандус длиной ' + nf(Lg) + ' м поднимается на высоту ' + nf(hgt) + ' м (рисунок не в масштабе). Каково расстояние по горизонтали между началом и концом пандуса? Округли до сантиметра.'), fig: S.svg('rampe d’accès (la figure n’est pas à l’échelle)'), ans: N(key, { dp: 2, unit: 'm' }),
       sol: ['Высота отсчитывается по вертикали, а расстояние — по горизонтали: между ними прямой угол. Пандус — гипотенуза (на рисунке высота преувеличена, чтобы было видно треугольник).',
         ['Катет = корень из разности квадратов гипотенузы и другого катета:', 'x^2=' + fx(Lg) + '^2-' + fx(hgt) + '^2=' + fx(Lg * Lg) + '-' + fx(hgt * hgt) + '=' + fx(Lg * Lg - hgt * hgt)],
         ['Корень и округление до сотых метра:', 'x=√' + fx(Lg * Lg - hgt * hgt) + '≈' + key, 'm'], 'Горизонтальное расстояние чуть меньше длины пандуса — так и должно быть: катет короче гипотенузы.'] };
@@ -949,7 +949,7 @@ topic({ id: 'ge.trigo-calcul', ch: 'ge', lvl: 2, calc: true, variants: 4,
       const res = T[ask] + '=' + (num === ask ? geoT(kv) + '\\times\\' + fn + '(' + al + '^\\circ)' : geoT(kv) + '\\div\\' + fn + '(' + al + '^\\circ)') + '\\approx ' + geoT(key) + '\\text{ ' + u + '}';
       return { q: L(intro.fr + ' On donne ' + T[kn] + ' = ' + nf(kv) + ' ' + u + ' et ' + geoHat(T.ang) + ' = ' + al + '°. Calculer la longueur ' + T[ask] + '. Arrondir au dixième.', intro.ru + ' Известно: ' + T[kn] + ' = ' + nf(kv) + ' ' + GEO_U[u] + ' и ' + geoHat(T.ang) + ' = ' + al + '°. Найди длину ' + T[ask] + '. Округли до десятых.'), fig, ans: N(key, { dp: 1, unit: u }),
         sol: ['Относительно угла ' + A + ': [' + T[kn] + '] — ' + named(kn) + ' (известен), [' + T[ask] + '] — ' + named(ask) + ' (ищем). Их связывает ' + GEO_FN_RU[fn] + ':', { t: '', tex: eq },
-          { t: 'Подставляем известное:', tex: sub }, { t: num === ask ? 'Неизвестное в числителе — умножаем на знаменатель:' : 'Неизвестное в знаменателе: по правилу пропорции оно равно произведению «накрест» делённому на третье число, то есть делим:', tex: res },
+          { t: 'Подставляем известное:', tex: sub }, { t: num === ask ? 'Неизвестное в числителе — умножаем обе части на знаменатель:' : 'Неизвестное в знаменателе: умножим обе части на ' + T[ask] + ' (получится ' + T[ask] + ' × ' + fn + ' ' + al + '° = ' + nf(kv) + ') и разделим на ' + fn + ' ' + al + '°:', tex: res },
           'Калькулятор в режиме градусов; округляем только в конце: ' + nf(geoRound(val, 3)) + '… → ' + nf(+key) + '.'] };
     }
     if (vi === 2) {   /* an angle from two sides */
@@ -999,7 +999,7 @@ topic({ id: 'ge.trigo-calcul', ch: 'ge', lvl: 2, calc: true, variants: 4,
       S.poly([P0, P1, P2], 'fl'); S.seg(P0, P2, 'fhl'); geoRightMark(S, P1, P0, P2, 8); geoArc(S, P0, P1, P2, { txt: '?', r: 40 });
       geoSegLab(S, P0, P1, nf(Lg) + ' m', P2); geoSegLab(S, P1, P2, nf(hg) + ' m', P0);
       const key = geoRound(al, 1).toFixed(1);
-      return { q: L('Une rampe rectiligne permet de monter de ' + nf(hg) + ' m sur une distance horizontale de ' + nf(Lg) + ' m. Quel angle fait-elle avec l’horizontale ? Arrondir au dixième de degré.', 'Прямой пандус поднимается на ' + nf(hg) + ' м на горизонтальном расстоянии ' + nf(Lg) + ' м. Какой угол он образует с горизонталью? Округли до десятых долей градуса.'),
+      return { q: L('Une rampe rectiligne permet de monter de ' + nf(hg) + ' m sur une distance horizontale de ' + nf(Lg) + ' m (la figure n’est pas à l’échelle). Quel angle fait-elle avec l’horizontale ? Arrondir au dixième de degré.', 'Прямой пандус поднимается на ' + nf(hg) + ' м на горизонтальном расстоянии ' + nf(Lg) + ' м (рисунок не в масштабе). Какой угол он образует с горизонталью? Округли до десятых долей градуса.'),
         fig: S.svg('rampe (la figure n’est pas à l’échelle)'), ans: N(key, { dp: 1, unit: '°' }),
         sol: ['Высота и горизонталь образуют прямой угол. Относительно искомого угла α: высота ' + nf(hg) + ' м — противолежащий катет, горизонтальное расстояние ' + nf(Lg) + ' м — прилежащий (на рисунке подъём преувеличен).', { t: 'Это тангенс:', tex: '\\tan\\alpha=\\dfrac{' + geoT(hg) + '}{' + geoT(Lg) + '}' },
           { t: 'Обратная функция калькулятора:', tex: '\\alpha=\\tan^{-1}\\left(\\dfrac{' + geoT(hg) + '}{' + geoT(Lg) + '}\\right)\\approx ' + geoT(key) + '^\\circ' }] };
@@ -1302,13 +1302,13 @@ topic({ id: 'ge.homothetie', ch: 'ge', lvl: 3, calc: false, variants: 4,
     }
     if (vi === 2) {   /* areas and volumes */
       const vol = r() < 0.35, k = r.pick(vol ? [2, 3, -2, 0.5] : [2, 3, 4, -2, -3, 0.5, 1.5]);
-      const fig = vol ? r.pick([['un cube', 'куб'], ['une pyramide', 'пирамида'], ['un cône', 'конус'], ['une boule', 'шар']]) : r.pick([['un triangle', 'треугольник'], ['un rectangle', 'прямоугольник'], ['un disque', 'круг'], ['un losange', 'ромб']]);
+      const fig = vol ? r.pick([['un cube', 'куба'], ['une pyramide', 'пирамиды'], ['un cône', 'конуса'], ['une boule', 'шара']]) : r.pick([['un triangle', 'треугольника'], ['un rectangle', 'прямоугольника'], ['un disque', 'круга'], ['un losange', 'ромба']]);
       let A0 = r.ri(2, 12); if (Math.abs(k) === 0.5) A0 = (vol ? 8 : 4) * r.ri(1, 5); if (k === 1.5) A0 = 4 * r.ri(1, 4);
       const f = vol ? Math.pow(Math.abs(k), 3) : k * k, A1 = +(A0 * f).toFixed(4), u = vol ? 'cm³' : 'cm²', ur = vol ? 'см³' : 'см²';
-      return { q: L((vol ? 'Le volume d’' : 'L’aire d’') + fig[0] + ' est ' + nf(A0) + ' ' + u + '. On applique une homothétie de rapport ' + nf(k) + '. Quel est ' + (vol ? 'le volume' : 'l’aire') + ' de la figure obtenue ?', (vol ? 'Объём' : 'Площадь') + ' (' + fig[1] + ') равн' + (vol ? '' : 'а') + ' ' + nf(A0) + ' ' + ur + '. К фигуре применяют гомотетию с коэффициентом ' + nf(k) + '. Чему равн' + (vol ? 'ен объём' : 'а площадь') + ' полученной фигуры?'),
+      return { q: L((vol ? 'Le volume d’' : 'L’aire d’') + fig[0] + ' est ' + nf(A0) + ' ' + u + '. On applique une homothétie de rapport ' + nf(k) + '. Quel est ' + (vol ? 'le volume' : 'l’aire') + ' de la figure obtenue ?', (vol ? 'Объём ' + fig[1] + ' равен ' : 'Площадь ' + fig[1] + ' равна ') + nf(A0) + ' ' + ur + '. К фигуре применяют гомотетию с коэффициентом ' + nf(k) + '. ' + (vol ? 'Чему равен объём' : 'Чему равна площадь') + ' полученной фигуры?'),
         ans: N(fx(A1), { unit: u }),
         sol: [vol ? 'Объём растягивается сразу в трёх направлениях (длина, ширина, высота), и в каждом — в |k| раз. Поэтому объём умножается на |k|³.' : 'Площадь растягивается сразу в двух направлениях, и в каждом — в |k| раз. Поэтому площадь умножается на k² (знак k на площадь не влияет).',
-          { t: '', tex: geoT(A0) + '\\times ' + (vol ? geoT(Math.abs(k)) + '^3' : '(' + geoT(k) + ')^2') + '=' + geoT(A0) + '\\times ' + geoT(f) + '=' + geoT(A1) + '\\text{ ' + (vol ? 'cm}^3' : 'cm}^2') },
+          { t: '', tex: geoT(A0) + '\\times ' + (vol ? geoT(Math.abs(k)) + '^3' : (k < 0 ? '(' + geoT(k) + ')' : geoT(k)) + '^2') + '=' + geoT(A0) + '\\times ' + geoT(f) + '=' + geoT(A1) + '\\text{ ' + (vol ? 'cm}^3' : 'cm}^2') },
           'Частая ошибка — умножить ' + (vol ? 'объём' : 'площадь') + ' просто на k: получилось бы ' + nf(+(A0 * Math.abs(k)).toFixed(4)) + ', а это неверно.'] };
     }
     /* what does it do to the lengths */
@@ -1317,7 +1317,7 @@ topic({ id: 'ge.homothetie', ch: 'ge', lvl: 3, calc: false, variants: 4,
     const c = Math.abs(k) > 1 ? 0 : Math.abs(k) < 1 ? 1 : 2;
     return { q: L('Que fait une homothétie de rapport ' + nf(k) + ' ?', 'Что делает гомотетия с коэффициентом ' + nf(k) + '?'), ans: MQF(opts, c),
       sol: ['Длины умножаются на |k| = ' + nf(Math.abs(k)) + '. ' + (c === 0 ? 'Это больше 1 — длины увеличиваются.' : c === 1 ? 'Это меньше 1 — длины уменьшаются.' : 'Это ровно 1 — длины сохраняются: гомотетия с коэффициентом −1 — это центральная симметрия.'),
-        'Знак минус не уменьшает фигуру: он только «переворачивает» её на другую сторону от центра. А углы гомотетия никогда не меняет — фигура остаётся подобной себе.'] };
+        (k < 0 ? 'Знак минус не уменьшает фигуру: он только «переворачивает» её на другую сторону от центра. ' : '') + 'Углы гомотетия никогда не меняет — фигура остаётся подобной себе.'] };
   } });
 
 /* ===================== REPÉRAGE ===================== */
@@ -1386,7 +1386,7 @@ const geoHalf = (c, rx, ry, front) => 'M' + geoC(c.x - rx) + ' ' + geoC(c.y) + '
 function geoEll(S, c, rx, ry, cls, back) {
   S.path(geoHalf(c, rx, ry, true), cls, [geoV(c.x - rx, c.y), geoV(c.x + rx, c.y + ry)]);
   S.path(geoHalf(c, rx, ry, false), back || cls, [geoV(c.x - rx, c.y - ry), geoV(c.x + rx, c.y)]);
-  const ps = []; for (let i = 0; i <= 12; i++) ps.push(geoV(c.x + rx * Math.cos(i * Math.PI / 12), c.y + ry * Math.sin(i * Math.PI / 12))); S.line(ps);
+  const ps = []; for (let i = 0; i <= 24; i++) ps.push(geoV(c.x + rx * Math.cos(i * Math.PI / 12), c.y + ry * Math.sin(i * Math.PI / 12))); S.line(ps);
 }
 /* cylinder: radius R, height H (units), k px per unit; o.sec: 'perp' (height t, 0…1) or 'par' (distance d from the axis) */
 function geoCyl(R, H, o) {
@@ -1488,3 +1488,277 @@ topic({ id: 'ge.reperage-espace', ch: 'ge', lvl: 2, calc: false, variants: 3,
       ans: MQ(r, opts.map(x => L('Le sommet ' + x, 'Вершина ' + x)), 0),
       sol: ['Читаем координаты по порядку: ' + (t[0] ? 'абсцисса ' + Lx + ' — идём вдоль [AB] до конца' : 'абсцисса 0 — вдоль [AB] не идём') + '; ' + (t[1] ? 'ордината ' + Ly + ' — идём на всю глубину, как до D' : 'ордината 0 — остаёмся на передней грани') + '; ' + (t[2] ? 'высота ' + Lz + ' — поднимаемся наверх' : 'высота 0 — остаёмся на нижней грани') + '.', 'Так попадаем в вершину ' + name + '.'] };
   } });
+
+/* tetrahedron (pyramid with a triangular base) */
+function geoTetra() {
+  const V3 = [[0, 0, 0], [3, 0, 0], [1.3, 2.6, 0], [1.4, 0.9, 2.6]], f = geoFit(V3.map(geoCav), 150, 150), Q = V3.map(p => f(geoCav(p))), S = geoScene();
+  [[0, 2], [2, 1]].forEach(([i, j]) => S.seg(Q[i], Q[j], 'fdash')); [[0, 1], [0, 3], [1, 3], [2, 3]].forEach(([i, j]) => S.seg(Q[i], Q[j]));
+  return S.svg('pyramide à base triangulaire');
+}
+/* nets («patrons») in maths units, fitted into the figure */
+function geoNet(kind, o) {
+  o = o || {}; const S = geoScene(), polys = [], circles = [];
+  const rect = (x, y, w, h) => polys.push([geoV(x, y), geoV(x + w, y), geoV(x + w, y + h), geoV(x, y + h)]);
+  if (kind === 'cube') [[1, 0], [0, 1], [1, 1], [2, 1], [3, 1], [1, 2]].forEach(([x, y]) => rect(x, y, 1, 1));
+  if (kind === 'pave') { const a = 2, b = 1.2, c = 0.8; rect(0, 0, a, b); rect(0, b, a, c); rect(0, b + c, a, b); rect(0, 2 * b + c, a, c); rect(-b, b, b, c); rect(a, b, b, c); }
+  if (kind === 'cyl') { const R = 0.6, H = 1.6, W = 2 * Math.PI * R; rect(0, 0, W, H); circles.push([geoV(W / 2, H + R), R], [geoV(W / 2, -R), R]); }
+  if (kind === 'cone') { const g = 2, R = 0.75, th = 360 * R / g, ps = [geoV(0, 0)]; for (let i = 0; i <= 24; i++) ps.push(geoPol(g, 90 - th / 2 + th * i / 24)); polys.push(ps); circles.push([geoV(0, g + R), R]); }
+  if (kind === 'pyr') { const a = 1.2, h = 1.1; rect(0, 0, a, a); polys.push([geoV(0, 0), geoV(a, 0), geoV(a / 2, -h)], [geoV(a, 0), geoV(a, a), geoV(a + h, a / 2)], [geoV(a, a), geoV(0, a), geoV(a / 2, a + h)], [geoV(0, a), geoV(0, 0), geoV(-h, a / 2)]); }
+  if (kind === 'prism') { const s = 1, H = 1.6; rect(0, 0, s, H); rect(s, 0, s, H); rect(2 * s, 0, s, H); polys.push([geoV(s, H), geoV(2 * s, H), geoV(1.5 * s, H + s * 0.866)], [geoV(s, 0), geoV(2 * s, 0), geoV(1.5 * s, -s * 0.866)]); }
+  if (kind === 'tetra') { const t = [geoV(0, 0), geoV(2, 0), geoV(1, 1.732)], m = [geoMid(t[0], t[1]), geoMid(t[1], t[2]), geoMid(t[2], t[0])]; polys.push(t, [m[0], m[1], m[2]]); }
+  const all = polys.flat().concat(circles.flatMap(([c, r]) => [geoV(c.x - r, c.y - r), geoV(c.x + r, c.y + r)]));
+  const f = geoFit(all, o.W || 230, o.H || 170), k = f.k;
+  polys.forEach(p => S.poly(p.map(f), 'fl')); circles.forEach(([c, r]) => S.circle(f(c), r * k, 'fl'));
+  return S.svg('patron');
+}
+const GEO_SOL = { pave: ['un pavé droit', 'прямоугольный параллелепипед'], cube: ['un cube', 'куб'], cyl: ['un cylindre', 'цилиндр'], cone: ['un cône', 'конус'], pyr: ['une pyramide à base carrée', 'четырёхугольная пирамида (основание — квадрат)'],
+  prism: ['un prisme droit à base triangulaire', 'прямая треугольная призма'], tetra: ['une pyramide à base triangulaire', 'треугольная пирамида'], boule: ['une boule', 'шар'] };
+const geoSolidFig = k => k === 'pave' ? geoPave(5, 3, 2.5, { noNames: true }) : k === 'cube' ? geoPave(3, 3, 3, { noNames: true, label: 'cube' }) : k === 'cyl' ? geoCyl(2, 4) : k === 'cone' ? geoCone(2, 3.6) : k === 'pyr' ? geoPyr(3, 3.2) : k === 'prism' ? geoPrism() : k === 'tetra' ? geoTetra() : geoSphereFig(4);
+topic({ id: 'ge.solides', ch: 'ge', lvl: 1, calc: false, variants: 5,
+  ru: 'Тела в пространстве и их развёртки', fr: 'Solides et patrons',
+  hints: [
+    'Многогранники: у призмы («prisme droit») два одинаковых параллельных основания и боковые грани-прямоугольники; у пирамиды («pyramide») одно основание и треугольные грани, сходящиеся в вершине. Куб и прямоугольный параллелепипед («pavé droit») — особые призмы.',
+    'Тела вращения: цилиндр («cylindre») — два одинаковых круга-основания и боковая поверхность; конус («cône») — один круг и вершина; шар («boule») — все точки на расстоянии не больше радиуса от центра, его поверхность — сфера («sphère»).',
+    'Развёртка («patron») — плоская фигура, которую можно сложить в тело без наложений. Считай грани и смотри на их форму: сколько граней и какие — столько же и таких же должно быть в развёртке.'],
+  gen(r, vi) {
+    if (vi === 0) {
+      const k = r.pick(['pave', 'cube', 'cyl', 'cone', 'pyr', 'prism', 'tetra', 'boule']);
+      const bad = { pave: ['cube', 'prism'], cube: ['pave', 'prism'], prism: [], pyr: ['tetra'], tetra: ['pyr'] }[k] || [];
+      const pool = r.sh(Object.keys(GEO_SOL).filter(x => x !== k && !bad.includes(x))).slice(0, 3);
+      const why = { pave: 'Шесть граней-прямоугольников, противоположные грани одинаковые — это прямоугольный параллелепипед.', cube: 'Шесть одинаковых граней-квадратов — это куб.', cyl: 'Два одинаковых круга-основания и изогнутая боковая поверхность — цилиндр.',
+        cone: 'Одно круглое основание и вершина, к которой сходится боковая поверхность, — конус.', pyr: 'Основание — квадрат (четырёхугольник), остальные грани — треугольники с общей вершиной: четырёхугольная пирамида.', prism: 'Два одинаковых параллельных треугольника-основания и три боковые грани-прямоугольника — прямая треугольная призма.',
+        tetra: 'Основание — треугольник, ещё три треугольные грани сходятся в вершине: треугольная пирамида (все 4 грани — треугольники).', boule: 'Круглая со всех сторон фигура: все её точки на расстоянии не больше радиуса от центра. Это шар.' }[k];
+      return { q: L('Quel est le nom du solide représenté ci-dessous ?', 'Как называется изображённое тело?'), fig: geoSolidFig(k), ans: MQ(r, [k].concat(pool).map(x => L(GEO_SOL[x][0][0].toUpperCase() + GEO_SOL[x][0].slice(1), GEO_SOL[x][1][0].toUpperCase() + GEO_SOL[x][1].slice(1))), 0),
+        sol: [why, 'Штриховые линии на рисунке — невидимые рёбра (их закрывает само тело).'] };
+    }
+    if (vi === 1) {
+      const k = r.pick(['pave', 'pyr', 'prism', 'tetra']), what = r.pick(['faces', 'aretes', 'sommets']);
+      const D = { pave: [6, 12, 8], pyr: [5, 8, 5], prism: [5, 9, 6], tetra: [4, 6, 4] }[k], idx = ['faces', 'aretes', 'sommets'].indexOf(what);
+      const W = { faces: ['faces', 'граней'], aretes: ['arêtes', 'рёбер'], sommets: ['sommets', 'вершин'] }[what];
+      const nm = { pave: ['ce pavé droit', 'этого прямоугольного параллелепипеда'], pyr: ['cette pyramide à base carrée', 'этой четырёхугольной пирамиды'], prism: ['ce prisme droit à base triangulaire', 'этой треугольной призмы'], tetra: ['cette pyramide à base triangulaire', 'этой треугольной пирамиды'] }[k];
+      const how = { pave: ['Граней: 2 основания + 4 боковые = 6.', 'Рёбер: 4 у нижнего основания + 4 у верхнего + 4 вертикальных = 12.', 'Вершин: 4 внизу + 4 вверху = 8.'],
+        pyr: ['Граней: квадрат-основание + 4 треугольника = 5.', 'Рёбер: 4 стороны основания + 4 ребра к вершине = 8.', 'Вершин: 4 у основания + 1 вершина пирамиды = 5.'],
+        prism: ['Граней: 2 треугольных основания + 3 боковых прямоугольника = 5.', 'Рёбер: 3 у нижнего треугольника + 3 у верхнего + 3 боковых = 9.', 'Вершин: 3 внизу + 3 вверху = 6.'],
+        tetra: ['Граней: треугольник-основание + 3 боковых треугольника = 4.', 'Рёбер: 3 стороны основания + 3 ребра к вершине = 6.', 'Вершин: 3 у основания + 1 вершина = 4.'] }[k];
+      return { q: L('Combien de ' + W[0] + ' possède ' + nm[0] + ' ?', 'Сколько ' + W[1] + ' у ' + nm[1] + '?'), fig: geoSolidFig(k), ans: N(D[idx]),
+        sol: ['Не забываем невидимые (штриховые) рёбра и грани сзади. Считаем по частям:', how[idx], 'Проверка по формуле Эйлера для многогранников: грани + вершины − рёбра = 2. Здесь ' + D[0] + ' + ' + D[2] + ' − ' + D[1] + ' = 2.'] };
+    }
+    if (vi === 2) {
+      const k = r.pick(['cube', 'pave', 'cyl', 'cone', 'pyr', 'prism', 'tetra']);
+      const bad = { cube: ['pave'], pave: ['cube'], pyr: ['tetra'], tetra: ['pyr'] }[k] || [];
+      const pool = r.sh(['cube', 'pave', 'cyl', 'cone', 'pyr', 'prism', 'tetra'].filter(x => x !== k && !bad.includes(x))).slice(0, 3);
+      const why = { cube: 'Шесть одинаковых квадратов — куб.', pave: 'Шесть прямоугольников, попарно одинаковых, — прямоугольный параллелепипед.', cyl: 'Прямоугольник (боковая поверхность) и два одинаковых круга (основания) — цилиндр.',
+        cone: 'Круговой сектор (боковая поверхность) и один круг (основание) — конус.', pyr: 'Квадрат и четыре треугольника, которые сходятся в одну вершину, — четырёхугольная пирамида.', prism: 'Три прямоугольника (боковые грани) и два треугольника (основания) — треугольная призма.', tetra: 'Четыре треугольника — треугольная пирамида: средний станет основанием, три других поднимутся к вершине.' }[k];
+      return { q: L('Ce patron permet de construire un solide. Lequel ?', 'Из этой развёртки можно сложить тело. Какое?'), fig: geoNet(k), ans: MQ(r, [k].concat(pool).map(x => L(GEO_SOL[x][0][0].toUpperCase() + GEO_SOL[x][0].slice(1), GEO_SOL[x][1][0].toUpperCase() + GEO_SOL[x][1].slice(1))), 0),
+        sol: ['Смотрим на форму и количество частей развёртки: каждая часть станет гранью или поверхностью тела.', why] };
+    }
+    if (vi === 3) {   /* cylinder: length of the rectangle of its net */
+      let R, H; do { R = r.ri(2, 7); H = r.ri(3, 12); } while (new Set([2 * R, R, R * R, 2 * H]).size < 4 || H === R);
+      const S = geoScene(), sc = Math.min(280 / (2 * Math.PI * R), 190 / (H + 4 * R)), W = 2 * Math.PI * R * sc, h = H * sc, rr = R * sc;
+      const rect = [geoV(0, 0), geoV(W, 0), geoV(W, h), geoV(0, h)];
+      S.poly(rect, 'fl'); S.circle(geoV(W / 2, -rr), rr, 'fl'); S.circle(geoV(W / 2, h + rr), rr, 'fl');
+      S.seg(geoV(W / 2, -rr), geoV(W / 2 + rr, -rr), 'fl2'); S.dot(geoV(W / 2, -rr), 2); S.text(geoV(W / 2 + rr + 6, -rr), 'r = ' + R + ' cm', { fs: 14, anchor: 'start' });
+      geoSegLab(S, rect[1], rect[2], H + ' cm', rect[0]); geoSegLab(S, rect[2], rect[3], '?', rect[0], { t: 0.25 });
+      const T = v => '$$' + v + '\\pi$$ cm';
+      return { q: L('On dessine le patron d’un cylindre de rayon ' + R + ' cm et de hauteur ' + H + ' cm. Ce patron est formé de deux disques et d’un rectangle. Quelle est la longueur du rectangle ?', 'Рисуют развёртку цилиндра с радиусом ' + R + ' см и высотой ' + H + ' см. Она состоит из двух кругов и прямоугольника. Какова длина прямоугольника?'), fig: S.svg('patron d’un cylindre'),
+        ans: MQ(r, [2 * R, R, R * R, 2 * H].map(v => L(T(v), T(v).replace('cm', 'см'))), 0),
+        sol: ['Прямоугольник — это боковая поверхность: при сворачивании он оборачивается ровно один раз вокруг круга основания. Значит, его длина равна длине окружности основания, а ширина — высоте цилиндра (' + H + ' см).',
+          { t: 'Длина окружности радиуса r — это 2πr:', tex: '2\\times\\pi\\times ' + R + '=' + (2 * R) + '\\pi\\text{ cm}\\approx ' + geoT(geoRound(2 * Math.PI * R, 1)) + '\\text{ cm}' }, 'πr² — это площадь круга, а не длина; πr — только половина окружности.'] };
+    }
+    /* cube net: opposite faces */
+    const top = r.ri(0, 3), bot = r.ri(0, 3), cells = [[top, 2], [0, 1], [1, 1], [2, 1], [3, 1], [bot, 0]], nums = r.sh([1, 2, 3, 4, 5, 6]);
+    const S = geoScene(), c = 46;
+    cells.forEach(([x, y], i) => { const ps = [geoV(x * c, -y * c), geoV(x * c + c, -y * c), geoV(x * c + c, -y * c - c), geoV(x * c, -y * c - c)]; S.poly(ps, 'fl'); S.text(geoV(x * c + c / 2, -y * c - c / 2), String(nums[i]), { fs: 17 }); });
+    const opp = { 0: 5, 5: 0, 1: 3, 3: 1, 2: 4, 4: 2 }, ask = r.ri(0, 5), ans = nums[opp[ask]];
+    const why = ask === 0 || ask === 5 ? 'Квадраты ' + nums[0] + ' и ' + nums[5] + ' приклеены сверху и снизу к полосе из четырёх: при сгибании один становится крышкой, другой — дном. Они противоположны.'
+      : 'Полоса из четырёх квадратов (' + [1, 2, 3, 4].map(i => nums[i]).join(', ') + ') сворачивается в «кольцо» стенок. В кольце из четырёх стенок напротив друг друга стоят квадраты через один: ' + nums[1] + ' и ' + nums[3] + ', ' + nums[2] + ' и ' + nums[4] + '.';
+    return { q: L('On plie ce patron pour fabriquer un cube. Quel est le numéro de la face opposée à la face ' + nums[ask] + ' ?', 'Из этой развёртки складывают куб. Какой номер у грани, противоположной грани ' + nums[ask] + '?'), fig: S.svg('patron d’un cube'), ans: N(ans),
+      sol: ['Противоположные грани куба не соприкасаются: в развёртке у них нет общей стороны.', why, 'Ответ: напротив грани ' + nums[ask] + ' окажется грань ' + ans + '.'] };
+  } });
+
+/* ===================== SECTIONS ===================== */
+topic({ id: 'ge.sections', ch: 'ge', lvl: 2, calc: false, variants: 4,
+  ru: 'Сечения тел плоскостью, сфера и шар', fr: 'Sections de solides par un plan',
+  hints: [
+    'Сечение («section») — фигура, которая получается, если разрезать тело плоскостью. Плоскость, параллельная грани параллелепипеда, даёт прямоугольник, равный этой грани (на рисунке в перспективе он выглядит как параллелограмм, но это прямоугольник).',
+    'Цилиндр: плоскость, перпендикулярная оси, даёт круг того же радиуса; параллельная оси — прямоугольник. Конус и пирамида: плоскость, параллельная основанию, даёт уменьшенную копию основания, коэффициент — расстояние от вершины, делённое на высоту.',
+    'Шар, разрезанный плоскостью, даёт круг («disque»), а сфера — окружность («cercle»). Если плоскость на расстоянии d от центра, радиус сечения r находим по Пифагору: $r^2+d^2=R^2$.'],
+  gen(r, vi) {
+    if (vi === 0) {
+      const k = r.pick(['pave', 'cube', 'cylP', 'cylA', 'cone', 'pyr', 'boule', 'sphere']);
+      const F = { pave: [geoPave(5, 3, 2.5, { noNames: true, sec: [[[2.6, 0, 0], 1], [[2.6, 0, 2.5], 1], [[2.6, 3, 2.5], 0], [[2.6, 3, 0], 0]] }), 'ce pavé droit par un plan parallèle à une face', 'этот параллелепипед плоскостью, параллельной грани', 'rect'],
+        cube: [geoPave(3, 3, 3, { noNames: true, sec: [[[0, 0, 1.6], 1], [[3, 0, 1.6], 1], [[3, 3, 1.6], 0], [[0, 3, 1.6], 0]] }), 'ce cube par un plan parallèle à une face', 'этот куб плоскостью, параллельной грани', 'carre'],
+        cylP: [geoCyl(2, 4, { sec: 'perp', t: 0.55 }), 'ce cylindre par un plan perpendiculaire à son axe', 'этот цилиндр плоскостью, перпендикулярной его оси', 'disque'],
+        cylA: [geoCyl(2, 4, { sec: 'par', d: -0.9 }), 'ce cylindre par un plan parallèle à son axe', 'этот цилиндр плоскостью, параллельной его оси', 'rect'],
+        cone: [geoCone(2, 3.6, { sec: 0.45 }), 'ce cône par un plan parallèle à sa base', 'этот конус плоскостью, параллельной основанию', 'disque'],
+        pyr: [geoPyr(3, 3.2, { sec: 0.45 }), 'cette pyramide à base carrée par un plan parallèle à sa base', 'эту пирамиду с квадратным основанием плоскостью, параллельной основанию', 'carre'],
+        boule: [geoSphereFig(4, { d: 1.6 }), 'cette boule par un plan', 'этот шар плоскостью', 'disque'], sphere: [geoSphereFig(4, { d: 1.6 }), 'cette sphère par un plan', 'эту сферу плоскостью', 'cercle'] }[k];
+      const names = { rect: ['un rectangle', 'прямоугольник'], carre: ['un carré', 'квадрат'], disque: ['un disque', 'круг'], cercle: ['un cercle', 'окружность'], para: ['un parallélogramme non rectangle', 'параллелограмм без прямых углов'], ell: ['une ellipse', 'эллипс («овал»)'], tri: ['un triangle', 'треугольник'], trap: ['un trapèze', 'трапеция'] };
+      const dis = { rect: ['para', 'tri', 'disque'], carre: ['tri', 'trap', 'disque'], disque: ['ell', 'rect', 'tri'], cercle: ['disque', 'ell', 'carre'] }[F[3]];
+      if (k === 'cylA') dis[2] = 'ell';
+      const why = { pave: 'Плоскость, параллельная грани, отрезает от параллелепипеда кусок той же формы: сечение — прямоугольник, равный этой грани. На рисунке в перспективе прямые углы выглядят косыми, поэтому прямоугольник похож на параллелограмм.',
+        cube: 'Плоскость, параллельная грани куба, даёт сечение, равное грани, — квадрат. В перспективе он нарисован как параллелограмм, но на самом деле все углы прямые и стороны равны.',
+        cylP: 'Все точки цилиндра на одной высоте образуют круг того же радиуса, что и основание. На рисунке круги рисуют «овалами», потому что смотрим сбоку, — но сечение — круг.',
+        cylA: 'Плоскость, параллельная оси, режет цилиндр по двум отрезкам-образующим и по двум хордам оснований: получается прямоугольник высотой как цилиндр.',
+        cone: 'Сечение конуса плоскостью, параллельной основанию, — круг, уменьшенная копия основания (центр гомотетии — вершина конуса).', pyr: 'Сечение пирамиды плоскостью, параллельной основанию, — уменьшенная копия основания: здесь квадрат меньшего размера.',
+        boule: 'Шар — тело, «заполненный» внутри, поэтому его сечение — круг («disque»). Окружность («cercle») получилась бы у сферы — поверхности шара.', sphere: 'Сфера — только поверхность шара, «оболочка». Плоскость режет её по линии — окружности («cercle»). Круг («disque») был бы сечением шара.' }[k];
+      return { q: L('On coupe ' + F[1] + ', comme sur la figure. Quelle est la nature de la section ?', 'Разрезают ' + F[2] + ', как на рисунке. Какая фигура получается в сечении?'), fig: F[0],
+        ans: MQ(r, [F[3]].concat(dis).map(x => L(names[x][0][0].toUpperCase() + names[x][0].slice(1), names[x][1][0].toUpperCase() + names[x][1].slice(1))), 0), sol: [why] };
+    }
+    if (vi === 1) {
+      const a = r.ri(4, 10), b = r.ri(2, 7), c = r.ri(2, 6), kind = r.pick(['x', 'y', 'z']);
+      const sec = kind === 'x' ? [[[a * 0.55, 0, 0], 1], [[a * 0.55, 0, c], 1], [[a * 0.55, b, c], 0], [[a * 0.55, b, 0], 0]] : kind === 'y' ? [[[0, b * 0.5, 0], 0], [[a, b * 0.5, 0], 1], [[a, b * 0.5, c], 1], [[0, b * 0.5, c], 0]] : [[[0, 0, c * 0.5], 1], [[a, 0, c * 0.5], 1], [[a, b, c * 0.5], 0], [[0, b, c * 0.5], 0]];
+      const face = { x: ['BCGF', 'AD × AE', b * c, b, c], y: ['ABFE', 'AB × AE', a * c, a, c], z: ['ABCD', 'AB × AD', a * b, a, b] }[kind];
+      const fig = geoPave(a, b, c, { sec, W: 210 });
+      return { q: L('Le pavé droit ABCDEFGH a pour dimensions AB = ' + a + ' cm, AD = ' + b + ' cm et AE = ' + c + ' cm. On le coupe par un plan parallèle à la face ' + face[0] + '. Quelle est l’aire de la section ?', 'Прямоугольный параллелепипед ABCDEFGH имеет измерения AB = ' + a + ' см, AD = ' + b + ' см и AE = ' + c + ' см. Его разрезают плоскостью, параллельной грани ' + face[0] + '. Какова площадь сечения?'), fig, ans: N(face[2], { unit: 'cm²' }),
+        sol: ['Сечение плоскостью, параллельной грани, — прямоугольник, равный этой грани ' + face[0] + ' (где бы ни прошла плоскость).', { t: 'Стороны грани ' + face[0] + ' равны ' + face[3] + ' см и ' + face[4] + ' см, поэтому:', tex: face[3] + '\\times ' + face[4] + '=' + face[2] + '\\text{ cm}^2' }] };
+    }
+    if (vi === 2) {   /* section of a ball: Pythagoras */
+      const [R, d, rr] = r.pick([[5, 3, 4], [5, 4, 3], [10, 6, 8], [10, 8, 6], [13, 5, 12], [13, 12, 5], [15, 9, 12], [15, 12, 9], [17, 8, 15], [25, 7, 24]]);
+      const fig = geoSphereFig(R, { d, tri: true, lab: { OM: R + ' cm', OH: d + ' cm', HM: '?' } });
+      return { q: L('Une boule de centre O et de rayon ' + R + ' cm est coupée par un plan situé à ' + d + ' cm de O. La section est un disque de centre H. Quel est son rayon HM ?', 'Шар с центром O и радиусом ' + R + ' см разрезают плоскостью на расстоянии ' + d + ' см от O. В сечении — круг с центром H. Чему равен его радиус HM?'), fig, ans: N(rr, { unit: 'cm' }),
+        sol: ['Отрезок OH перпендикулярен плоскости сечения, поэтому треугольник OHM прямоугольный, прямой угол при H. Гипотенуза — OM, это радиус шара: M лежит на сфере.',
+          ['По теореме Пифагора:', 'HM^2=OM^2-OH^2=' + R + '^2-' + d + '^2=' + (R * R) + '-' + (d * d) + '=' + (rr * rr)], ['', 'HM=√' + (rr * rr) + '=' + rr, 'cm'], 'Чем дальше плоскость от центра, тем меньше круг сечения; через центр (d = 0) проходит самый большой круг — радиуса R.'] };
+    }
+    /* cone or pyramid cut parallel to the base: a reduction */
+    const cone = r() < 0.5, [h, x] = r.pick([[12, 4], [12, 6], [12, 9], [10, 5], [10, 4], [9, 3], [9, 6], [15, 5], [15, 10], [8, 2], [8, 6], [16, 4], [20, 5]]), base = r.pick(cone ? [2, 3, 4, 5, 6, 8] : [4, 6, 8, 9, 10, 12]);
+    const val = +(base * x / h).toFixed(4);
+    if (!Number.isInteger(val * 2)) return this.gen(r, vi);
+    const fig = cone ? geoCone(base, h / 1.6, { sec: 1 - x / h, axis: true }) : geoPyr(base, h * 0.8, { sec: 1 - x / h, names: ['A', 'B', 'C', 'D', 'S'] });
+    const q = cone ? L('Un cône a une hauteur de ' + h + ' cm et une base de rayon ' + base + ' cm. On le coupe par un plan parallèle à la base, situé à ' + x + ' cm du sommet. Quel est le rayon de la section ?', 'Конус высотой ' + h + ' см с радиусом основания ' + base + ' см разрезают плоскостью, параллельной основанию, на расстоянии ' + x + ' см от вершины. Каков радиус сечения?')
+      : L('Une pyramide SABCD a une hauteur de ' + h + ' cm et pour base un carré de ' + base + ' cm de côté. On la coupe par un plan parallèle à la base, situé à ' + x + ' cm du sommet S. Quelle est la longueur du côté de la section ?', 'Пирамида SABCD высотой ' + h + ' см имеет основание — квадрат со стороной ' + base + ' см. Её разрезают плоскостью, параллельной основанию, на расстоянии ' + x + ' см от вершины S. Какова сторона сечения?');
+    return { q, fig, ans: N(fx(val), { unit: 'cm' }),
+      sol: ['Сечение, параллельное основанию, — уменьшенная копия основания: это гомотетия с центром в вершине. Коэффициент уменьшения — во сколько раз расстояние от вершины меньше высоты:', { t: '', tex: 'k=\\dfrac{' + x + '}{' + h + '}' + (gcd(x, h) > 1 ? '=\\dfrac{' + x / gcd(x, h) + '}{' + h / gcd(x, h) + '}' : '') },
+        { t: 'Все длины основания умножаются на k:', tex: geoT(base) + '\\times\\dfrac{' + x + '}{' + h + '}=' + geoT(val) + '\\text{ cm}' }, 'Расстояние считают от вершины: плоскость на расстоянии ' + x + ' см от вершины находится на высоте ' + (h - x) + ' см от основания.'] };
+  } });
+
+/* ===================== QUADRILATÈRES ===================== */
+/* a quadrilateral ABCD «à main levée» with its codings: on the sides, or on the diagonals */
+function geoQuadFig(r, kind, diag) {
+  const M = { carre: [geoV(0, 0), geoV(1, 0), geoV(1, 1), geoV(0, 1)], rect: [geoV(0, 0), geoV(1.6, 0), geoV(1.6, 1), geoV(0, 1)], los: [geoV(0, -0.62), geoV(0.95, 0), geoV(0, 0.62), geoV(-0.95, 0)], para: [geoV(0, 0), geoV(1.5, 0), geoV(1.95, 0.85), geoV(0.45, 0.85)] }[kind];
+  const J = geoTurn(M, r.ri(-25, 25)).map(p => geoAdd(p, geoV((r() - 0.5) * 0.06, (r() - 0.5) * 0.06)));
+  const Q = J.map(geoFit(J, 180, 130)), S = geoScene(), nm = ['A', 'B', 'C', 'D'];
+  S.poly(Q, 'fl');
+  if (!diag) {
+    if (kind === 'los' || kind === 'carre') for (let i = 0; i < 4; i++) geoTicks(S, Q[i], Q[(i + 1) % 4], 1);
+    if (kind === 'para') for (let i = 0; i < 4; i++) geoTicks(S, Q[i], Q[(i + 1) % 4], i % 2 ? 2 : 1);
+    if (kind === 'carre') geoRightMark(S, Q[0], Q[1], Q[3], 9);
+    if (kind === 'rect') [0, 1, 2].forEach(i => geoRightMark(S, Q[i], Q[(i + 1) % 4], Q[(i + 3) % 4], 9));
+  } else {
+    S.seg(Q[0], Q[2]); S.seg(Q[1], Q[3]);
+    const d1 = geoSub(Q[2], Q[0]), d2 = geoSub(Q[3], Q[1]), t = geoCross(geoSub(Q[1], Q[0]), d2) / geoCross(d1, d2), O = geoAdd(Q[0], geoMul(d1, t));
+    const same = kind === 'rect' || kind === 'carre';
+    geoTicks(S, Q[0], O, 1); geoTicks(S, O, Q[2], 1); geoTicks(S, Q[1], O, same ? 1 : 2); geoTicks(S, O, Q[3], same ? 1 : 2);
+    if (kind === 'los' || kind === 'carre') geoRightMark(S, O, Q[0], Q[1], 8);
+    S.dot(O, 2);
+  }
+  const C = geoCen(Q); Q.forEach((q, i) => geoPtLab(S, q, geoSub(q, C), nm[i], { gap: 5 }));
+  return S.svg('quadrilatère ABCD tracé à main levée');
+}
+const GEO_QTF = [
+  [true, 'Un carré est un losange.', 'Квадрат — это ромб.', 'Верно: у квадрата четыре равные стороны, а ромб — это и есть четырёхугольник с четырьмя равными сторонами.'],
+  [false, 'Un losange est un carré.', 'Ромб — это квадрат.', 'Неверно: у ромба стороны равны, но углы не обязательно прямые. Квадрат — только особый ромб.'],
+  [true, 'Un rectangle est un parallélogramme.', 'Прямоугольник — это параллелограмм.', 'Верно: у прямоугольника противоположные стороны параллельны (обе перпендикулярны одной и той же стороне).'],
+  [false, 'Un parallélogramme est un rectangle.', 'Параллелограмм — это прямоугольник.', 'Неверно: у параллелограмма углы могут быть не прямыми.'],
+  [false, 'Les diagonales d’un rectangle sont perpendiculaires.', 'Диагонали прямоугольника перпендикулярны.', 'Неверно: диагонали прямоугольника равны и делятся пополам, но перпендикулярны они только у квадрата.'],
+  [true, 'Les diagonales d’un losange sont perpendiculaires.', 'Диагонали ромба перпендикулярны.', 'Верно: каждая вершина ромба на равных расстояниях от концов другой диагонали, поэтому диагональ лежит на серединном перпендикуляре к другой.'],
+  [true, 'Les diagonales d’un rectangle ont la même longueur.', 'Диагонали прямоугольника равны.', 'Верно: два прямоугольных треугольника с одинаковыми катетами (стороны прямоугольника) имеют одинаковые гипотенузы — это и есть диагонали.'],
+  [false, 'Les diagonales d’un parallélogramme ont la même longueur.', 'Диагонали параллелограмма равны.', 'Неверно: равные диагонали только у прямоугольника; у «скошенного» параллелограмма одна диагональ длиннее другой.'],
+  [true, 'Les diagonales d’un parallélogramme se coupent en leur milieu.', 'Диагонали параллелограмма точкой пересечения делятся пополам.', 'Верно: это главное свойство параллелограмма (центральная симметрия относительно точки пересечения диагоналей).'],
+  [false, 'Un quadrilatère qui a quatre angles droits est un carré.', 'Четырёхугольник с четырьмя прямыми углами — квадрат.', 'Неверно: это прямоугольник; квадратом он будет, только если ещё и стороны равны.'],
+  [true, 'Un parallélogramme qui a un angle droit est un rectangle.', 'Параллелограмм с прямым углом — прямоугольник.', 'Верно: у параллелограмма соседние углы в сумме 180°, а противоположные равны, — значит, все углы прямые.'],
+  [true, 'Un losange qui a un angle droit est un carré.', 'Ромб с прямым углом — квадрат.', 'Верно: ромб — параллелограмм, с прямым углом все углы прямые, а стороны и так равны.'],
+  [false, 'Un quadrilatère dont les diagonales sont perpendiculaires est un losange.', 'Четырёхугольник с перпендикулярными диагоналями — ромб.', 'Неверно: например, у «воздушного змея» диагонали перпендикулярны, но стороны не все равны. Нужно ещё, чтобы диагонали делились пополам.'],
+  [true, 'Un parallélogramme dont les diagonales ont la même longueur est un rectangle.', 'Параллелограмм с равными диагоналями — прямоугольник.', 'Верно: это признак прямоугольника.']];
+topic({ id: 'ge.quadrilateres', ch: 'ge', lvl: 1, calc: false, variants: 3,
+  ru: 'Четырёхугольники: узнать по отметкам', fr: 'Quadrilatères particuliers',
+  hints: [
+    'Параллелограмм — противоположные стороны параллельны (и равны); его диагонали точкой пересечения делятся пополам.',
+    'Ромб («losange») — четыре равные стороны, диагонали перпендикулярны. Прямоугольник («rectangle») — прямые углы, диагонали равны. Квадрат («carré») — и ромб, и прямоугольник сразу.',
+    'Рисунок «от руки» («à main levée») может обманывать: верь только отметкам («codages»). Одинаковые чёрточки — равные отрезки, квадратик — прямой угол.'],
+  gen(r, vi) {
+    if (vi === 2) {
+      const [ok, fr, ru, why] = r.pick(GEO_QTF);
+      return { q: L('Vrai ou faux : « ' + fr + ' »', 'Верно или неверно: «' + ru + '»'), ans: TF(ok), sol: [why] };
+    }
+    const kind = r.pick(['los', 'rect', 'carre', 'para']), diag = vi === 1;
+    const opts = [L('Un losange', 'Ромб'), L('Un rectangle', 'Прямоугольник'), L('Un carré', 'Квадрат'), L('Seulement un parallélogramme', 'Только параллелограмм')];
+    const c = ['los', 'rect', 'carre', 'para'].indexOf(kind);
+    const why = diag ? { para: 'Отмечено только, что диагонали делятся пополам (на каждой диагонали две одинаковые половинки). Это признак параллелограмма — и больше ничего сказать нельзя.',
+      los: 'Диагонали делятся пополам — это параллелограмм; и они перпендикулярны (квадратик в центре) — значит, это ромб. Равенство диагоналей не отмечено, поэтому про квадрат сказать нельзя.',
+      rect: 'Все четыре половинки диагоналей одинаковые: диагонали делятся пополам и равны. Параллелограмм с равными диагоналями — прямоугольник. Перпендикулярность не отмечена.',
+      carre: 'Диагонали делятся пополам, равны (все половинки одинаковые) и перпендикулярны. Равные диагонали — прямоугольник, перпендикулярные — ромб; и то и другое сразу — квадрат.' }[kind]
+      : { para: 'Отмечено только, что противоположные стороны попарно равны (одна и две чёрточки). Это признак параллелограмма; прямых углов и равенства всех сторон не отмечено.',
+        los: 'Все четыре стороны отмечены одинаково — четыре равные стороны: это ромб. Прямой угол не отмечен, поэтому про квадрат сказать нельзя.',
+        rect: 'Отмечены три прямых угла. Тогда и четвёртый прямой (сумма углов четырёхугольника 360°), а четырёхугольник с четырьмя прямыми углами — прямоугольник.',
+        carre: 'Четыре равные стороны — это ромб, а ромб с прямым углом — квадрат.' }[kind];
+    return { q: L('Le quadrilatère ABCD ci-dessous est tracé à main levée. D’après les codages, quelle est sa nature la plus précise ?', 'Четырёхугольник ABCD нарисован от руки. Что точнее всего можно сказать о нём по отметкам на рисунке?'), fig: geoQuadFig(r, kind, diag), ans: MQ(r, opts, c),
+      sol: [why, 'Рисунок от руки ничего не доказывает — решают только отметки. Квадрат одновременно и ромб, и прямоугольник, поэтому выбираем самое точное название, которое следует из отметок.'] };
+  } });
+
+/* ===================== FICHES ===================== */
+fiche({ ch: 'ge', id: 'ge.f-angles', ru: 'Углы, треугольники, четырёхугольники', fr: 'Angles, triangles et quadrilatères', body: [
+  'Сумма углов треугольника — 180°. Почему: проведём через вершину прямую, параллельную противоположной стороне; три угла треугольника лягут рядом и составят развёрнутый угол.',
+  'Прямоугольный треугольник: два острых угла вместе — 90°. Равнобедренный («isocèle»): углы при основании равны. Равносторонний («équilatéral»): все углы по 60°.',
+  'Две параллельные прямые и секущая («sécante»): накрест лежащие («alternes-internes») и соответственные («correspondants») углы равны; и наоборот, если они равны, прямые параллельны. Вертикальные углы («opposés par le sommet») равны всегда, смежные дают в сумме 180°.',
+  'Неравенство треугольника («inégalité triangulaire»): каждая сторона меньше суммы двух других. Достаточно проверить самую длинную; если она равна сумме двух других — точки на одной прямой, треугольник «сплющенный» («aplati»).',
+  'Четырёхугольники: параллелограмм — диагонали делятся пополам; ромб («losange») — 4 равные стороны, диагонали перпендикулярны; прямоугольник — прямые углы, диагонали равны; квадрат — и ромб, и прямоугольник. На рисунке «à main levée» верь только отметкам («codages»).'],
+  ex: [['Третий угол треугольника', '180-48-67=65'], ['Равнобедренный, угол при вершине 40°', '(180-40)/2=70']] });
+fiche({ ch: 'ge', id: 'ge.f-pythagore', ru: 'Теорема Пифагора и обратная', fr: 'Théorème de Pythagore et sa réciproque', body: [
+  'Если треугольник ABC прямоугольный в A, то $BC^2=AB^2+AC^2$: квадрат гипотенузы («hypoténuse» — сторона напротив прямого угла, самая длинная) равен сумме квадратов катетов. Только для прямоугольного треугольника: при тупом угле $BC^2$ больше суммы, при остром — меньше.',
+  'Гипотенуза: сложить квадраты катетов и извлечь корень. Катет: из квадрата гипотенузы вычесть квадрат другого катета и извлечь корень. Точное значение пишут с корнем ($√13$), приближённое — с калькулятором, округляя в самом конце.',
+  'Обратная теорема («réciproque»): если квадрат самой длинной стороны равен сумме квадратов двух других, треугольник прямоугольный, и прямой угол — напротив самой длинной стороны. Если не равен — треугольник не прямоугольный (иначе по самой теореме было бы равенство).',
+  'На экзамене пишут: «Le triangle ABC est rectangle en A. D’après le théorème de Pythagore, BC² = AB² + AC².» или «… d’après la réciproque du théorème de Pythagore, le triangle est rectangle en A.»'],
+  ex: [['Гипотенуза', 'BC^2=6^2+8^2=100;BC=10'], ['Катет', 'AC^2=13^2-5^2=144;AC=12'], ['Проверка прямого угла', '5^2+12^2=169=13^2']] });
+fiche({ ch: 'ge', id: 'ge.f-thales', ru: 'Теорема Фалеса и обратная', fr: 'Théorème de Thalès et sa réciproque', body: [
+  'Конфигурация: прямые (BM) и (CN) пересекаются в точке A, и (MN) ∥ (BC). Бывает «треугольник» (M на [AB], N на [AC]) и «бабочка» (M и N по другую сторону от A).',
+  'Тогда $AM/AB=AN/AC=MN/BC$: треугольник AMN — копия треугольника ABC в другом масштабе. Все длины в отношениях — от точки пересечения A, а третья дробь — параллельные стороны.',
+  'Неизвестное находим перекрёстным умножением («produit en croix»): из $AM/AB=AN/AC$ получаем $AN=AM*AC/AB$.',
+  'Обратная теорема («réciproque»): если точки A, M, B и A, N, C идут в одном порядке и $AM/AB=AN/AC$, то (MN) ∥ (BC). Если отношения разные — прямые не параллельны (иначе по самой теореме отношения были бы равны).'],
+  ex: [['Пропорция', '4/6=5/x'], ['Перекрёстное умножение', 'x=6*5/4=7.5']] });
+fiche({ ch: 'ge', id: 'ge.f-trigo', ru: 'Тригонометрия в прямоугольном треугольнике', fr: 'Trigonométrie dans le triangle rectangle', body: [
+  'Для острого угла прямоугольного треугольника: гипотенуза — напротив прямого угла; прилежащий катет («côté adjacent») — сторона угла, которая не гипотенуза; противолежащий катет («côté opposé») — напротив угла.',
+  '$$\\cos\\widehat{B}=\\dfrac{\\text{adjacent}}{\\text{hypoténuse}}\\qquad \\sin\\widehat{B}=\\dfrac{\\text{opposé}}{\\text{hypoténuse}}\\qquad \\tan\\widehat{B}=\\dfrac{\\text{opposé}}{\\text{adjacent}}$$ Запоминалка: «CAH SOH TOA» (звучит как «casse-toi»).',
+  'Почему отношения не зависят от размера треугольника: все прямоугольные треугольники с одним и тем же острым углом — копии друг друга в разном масштабе (как в теореме Фалеса). Все стороны растягиваются в одно и то же число раз, а их отношение не меняется. Поэтому, например, $$\\cos 60^\\circ=0{,}5$$ в любом таком треугольнике.',
+  'Найти длину: запиши отношение с известной и искомой сторонами; неизвестное в числителе — умножаем, в знаменателе — делим. Найти угол: обратные функции $$\\cos^{-1}$$, $$\\sin^{-1}$$, $$\\tan^{-1}$$. Калькулятор — в режиме градусов.',
+  'Косинус и синус острого угла всегда меньше 1, потому что гипотенуза — самая длинная сторона и стоит в знаменателе. Тангенс может быть и больше 1.'] });
+fiche({ ch: 'ge', id: 'ge.f-transformations', ru: 'Преобразования фигур', fr: 'Les transformations', body: [
+  'Осевая симметрия («symétrie axiale») — перегиб по прямой (d): точка и её образ на одном перпендикуляре к (d), на равных расстояниях от неё. Фигура переворачивается, как в зеркале.',
+  'Центральная симметрия («symétrie centrale») с центром O — пол-оборота вокруг O: O — середина отрезка между точкой и её образом.',
+  'Параллельный перенос («translation»), переводящий A в B: каждая точка сдвигается так же, как A в B. Фигура не поворачивается и не переворачивается.',
+  'Поворот («rotation»): центр, угол и направление — против часовой стрелки («dans le sens inverse des aiguilles d’une montre») или по часовой. Расстояние до центра не меняется.',
+  'Эти четыре преобразования сохраняют длины, углы и площади. Гомотетия («homothétie») с центром O и коэффициентом k умножает длины на |k|, площади на k², объёмы на |k|³; при k < 0 образ по другую сторону от O, при k = −1 это центральная симметрия.'] });
+fiche({ ch: 'ge', id: 'ge.f-solides', ru: 'Тела, развёртки, сечения, координаты', fr: 'Solides, patrons, sections et repérage', body: [
+  'Призма («prisme droit»): два одинаковых основания и боковые грани-прямоугольники (куб и «pavé droit» — тоже призмы). Пирамида: основание и треугольные грани с общей вершиной. Цилиндр, конус, шар («boule»); поверхность шара — сфера («sphère»).',
+  'Развёртка («patron») цилиндра — два круга и прямоугольник: его длина — длина окружности основания $$2\\pi r$$, ширина — высота цилиндра.',
+  'Сечения («sections»): параллелепипед плоскостью, параллельной грани, — прямоугольник, равный этой грани; цилиндр перпендикулярно оси — круг, параллельно оси — прямоугольник; конус и пирамида параллельно основанию — уменьшенная копия основания (коэффициент = расстояние от вершины ÷ высота); шар — круг, сфера — окружность.',
+  'Шар радиуса R, плоскость на расстоянии d от центра: в сечении круг радиуса r, где $r^2+d^2=R^2$ (по Пифагору).',
+  'Координаты в параллелепипеде с началом в вершине A: (абсцисса ; ордината ; высота — «altitude»). На глобусе: (широта ; долгота), например (30° N ; 60° E); N/S — от экватора, E/O — от гринвичского меридиана.'],
+  ex: [['Сечение шара: R = 5, d = 3', 'r^2=5^2-3^2=16;r=4']] });
+
+/* ===================== DICTIONARY ===================== */
+gloss('l\'hypoténuse', 'гипотенуза', 'сторона напротив прямого угла, самая длинная');
+gloss('le côté adjacent', 'прилежащий катет', 'катет, который образует данный острый угол');
+gloss('le côté opposé', 'противолежащий катет', 'катет напротив данного острого угла');
+gloss('le cosinus', 'косинус', 'прилежащий катет / гипотенуза');
+gloss('le sinus', 'синус', 'противолежащий катет / гипотенуза');
+gloss('la tangente', 'тангенс', 'противолежащий катет / прилежащий катет');
+gloss('rectangle en A', 'прямоугольный, прямой угол при вершине A');
+gloss('isocèle', 'равнобедренный', 'две стороны равны');
+gloss('équilatéral', 'равносторонний', 'все три стороны равны');
+gloss('la réciproque', 'обратная теорема', 'из вывода теоремы получаем её условие');
+gloss('les angles alternes-internes', 'накрест лежащие углы');
+gloss('les angles correspondants', 'соответственные углы');
+gloss('des points alignés', 'точки на одной прямой');
+gloss('l\'inégalité triangulaire', 'неравенство треугольника', 'каждая сторона меньше суммы двух других');
+gloss('la symétrie axiale', 'осевая симметрия', 'перегиб по прямой');
+gloss('la symétrie centrale', 'центральная симметрия', 'пол-оборота вокруг точки');
+gloss('la translation', 'параллельный перенос', 'сдвиг всех точек на один вектор');
+gloss('la rotation', 'поворот');
+gloss('l\'homothétie', 'гомотетия', 'увеличение или уменьшение относительно центра в k раз');
+gloss('le patron', 'развёртка', 'плоская фигура, из которой складывают тело');
+gloss('la section', 'сечение', 'фигура, полученная при разрезании тела плоскостью');
+gloss('le pavé droit', 'прямоугольный параллелепипед');
+gloss('la sphère, la boule', 'сфера, шар', 'сфера — поверхность, шар — тело внутри неё');
+gloss('le losange', 'ромб', 'четырёхугольник с четырьмя равными сторонами');
+gloss('l\'altitude', 'высота (третья координата)', 'в пространстве: (abscisse ; ordonnée ; altitude)');
