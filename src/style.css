@@ -677,3 +677,6 @@ textarea.code{font-family:var(--f-mono);font-size:13px;word-break:break-all}
 #app{display:flex;flex-direction:column;gap:12px;min-width:0}
 .htx .muted{font-size:15px;line-height:1.4}
 .hero .htx b.h2{display:block}
+.pill{white-space:nowrap}
+.sechead{flex-wrap:wrap;row-gap:2px}
+.sechead .secsub{flex-basis:100%;margin-left:0;text-align:left}

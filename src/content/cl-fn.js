@@ -83,7 +83,7 @@ topic({ id: 'cl.reduire', ch: 'cl', lvl: 1, calc: false, variants: 4,
         [false, V(cf(p, '#') + '+' + cf(q, '#') + '=' + cf(p + q, '#^2')), 'Неверно: при сложении подобных слагаемых складываются коэффициенты, а буквенная часть остаётся той же: $' + cf(p + q, v) + '$, а не $' + cf(p + q, v + '^2') + '$.'],
         [true, V(cf(p, '#') + '*' + cf(q, '#') + '=' + cf(p * q, '#^2')), 'Верно: в произведении множители можно переставлять: $' + p + '*' + v + '*' + q + '*' + v + '=' + p + '*' + q + '*' + v + '*' + v + '=' + cf(p * q, v + '^2') + '$.'],
         [false, V(cf(p, '#') + '*' + cf(q, '#') + '=' + cf(p * q, '#')), 'Неверно: $' + v + '*' + v + '=' + v + '^2$, поэтому $' + cf(p, v) + '*' + cf(q, v) + '=' + cf(p * q, v + '^2') + '$, а не $' + cf(p * q, v) + '$.'],
-        [true, V(cf(p, '#') + '-#=' + cf(p - 1, '#')), 'Верно: одиночная буква — это $1' + v + '$. Было ' + clfRaz(p) + ' по $' + v + '$, убрали один раз — осталось ' + (p - 1) + '.'],
+        [true, V(cf(p, '#') + '-#=' + cf(p - 1, '#')), 'Верно: одиночная буква — это $1' + v + '$. Было ' + clfRaz(p) + ' по $' + v + '$, убрали один раз — осталось ' + clfRaz(p - 1) + ' по $' + v + '$.'],
         [false, V(cf(p, '#') + '-#=' + p), 'Неверно: $' + v + '$ — это $1' + v + '$, значит $' + cf(p, v) + '-' + v + '=' + cf(p - 1, v) + '$. Вычитается один раз по $' + v + '$, а не «буква».'],
         [false, V('#+#=#^2'), 'Неверно: $' + v + '+' + v + '=2' + v + '$ (два раза по $' + v + '$), а $' + v + '^2$ — это $' + v + '*' + v + '$.'],
         [true, V('#*#=#^2'), 'Верно: $' + v + '^2$ по определению означает $' + v + '*' + v + '$.'],
@@ -457,7 +457,7 @@ topic({ id: 'cl.eq-1', ch: 'cl', lvl: 1, calc: false, variants: 4,
       let c; if (r() < 0.8 || Math.abs(a) < 2) c = a * r.nz(-12, 12); else do c = r.nz(-20, 20); while (c % a === 0);
       const res = F(c, a), eq = cf(a, v) + '=' + c;
       const st = [[a === -1 ? '$-' + v + '$ — это $(-1)*' + v + '$. Делим обе части на $-1$ (то есть меняем знаки обеих частей) — равенство сохраняется:' : '$' + cf(a, v) + '$ — это $' + a + '*' + v + '$: $' + v + '$ умножили на ' + nf(a) + '. Делим обе части на ' + nf(a) + ' — на ненулевое число делить можно, равенство сохраняется:', v + '=' + c + '/' + np(a) + '=' + Fr.str(res)]];
-      st.push(res.d === 1 ? 'Проверка: $' + a + '*' + np(res.n) + '=' + c + '$ — верно.' : 'Деление нацело не получается — ответ записываем несократимой дробью $' + Fr.str(res) + '$: это точное значение, а десятичная запись была бы приближённой.');
+      st.push(res.d === 1 ? 'Проверка: $' + (a === -1 ? '-' + np(res.n) : a + '*' + np(res.n)) + '=' + c + '$ — верно.' : 'Деление нацело не получается — ответ записываем несократимой дробью $' + Fr.str(res) + '$: это точное значение, а десятичная запись была бы приближённой.');
       return { q: L('Résoudre l\'équation ci-dessous.', 'Реши уравнение.'), m: eq, ans: SOL(Fr.str(res), { v }), sol: st };
     }
     if (vi === 2) {   /* ax + b = c — sujet de référence 2027 n°1, Q5 */
@@ -995,3 +995,366 @@ topic({ id: 'fn.lecture-tableau', ch: 'fn', lvl: 1, calc: false, variants: 4,
         'При протягивании вправо ссылка B1 меняется на C1, D1… — в ячейке ' + col + '2 формула считает по числу из ' + col + '1, то есть $x=' + xs[i] + '$.',
         ['Подставляем $' + xs[i] + '$ в формулу $' + clfDef(f, F.e) + '$:', f + '(' + xs[i] + ')=' + ys[i]]] };
   } });
+
+/* ---------- graphs ---------- */
+/* a grid with axes: window [x0; x1] × [y0; y1] (values), one square = dx and dy, u px per square */
+function clfPlane(o) {
+  const dx = o.dx || 1, dy = o.dy || 1, u = o.u || 26, x0 = o.x0, x1 = o.x1, y0 = o.y0, y1 = o.y1;
+  const nx = Math.round((x1 - x0) / dx), ny = Math.round((y1 - y0) / dy), Lm = o.lm || 32, Tm = 16;
+  const X = x => Lm + (x - x0) / dx * u, Y = y => Tm + (y1 - y) / dy * u;
+  const W = Lm + nx * u + 24, H = Tm + ny * u + 26;
+  let g = '';
+  for (let i = 0; i <= nx; i++) g += clfLn(X(x0 + i * dx), Y(y0), X(x0 + i * dx), Y(y1), 'fgrid');
+  for (let j = 0; j <= ny; j++) g += clfLn(X(x0), Y(y0 + j * dy), X(x1), Y(y0 + j * dy), 'fgrid');
+  const ya = Math.max(y0, Math.min(0, y1)), xa = Math.max(x0, Math.min(0, x1));
+  g += clfLn(X(x0), Y(ya), X(x1) + 12, Y(ya), 'fax') + clfPath('M' + (X(x1) + 6).toFixed(1) + ' ' + (Y(ya) - 4).toFixed(1) + ' L' + (X(x1) + 12).toFixed(1) + ' ' + Y(ya).toFixed(1) + ' L' + (X(x1) + 6).toFixed(1) + ' ' + (Y(ya) + 4).toFixed(1), 'fax');
+  g += clfLn(X(xa), Y(y0), X(xa), Y(y1) - 12, 'fax') + clfPath('M' + (X(xa) - 4).toFixed(1) + ' ' + (Y(y1) - 6).toFixed(1) + ' L' + X(xa).toFixed(1) + ' ' + (Y(y1) - 12).toFixed(1) + ' L' + (X(xa) + 4).toFixed(1) + ' ' + (Y(y1) - 6).toFixed(1), 'fax');
+  const lx = o.lx || 1, ly = o.ly || 1;
+  for (let i = 0; i <= nx; i++) { const v = x0 + i * dx; if (Math.abs(v - xa) < 1e-9 || i % lx) continue; g += clfT(X(v), Y(ya) + 17, clfLab(v), 'middle', 'ftm', 14); }
+  for (let j = 0; j <= ny; j++) { const v = y0 + j * dy; if (Math.abs(v - ya) < 1e-9 || j % ly) continue; g += clfT(X(xa) - 5, Y(v) + 5, clfLab(v), 'end', 'ftm', 14); }
+  g += clfT(X(xa) - 5, Y(ya) + 17, clfLab(Math.abs(xa) < 1e-9 && Math.abs(ya) < 1e-9 ? 0 : xa), 'end', 'ftm', 14);
+  return { X, Y, W, H, g, x0, x1, y0, y1 };
+}
+const clfSvg = (P, inner, label) => svgFig(Math.round(P.W), Math.round(P.H), P.g + inner, label);
+/* a straight line y = a·x + b clipped to the window */
+function clfLine(P, a, b, cls) {
+  const pts = [];
+  [[P.x0, a * P.x0 + b], [P.x1, a * P.x1 + b]].forEach(p => pts.push(p));
+  if (a !== 0) [P.y0, P.y1].forEach(y => { const x = (y - b) / a; if (x > P.x0 && x < P.x1) pts.push([x, y]); });
+  const ins = pts.filter(([x, y]) => x >= P.x0 - 1e-9 && x <= P.x1 + 1e-9 && y >= P.y0 - 1e-9 && y <= P.y1 + 1e-9).sort((p, q) => p[0] - q[0]);
+  if (ins.length < 2) return { svg: '', end: null };
+  const s = ins[0], e = ins[ins.length - 1];
+  return { svg: clfLn(P.X(s[0]), P.Y(s[1]), P.X(e[0]), P.Y(e[1]), cls || 'fcurve'), end: e, start: s };
+}
+/* a label beside a drawn line (at 80 % of its length, pushed off the line) */
+function clfLineLab(P, ln, txt, side) {
+  if (!ln.end) return '';
+  const sx = P.X(ln.start[0]), sy = P.Y(ln.start[1]), ex = P.X(ln.end[0]), ey = P.Y(ln.end[1]), qx = sx + 0.8 * (ex - sx), qy = sy + 0.8 * (ey - sy);
+  let nx = -(ey - sy), ny = ex - sx; const l = Math.hypot(nx, ny) || 1; nx /= l; ny /= l; if (ny > 0) { nx = -nx; ny = -ny; } if (side) { nx = -nx; ny = -ny; }
+  return clfT(qx + 16 * nx, qy + 16 * ny + 5, txt, 'middle', 'ftx', 15);
+}
+/* monotone cubic through the nodes (Fritsch–Carlson): no bumps between two nodes */
+function clfMono(xs, ys) {
+  const n = xs.length, d = [], m = new Array(n);
+  for (let i = 0; i < n - 1; i++) d.push((ys[i + 1] - ys[i]) / (xs[i + 1] - xs[i]));
+  m[0] = d[0]; m[n - 1] = d[n - 2];
+  for (let i = 1; i < n - 1; i++) m[i] = d[i - 1] * d[i] <= 0 ? 0 : (d[i - 1] + d[i]) / 2;
+  for (let i = 0; i < n - 1; i++) {
+    if (d[i] === 0) { m[i] = 0; m[i + 1] = 0; continue; }
+    const a = m[i] / d[i], b = m[i + 1] / d[i], s = a * a + b * b;
+    if (s > 9) { const t = 3 / Math.sqrt(s); m[i] = t * a * d[i]; m[i + 1] = t * b * d[i]; }
+  }
+  return m;
+}
+function clfCurve(P, xs, ys) {
+  const m = clfMono(xs, ys), F = v => v.toFixed(1); let d = 'M' + F(P.X(xs[0])) + ' ' + F(P.Y(ys[0]));
+  for (let i = 0; i < xs.length - 1; i++) {
+    const h = xs[i + 1] - xs[i];
+    d += ' C' + F(P.X(xs[i] + h / 3)) + ' ' + F(P.Y(ys[i] + m[i] * h / 3)) + ' ' + F(P.X(xs[i + 1] - h / 3)) + ' ' + F(P.Y(ys[i + 1] - m[i + 1] * h / 3)) + ' ' + F(P.X(xs[i + 1])) + ' ' + F(P.Y(ys[i + 1]));
+  }
+  return clfPath(d, 'fcurve') + clfDot(P.X(xs[0]), P.Y(ys[0])) + clfDot(P.X(xs[xs.length - 1]), P.Y(ys[ys.length - 1]));
+}
+/* a smooth curve through integer nodes, one or two turns; values in grid units */
+function clfWave(r) {
+  let xs, ys;
+  for (;;) {
+    const a = r.ri(-4, -2), n = r.ri(7, 9); xs = []; for (let i = 0; i <= n; i++) xs.push(a + i);
+    const t1 = r.ri(2, Math.floor(n / 2)), t2 = r() < 0.5 ? r.ri(t1 + 2, n - 1) : n, dir = r() < 0.5 ? 1 : -1; ys = [0];
+    /* runs between the turns; inside a run the steps grow and shrink smoothly: 1, 2, 2, 1 */
+    [[0, t1, dir], [t1, t2, -dir], [t2, n, dir]].forEach(([s0, s1, d]) => {
+      const len = s1 - s0, big = len > 2 && r() < 0.6 ? 2 : 1;
+      for (let j = 0; j < len; j++) ys.push(ys[ys.length - 1] + d * (j === 0 || j === len - 1 ? 1 : big));
+    });
+    const mn = Math.min(...ys), mx = Math.max(...ys); if (mx - mn > 8 || mx - mn < 4) continue;
+    const off = r.ri(-3, 1) - mn; ys = ys.map(y => y + off); break;
+  }
+  return { xs, ys };
+}
+/* antecedents of the level w (grid units) on the polyline of nodes: exact x when w is a node value and never strictly inside a piece */
+function clfLevel(xs, ys, w) {
+  let at = 0, cross = 0;
+  ys.forEach(y => { if (y === w) at++; });
+  for (let i = 0; i < ys.length - 1; i++) if ((ys[i] - w) * (ys[i + 1] - w) < 0) cross++;
+  return { at, cross, n: at + cross, xsAt: xs.filter((x, i) => ys[i] === w) };
+}
+
+/* ---------- fn.lecture-graphe ---------- */
+topic({ id: 'fn.lecture-graphe', ch: 'fn', lvl: 2, calc: false, variants: 3,
+  ru: 'Образ и прообраз по графику', fr: 'Lire une image ou un antécédent sur un graphique',
+  hints: [
+    'Образ числа $a$: находим $a$ на оси абсцисс (горизонтальной), идём по вертикали до кривой и смотрим, на какой высоте точка кривой. Эта высота на оси ординат — $f(a)$.',
+    'Прообразы числа $b$: проводим горизонтальную прямую на высоте $b$ и ищем все её точки пересечения с кривой. Их абсциссы — прообразы. Их может быть несколько или ни одного.',
+    'Сначала посмотри на масштаб: сколько единиц в одной клетке на каждой оси. И помни, что функция задана только на своём отрезке — за его концами кривой нет.'],
+  gen(r, vi) {
+    const f = clfFn(r), dy = r() < 0.7 ? 1 : 2, { xs, ys } = clfWave(r), a = xs[0], b = xs[xs.length - 1];
+    const P = clfPlane({ x0: a - 1, x1: b + 1, y0: Math.min(0, Math.min(...ys) - 1) * dy, y1: (Math.max(...ys) + 1) * dy, dy });
+    const fig = clfSvg(P, clfCurve(P, xs, ys.map(y => y * dy)), 'courbe représentative de la fonction ' + f);
+    const intro = L('On a tracé ci-dessous la courbe représentative de la fonction $' + f + '$ définie sur l\'intervalle [' + nf(a) + ' ; ' + nf(b) + '].', 'Ниже построен график функции $' + f + '$, заданной на отрезке [' + nf(a) + ' ; ' + nf(b) + '].');
+    const scale = dy === 2 ? ' Внимание к масштабу: по оси ординат одна клетка — 2 единицы.' : '';
+    if (vi === 0) {   /* the image */
+      const i = r.ri(1, xs.length - 2), x = xs[i], y = ys[i] * dy;
+      return { q: L(intro.fr + ' Déterminer graphiquement l\'image de $' + x + '$ par la fonction $' + f + '$.', intro.ru + ' Найди по графику образ числа $' + x + '$ при функции $' + f + '$.'), fig, ans: N(y), sol: [
+        'Находим $' + x + '$ на оси абсцисс и идём по вертикали до кривой. Точка кривой с абсциссой $' + x + '$ находится на высоте $' + y + '$.' + scale,
+        'Значит, $' + f + '(' + x + ')=' + y + '$. Не путай: образ читают на оси ординат, а $' + x + '$ отложено на оси абсцисс.'] };
+    }
+    if (vi === 1) {   /* the antecedents of a level read at nodes */
+      const ok = [...new Set(ys)].filter(w => { const L2 = clfLevel(xs, ys, w); return L2.cross === 0; });
+      const two = ok.filter(w => clfLevel(xs, ys, w).at > 1), w = two.length && r() < 0.7 ? r.pick(two) : r.pick(ok), ant = clfLevel(xs, ys, w).xsAt;
+      return { q: L(intro.fr + ' Déterminer graphiquement le ou les antécédents de $' + w * dy + '$ par la fonction $' + f + '$.', intro.ru + ' Найди по графику прообраз или прообразы числа $' + w * dy + '$ при функции $' + f + '$.'), fig, ans: LIST(ant.join(',')), sol: [
+        'Проводим горизонтальную прямую на высоте $' + w * dy + '$ (по оси ординат) и ищем её точки пересечения с кривой.' + scale,
+        ant.length > 1 ? 'Пересечений ' + ant.length + ': их абсциссы $' + ant.join('$ и $') + '$. Это все прообразы: $' + ant.map(x => f + '(' + x + ')').join('=') + '=' + w * dy + '$.' : 'Пересечение одно, его абсцисса $' + ant[0] + '$: $' + f + '(' + ant[0] + ')=' + w * dy + '$.'] };
+    }
+    /* vi 2: how many antecedents */
+    const mn = Math.min(...ys), mx = Math.max(...ys), cand = [];
+    for (let w = mn - 1; w <= mx + 1; w++) {
+      if (w * dy < P.y0 || w * dy > P.y1) continue;
+      const touch = ys.some((y, i) => y === w && i > 0 && i < ys.length - 1 && (ys[i - 1] - w) * (ys[i + 1] - w) > 0);
+      if (!touch) cand.push(w);
+    }
+    const w = r.pick(cand), n = clfLevel(xs, ys, w).n;
+    return { q: L(intro.fr + ' Combien d\'antécédents le nombre $' + w * dy + '$ a-t-il par la fonction $' + f + '$ ?', intro.ru + ' Сколько прообразов у числа $' + w * dy + '$ при функции $' + f + '$?'), fig, ans: N(n), sol: [
+      'Проводим горизонтальную прямую на высоте $' + w * dy + '$ и считаем её точки пересечения с кривой (только на отрезке, где задана функция).' + scale,
+      n === 0 ? 'Прямая не пересекает кривую: функция не принимает значение $' + w * dy + '$. Прообразов нет — ответ 0.' : 'Точек пересечения ' + n + ' — значит, у числа $' + w * dy + '$ ' + clfPl(n, 'прообраз', 'прообраза', 'прообразов') + '.'] };
+  } });
+
+/* ---------- fn.lineaire ---------- */
+topic({ id: 'fn.lineaire', ch: 'fn', lvl: 2, calc: false, variants: 4,
+  ru: 'Линейная функция f(x) = ax', fr: 'Fonction linéaire',
+  hints: [
+    'Линейная функция («fonction linéaire») — это $f(x)=ax$: образ пропорционален $x$, а $a$ — коэффициент пропорциональности. (В российских учебниках это «прямая пропорциональность».) Её график — прямая через начало координат, ведь $f(0)=a*0=0$.',
+    'Коэффициент находят по одной точке: если $f(4)=10$, то $4a=10$ и $a=10/4=2.5$ — образ делим на прообраз. По графику: возьми точку прямой на узле сетки и раздели её ординату на абсциссу.',
+    'Проценты — тоже линейные функции: уменьшить на 20 % — значит умножить на $0.8$ (остаётся 80 %), увеличить на 5 % — умножить на $1.05$.'],
+  gen(r, vi) {
+    const f = clfFn(r);
+    if (vi === 0) {   /* the coefficient from one value */
+      const a = r.pick([2, 3, 4, 5, -2, -3, -4, 0.5, 1.5, 2.5, -1.5, -0.5]), p = Number.isInteger(a) ? r.nz(-9, 9) : r.pick([2, 4, 6, 8, -2, -4]), v = a * p;
+      return { q: L('On considère une fonction linéaire $' + f + '$ telle que $' + f + '(' + p + ')=' + fx(v) + '$. Déterminer le coefficient de la fonction $' + f + '$.', '$' + f + '$ — линейная функция, и $' + f + '(' + p + ')=' + fx(v) + '$. Найди коэффициент функции $' + f + '$.'), ans: N(fx(a)), sol: [
+        ['Линейная функция имеет вид $' + f + '(x)=ax$, значит $' + f + '(' + p + ')=a*' + np(p) + '$. Получаем уравнение:', cf(p, 'a') + '=' + fx(v)],
+        ['Делим обе части на ' + nf(p) + ' — образ делим на прообраз:', 'a=' + fx(v) + '/' + np(p) + '=' + fx(a)],
+        'Итак, $' + f + '(x)=' + cf(+fx(a), 'x') + '$. Проверка: $' + fx(a) + '*' + np(p) + '=' + fx(v) + '$.'] };
+    }
+    if (vi === 1) {   /* a percentage as a linear function */
+      const up = r() < 0.5, t = r.pick(up ? [2, 3, 5, 10, 15, 20, 25, 30, 50] : [5, 10, 15, 20, 25, 30, 40, 60]), k = up ? 1 + t / 100 : 1 - t / 100;
+      const slip = up ? (t < 10 ? 1 + t / 10 : 1 + t / 1000) : 1 + t / 100;
+      const opts = [fx(k) + 'x', 'x' + (up ? '+' : '-') + t, fx(t / 100) + 'x', fx(slip) + 'x'].map(e => '$' + f + '(x)=' + e + '$');
+      return { q: L('Le prix d\'un article ' + (up ? 'augmente' : 'baisse') + ' de ' + t + clfSp + '%. Parmi les fonctions suivantes, laquelle donne le nouveau prix en fonction de l\'ancien prix $x$ ?', 'Цена товара ' + (up ? 'повышается' : 'снижается') + ' на ' + t + clfSp + '%. Какая функция даёт новую цену в зависимости от старой цены $x$?'), ans: MQ(r, opts, 0), sol: [
+        'Старая цена — это 100 %. После ' + (up ? 'повышения' : 'снижения') + ' на ' + t + clfSp + '% новая цена составляет $100' + (up ? '+' : '-') + t + '=' + (up ? 100 + t : 100 - t) + '$ % старой, то есть старая цена умножается на $' + fx(k) + '$.',
+        ['Это линейная функция с коэффициентом ' + nf(k) + ':', f + '(x)=' + fx(k) + 'x'],
+        'Откуда неверные ответы: $x' + (up ? '+' : '-') + t + '$ — ' + (up ? 'прибавили' : 'отняли') + ' ' + t + ' евро вместо ' + t + ' процентов; $' + fx(t / 100) + 'x$ — это сама ' + (up ? 'надбавка' : 'скидка') + ', а не новая цена; $' + fx(slip) + 'x$ — ' + (up ? 'ошибка в записи десятичной дроби: ' + t + ' % — это $' + fx(t / 100) + '$, а не $' + fx(slip - 1) + '$' : 'это цена после повышения, а цена снижается') + '.'] };
+    }
+    if (vi === 2) {   /* the coefficient read on a graph */
+      let p, q; do { p = r.ri(1, 4); q = r.nz(-6, 6); } while (gcd(p, Math.abs(q)) !== 1 || Math.abs(q / p) > 4 || Math.abs(q / p) < 0.25);
+      const a = q / p, P = clfPlane({ x0: -2, x1: 6, y0: a > 0 ? -2 : -6, y1: a > 0 ? 6 : 2, u: 28 });
+      const ln = clfLine(P, a, 0), lab = clfLineLab(P, ln, '(<tspan font-style="italic">d</tspan>)');
+      const key = Number.isInteger(a) || clfTerm(p) ? fx(a) : Fr.str(F(q, p));
+      return { q: L('La droite $(d)$ ci-dessous représente une fonction linéaire $' + f + '$. Déterminer le coefficient de la fonction $' + f + '$.', 'Прямая $(d)$ на рисунке — график линейной функции $' + f + '$. Найди коэффициент функции $' + f + '$.'),
+        fig: clfSvg(P, ln.svg + lab, 'droite passant par l\'origine'), ans: N(key), sol: [
+          'Прямая проходит через начало координат и через узел сетки (' + p + ' ; ' + nf(q) + ') — найди его на рисунке. Значит, $' + f + '(' + p + ')=' + q + '$.',
+          ['Коэффициент линейной функции — образ, делённый на прообраз:', 'a=' + q + '/' + p + (Fr.str(F(q, p)) !== q + '/' + p ? '=' + Fr.str(F(q, p)) : '') + (key !== Fr.str(F(q, p)) ? '=' + key : '')],
+          'Значит, $' + f + '(x)=' + (Number.isInteger(a) || clfTerm(p) ? cf(+fx(a), 'x') : fterm(F(q, p), 'x')) + '$. ' + (a > 0 ? 'Коэффициент положительный — прямая идёт вверх.' : 'Коэффициент отрицательный — прямая идёт вниз.')] };
+    }
+    /* vi 3: which function is linear — sujet zéro 2026, exercice 3 */
+    const k = r.nz(-9, 9), names = r.sh(['f', 'g', 'h', 'k']);
+    const good = r.pick([cf(Math.abs(k) < 2 ? 3 : k, 'x'), 'x/' + r.ri(2, 5), fx(r.pick([0.5, 1.5, 2.5])) + 'x']);
+    const bad = r.sh([lin(r.ri(2, 9), r.nz(-9, 9)), 'x^2', r.ri(2, 9) + '/x', String(r.ri(2, 9)), cf(r.ri(2, 5), 'x^2'), lin(1, r.ri(1, 9))]).slice(0, 3);
+    const opts = [good].concat(bad).map((e, i) => '$' + names[i] + '(x)=' + e + '$');
+    return { q: L('Parmi les fonctions suivantes, laquelle est une fonction linéaire ?', 'Какая из функций — линейная («fonction linéaire»)?'), ans: MQ(r, opts, 0), sol: [
+      'Линейная функция — это умножение $x$ на одно и то же число: $f(x)=ax$. Без прибавления числа, без $x^2$, без деления на $x$.',
+      'Подходит $' + names[0] + '(x)=' + good + '$' + (good.includes('/') ? ': делить на ' + good.split('/')[1] + ' — то же, что умножать на $1/' + good.split('/')[1] + '$.' : '.'),
+      'Остальные: ' + bad.map((e, i) => '$' + names[i + 1] + '(x)=' + e + '$').join(', ') + ' — не вида $ax$ (есть прибавленное число, квадрат, деление на $x$ или постоянное значение). Проверка: у линейной функции $f(0)=0$ и график — прямая через начало координат.'] };
+  } });
+
+/* ---------- fn.affine ---------- */
+topic({ id: 'fn.affine', ch: 'fn', lvl: 2, calc: false, variants: 4,
+  ru: 'Аффинная функция f(x) = ax + b', fr: 'Fonction affine',
+  hints: [
+    'Аффинная функция («fonction affine») — это $f(x)=ax+b$. (В российских учебниках её называют линейной.) $b$ — значение при $x=0$: там график пересекает ось ординат («ordonnée à l\'origine»). $a$ — на сколько меняется $f(x)$, когда $x$ увеличивается на 1 («coefficient directeur»).',
+    'По графику: $b$ — ордината точки, где прямая пересекает ось ординат. $a$ — от этой точки шагни на 1 клетку вправо и посмотри, на сколько прямая поднялась (или опустилась). Удобнее взять две точки на узлах сетки: $a$ = (изменение $y$) ÷ (изменение $x$).',
+    'Точка лежит на графике $f$, если её ордината равна образу её абсциссы: для A(2 ; 7) проверяем, верно ли $f(2)=7$.'],
+  gen(r, vi) {
+    const f = clfFn(r);
+    if (vi === 0) {   /* a and b from the formula */
+      const a = r.pick([-6, -5, -4, -3, -2, -1, 1, 2, 3, 4, 5, 6, 0.5, -0.5, 1.5]), b = r() < 0.1 ? 0 : r.nz(-9, 9), swap = b !== 0 && r() < 0.35;
+      const e = swap ? S(b, cf(a, 'x')) : lin(a, b);
+      return { q: L('On considère la fonction affine $' + f + '$ définie par $' + clfDef(f, e) + '$. Elle s\'écrit sous la forme $' + clfDef(f, 'ax+b') + '$. Donner $a$ et $b$.', 'Дана аффинная функция $' + clfDef(f, e) + '$. Она записывается в виде $' + clfDef(f, 'ax+b') + '$. Найди $a$ и $b$.'),
+        ans: multi(['$a$ =', N(fx(a))], ['$b$ =', N(b)]), sol: [
+          '$a$ — число, на которое умножается $x$ («coefficient directeur»), $b$ — число без $x$ («ordonnée à l\'origine»).' + (swap ? ' Порядок слагаемых не важен: $' + e + '=' + lin(a, b) + '$.' : '') + (Math.abs(a) === 1 ? ' $' + cf(a, 'x') + '$ — это $' + a + '*x$.' : '') + (b === 0 ? ' Числа без $x$ нет — значит, $b=0$ (это линейная функция).' : ''),
+          ['Итак:', 'a=' + fx(a) + ';b=' + b],
+          'Смысл: $b=' + f + '(0)$ — значение функции при $x=0$, а $a$ показывает, на сколько меняется $' + f + '(x)$, когда $x$ увеличивается на 1.'] };
+    }
+    if (vi === 1 || vi === 2) {   /* read on the graph */
+      let a, b; do { a = vi === 2 ? r.nz(-3, 3) : r.pick([1, 2, 3, -1, -2, -3, 0.5, -0.5, 1.5, -1.5]); b = r.ri(-3, 4); } while ((vi === 2 && (b === 0 || a === b)) || Math.abs(b + 2 * a) > 5);
+      const P = clfPlane({ x0: -4, x1: 5, y0: -5, y1: 6, u: 24 }), ln = clfLine(P, a, b), fig = clfSvg(P, ln.svg + clfLineLab(P, ln, '(<tspan font-style="italic">d</tspan>)'), 'droite');
+      const st = Number.isInteger(a) ? 1 : 2;
+      const read = [
+        'Прямая пересекает ось ординат в точке (0 ; ' + nf(b) + '), значит, $b=' + f + '(0)=' + b + '$ — «ordonnée à l\'origine».',
+        ['От этой точки сдвигаемся на ' + st + ' ' + (st === 1 ? 'клетку' : 'клетки') + ' вправо — прямая ' + (a > 0 ? 'поднимается' : 'опускается') + ' на ' + nf(Math.abs(a * st)) + ' и снова проходит через узел сетки (' + st + ' ; ' + nf(b + a * st) + '). Коэффициент — изменение $y$, делённое на изменение $x$:', st > 1 ? 'a=' + fx(a * st) + '/' + st + '=' + fx(a) : 'a=' + fx(a)]];
+      if (vi === 1) {
+        const what = r.ri(0, 2), intro = L('La droite $(d)$ ci-dessous représente une fonction affine $' + f + '$ définie par $' + clfDef(f, 'ax+b') + '$.', 'Прямая $(d)$ — график аффинной функции $' + clfDef(f, 'ax+b') + '$.');
+        const ask = [L(' Lire graphiquement $a$ et $b$.', ' Найди по графику $a$ и $b$.'), L(' Lire graphiquement l\'ordonnée à l\'origine $b$.', ' Найди по графику свободный член $b$ («ordonnée à l\'origine»).'), L(' Lire graphiquement le coefficient directeur $a$.', ' Найди по графику коэффициент $a$ («coefficient directeur»).')][what];
+        return { q: L(intro.fr + ask.fr, intro.ru + ask.ru), fig, ans: what === 0 ? multi(['$a$ =', N(fx(a))], ['$b$ =', N(b)]) : what === 1 ? N(b) : N(fx(a)),
+          sol: (what === 1 ? read.slice(0, 1) : read).concat(['Итак, $' + clfDef(f, lin(+fx(a), b)) + '$.']) };
+      }
+      const opts = [lin(a, b), lin(b, a), lin(-a, b), lin(a, -b)];
+      return { q: L('Parmi les fonctions suivantes, laquelle est représentée par la droite $(d)$ ci-dessous ?', 'Какая из функций изображена прямой $(d)$?'), fig, ans: MQ(r, opts.map(e => '$' + clfDef(f, e) + '$'), 0), sol: read.concat([
+        'Значит, $' + clfDef(f, opts[0]) + '$. Откуда неверные ответы: $' + opts[1] + '$ — перепутаны коэффициент и свободный член; $' + opts[2] + '$ — ошибка в знаке $a$: прямая ' + (a > 0 ? 'идёт вверх, значит $a>0$' : 'идёт вниз, значит $a<0$') + '; $' + opts[3] + '$ — ошибка в знаке $b$: прямая пересекает ось ординат ' + (b > 0 ? 'выше' : 'ниже') + ' нуля.']) };
+    }
+    /* vi 3: does a point belong to the line */
+    const a = r.nz(-5, 5), b = r.nz(-9, 9), p = r.nz(-4, 5), v = a * p + b, ok = r() < 0.5;
+    let q = v; if (!ok) q = r() < 0.4 && v !== p && a * v + b !== p ? p : v + r.pick([-2, -1, 1, 2]);
+    const pt = ok || q !== p ? 'A(' + nf(p) + ' ; ' + nf(q) + ')' : 'A(' + nf(v) + ' ; ' + nf(p) + ')', px = ok || q !== p ? p : v, py = ok || q !== p ? q : p;
+    const fv = a * px + b;
+    return { q: L('On considère la fonction $' + f + '$ définie par $' + clfDef(f, lin(a, b)) + '$. Affirmation : « le point ' + pt + ' appartient à la droite qui représente la fonction $' + f + '$ ». Cette affirmation est-elle vraie ou fausse ?', 'Дана функция $' + clfDef(f, lin(a, b)) + '$. Утверждение: «точка ' + pt + ' лежит на прямой — графике функции $' + f + '$». Это утверждение верно или неверно?'),
+      ans: TF(fv === py), sol: [
+        'Точка лежит на графике, если её ордината равна образу её абсциссы. Абсцисса точки — ' + nf(px) + ', ордината — ' + nf(py) + '.',
+        ['Вычисляем образ абсциссы:', f + '(' + px + ')=' + clfSubLin(a, b, px) + '=' + fv],
+        fv === py ? 'Получили ' + nf(py) + ' — как ордината точки. Точка лежит на прямой, утверждение верно.' : 'Получили ' + nf(fv) + ', а ордината точки ' + nf(py) + '. Точка не лежит на прямой, утверждение неверно.' + (q === p && !ok ? ' (Здесь легко перепутать координаты: первая — абсцисса $x$, вторая — ордината $y$.)' : '')] };
+  } });
+
+/* ---------- fn.affine-points ---------- */
+topic({ id: 'fn.affine-points', ch: 'fn', lvl: 3, calc: false, variants: 3,
+  ru: 'Аффинная функция по двум значениям', fr: 'Déterminer une fonction affine à partir de deux valeurs',
+  hints: [
+    'Коэффициент $a$ — во сколько раз изменение $f(x)$ больше изменения $x$: $a=(f(x_2)-f(x_1))/(x_2-x_1)$. Это работает, потому что у аффинной функции $f(x)$ растёт равномерно: на $a$ при каждом шаге $x$ на 1.',
+    'Когда $a$ известно, $b$ находят из одного значения: $f(x_1)=a*x_1+b$ — это уравнение с одной неизвестной $b$.',
+    'Если дано $f(0)$, то это сразу $b$. Проверь ответ вторым значением: подставь $x_2$ и убедись, что получилось $f(x_2)$.'],
+  gen(r, vi) {
+    const f = clfFn(r);
+    if (vi === 0 || vi === 1) {
+      let a, b, x1, x2;
+      if (vi === 0) { do { a = r.nz(-5, 5); b = r.nz(-9, 9); x1 = r.ri(-4, 3); x2 = x1 + r.ri(1, 5); } while (x1 === 0 || x2 === 0); }
+      else { const fr2 = r.pick([[1, 2], [-1, 2], [3, 2], [-3, 2], [2, 3], [-2, 3], [1, 3], [-1, 3]]); a = F(fr2[0], fr2[1]); b = r.nz(-6, 6); x1 = fr2[1] * r.ri(-2, 0); x2 = x1 + fr2[1] * r.ri(1, 2); if (x1 === 0) x1 = -fr2[1]; }
+      const av = vi === 0 ? a : Fr.val(a), y1 = av * x1 + b, y2 = av * x2 + b, aStr = vi === 0 ? String(a) : Fr.str(a), aKey = vi === 0 ? String(a) : clfTerm(a.d) ? fx(av) : Fr.str(a);
+      const giv = vi === 0 ? '$' + f + '(' + x1 + ')=' + y1 + '$ et $' + f + '(' + x2 + ')=' + y2 + '$' : 'les points A(' + nf(x1) + ' ; ' + nf(y1) + ') et B(' + nf(x2) + ' ; ' + nf(y2) + ')';
+      const givRu = vi === 0 ? '$' + f + '(' + x1 + ')=' + y1 + '$ и $' + f + '(' + x2 + ')=' + y2 + '$' : 'через точки A(' + nf(x1) + ' ; ' + nf(y1) + ') и B(' + nf(x2) + ' ; ' + nf(y2) + ')';
+      return { q: vi === 0 ? L('On considère une fonction affine $' + f + '$ telle que ' + giv + '. On écrit $' + clfDef(f, 'ax+b') + '$. Déterminer $a$ et $b$.', '$' + f + '$ — аффинная функция, причём ' + givRu + '. Запишем $' + clfDef(f, 'ax+b') + '$. Найди $a$ и $b$.')
+        : L('La droite représentant la fonction affine $' + f + '$ passe par ' + giv + '. On écrit $' + clfDef(f, 'ax+b') + '$. Déterminer $a$ et $b$.', 'График аффинной функции $' + f + '$ проходит ' + givRu + '. Запишем $' + clfDef(f, 'ax+b') + '$. Найди $a$ и $b$.'),
+        ans: multi(['$a$ =', N(aKey)], ['$b$ =', N(b)]), sol: [
+          ['Когда $x$ меняется от ' + nf(x1) + ' до ' + nf(x2) + ' (на ' + (x2 - x1) + '), значение меняется от ' + nf(y1) + ' до ' + nf(y2) + ' (на ' + nf(y2 - y1) + '). Коэффициент — отношение этих изменений:', 'a=(' + y2 + '-' + np(y1) + ')/(' + x2 + '-' + np(x1) + ')=' + [x2 - x1 === 1 ? null : (y2 - y1) + '/' + (x2 - x1), aStr, aKey].filter((t, i, arr) => t != null && arr.indexOf(t) === i).join('=')],
+          ['Находим $b$ из первого значения: $' + f + '(' + x1 + ')=a*' + np(x1) + '+b$.', y1 + '=' + (vi === 0 ? a : '(' + aStr + ')') + '*' + np(x1) + '+b'],
+          ['$' + (vi === 0 ? a : '(' + aStr + ')') + '*' + np(x1) + '=' + (av * x1) + '$, значит:', 'b=' + y1 + '-' + np(av * x1) + '=' + b],
+          'Проверка вторым значением: $' + f + '(' + x2 + ')=' + fx(av * x2) + clfPm(b) + '=' + y2 + '$ — верно.'] };
+    }
+    /* vi 2: QCM, f(0) and f(k) */
+    let a, b, k, opts;
+    do { a = r.nz(-4, 5); b = r.nz(-6, 9); k = r.ri(2, 4); opts = [lin(a, b), lin(b, a), lin(a * k, b), lin(a, a * k + b)]; } while (!clfDistinct(opts) || opts.slice(1).some(o => clfSame(o, opts[0])));
+    const yk = a * k + b;
+    return { q: L('On considère une fonction affine $' + f + '$ telle que $' + f + '(0)=' + b + '$ et $' + f + '(' + k + ')=' + yk + '$. Parmi les propositions suivantes, laquelle est l\'expression de $' + f + '(x)$ ?', '$' + f + '$ — аффинная функция, $' + f + '(0)=' + b + '$ и $' + f + '(' + k + ')=' + yk + '$. Какое из выражений задаёт $' + f + '(x)$?'),
+      ans: MQ(r, opts.map(e => '$' + clfDef(f, e) + '$'), 0), sol: [
+        '$' + f + '(0)=a*0+b=b$, значит $b=' + b + '$.',
+        ['Когда $x$ растёт от 0 до ' + k + ', значение меняется от ' + nf(b) + ' до ' + nf(yk) + ', то есть на ' + nf(yk - b) + '. На каждую единицу $x$ — в ' + k + ' раза меньше:', 'a=' + (yk - b) + '/' + k + '=' + a],
+        'Откуда неверные ответы: $' + opts[1] + '$ — перепутаны $a$ и $b$; $' + opts[2] + '$ — изменение ' + nf(yk - b) + ' не разделили на изменение $x$ (на ' + k + '); $' + opts[3] + '$ — за $b$ взяли $' + f + '(' + k + ')$, хотя $b$ — это значение при $x=0$.'] };
+  } });
+
+/* ---------- fn.modeliser ---------- */
+/* two offers: A — a price per unit, B — a yearly card + a smaller price per unit */
+const clfOffers = [
+  (p, s, q) => ({ fr: 'Une piscine propose deux tarifs. Tarif A : ' + eur(p) + ' l\'entrée. Tarif B : un abonnement annuel de ' + eur(s) + ', puis ' + eur(q) + ' l\'entrée. On note $x$ le nombre d\'entrées dans l\'année.', ru: 'Бассейн предлагает два тарифа. Тариф A: ' + eur(p) + ' за вход. Тариф B: годовой абонемент за ' + eur(s) + ' и затем ' + eur(q) + ' за вход. Обозначим через $x$ число посещений за год.', u: ['entrées', 'посещений', 'd\'entrées', 'посещения'] }),
+  (p, s, q) => ({ fr: 'Un cinéma propose deux tarifs. Tarif A : ' + eur(p) + ' la place. Tarif B : une carte annuelle de ' + eur(s) + ', puis ' + eur(q) + ' la place. On note $x$ le nombre de places achetées dans l\'année.', ru: 'Кинотеатр предлагает два тарифа. Тариф A: ' + eur(p) + ' за билет. Тариф B: годовая карта за ' + eur(s) + ' и затем ' + eur(q) + ' за билет. Обозначим через $x$ число билетов за год.', u: ['places', 'билетов', 'de places', 'билета'] }),
+  (p, s, q) => ({ fr: 'Une compagnie maritime propose deux tarifs pour aller d\'une île à la côte. Tarif A : ' + eur(p) + ' le voyage. Tarif B : une carte annuelle de ' + eur(s) + ', puis ' + eur(q) + ' le voyage. On note $x$ le nombre de voyages dans l\'année.', ru: 'Морская компания предлагает два тарифа для поездок с острова на материк. Тариф A: ' + eur(p) + ' за поездку. Тариф B: годовая карта за ' + eur(s) + ' и затем ' + eur(q) + ' за поездку. Обозначим через $x$ число поездок за год.', u: ['voyages', 'поездок', 'de voyages', 'поездки'] }),
+  (p, s, q) => ({ fr: 'Une salle d\'escalade propose deux tarifs. Tarif A : ' + eur(p) + ' la séance. Tarif B : une adhésion annuelle de ' + eur(s) + ', puis ' + eur(q) + ' la séance. On note $x$ le nombre de séances dans l\'année.', ru: 'Скалодром предлагает два тарифа. Тариф A: ' + eur(p) + ' за занятие. Тариф B: годовой взнос ' + eur(s) + ' и затем ' + eur(q) + ' за занятие. Обозначим через $x$ число занятий за год.', u: ['séances', 'занятий', 'de séances', 'занятия'] })];
+topic({ id: 'fn.modeliser', ch: 'fn', lvl: 2, calc: false, variants: 4,
+  ru: 'Функции в задачах: тарифы', fr: 'Modéliser par une fonction : comparer des tarifs',
+  hints: [
+    'Запиши цену каждого тарифа как функцию числа $x$: «по 8 € за вход» — это $8x$ (линейная функция), «абонемент 30 € и 5 € за вход» — это $5x+30$ (аффинная функция: постоянная часть плюс часть, пропорциональная $x$).',
+    'Чтобы сравнить тарифы для данного $x$, посчитай обе цены. Чтобы найти, когда тарифы равны, реши уравнение $8x=5x+30$.',
+    'На графике тариф с абонементом начинается выше (при $x=0$ уже надо заплатить абонемент), но растёт медленнее. Правее точки пересечения прямых дешевле тот тариф, чья прямая ниже.'],
+  gen(r, vi) {
+    let q, d, xs, p, s;
+    do { q = r.pick([2, 3, 4, 5, 6, 8, 10]); d = r.pick([2, 3, 4, 5, 10]); xs = r.ri(4, 12); p = q + d; s = d * xs; } while (s > 120 || p > 20 || s === q || (vi === 3 && xs > 6 && xs % 2));
+    const o = r.pick(clfOffers)(p, s, q), [U, Uru, dU, Ug1] = o.u, A = x => p * x, B = x => s + q * x;
+    if (vi === 0) {
+      const opts = [lin(q, s), lin(s, q), cf(s + q, 'x'), cf(q, 'x')].map(e => '$g(x)=' + e + '$');
+      return { q: L(o.fr + ' Parmi les fonctions suivantes, laquelle donne le prix à payer, en euros, avec le tarif B ?', o.ru + ' Какая функция даёт цену (в евро) по тарифу B?'), ans: MQ(r, opts, 0), sol: [
+        ['По тарифу B абонемент ' + eur(s) + ' платят один раз, а за каждую единицу — ' + eur(q) + '; за $x$ единиц это $' + cf(q, 'x') + '$. Всего:', 'g(x)=' + lin(q, s)],
+        'Откуда неверные ответы: $' + lin(s, q) + '$ — перепутаны абонемент и цена за единицу; $' + cf(s + q, 'x') + '$ — абонемент заплатили бы за каждую единицу, а он платится один раз; $' + cf(q, 'x') + '$ — забыли абонемент. (Тариф A — линейная функция $f(x)=' + cf(p, 'x') + '$.)'] };
+    }
+    if (vi === 1) {   /* which offer for n units */
+      let n; do n = r() < 0.15 ? xs : r.ri(1, 2 * xs); while (n < 1);
+      const a = A(n), b = B(n), c = a < b ? 0 : a > b ? 1 : 2;
+      const opts = [L('Le tarif A', 'Тариф A'), L('Le tarif B', 'Тариф B'), L('Les deux tarifs coûtent le même prix', 'Оба тарифа стоят одинаково')];
+      return { q: L(o.fr + ' Quel est le tarif le plus avantageux pour ' + n + ' ' + U + ' ?', o.ru + ' Какой тариф выгоднее для ' + n + ' ' + (n % 10 === 1 && n % 100 !== 11 ? Ug1 : Uru) + '?'), ans: MQF(opts, c), sol: [
+        ['Тариф A:', p + '*' + n + '=' + a],
+        ['Тариф B:', s + '+' + q + '*' + n + '=' + s + '+' + q * n + '=' + b],
+        c === 2 ? 'Цены равны (' + eur(a) + ') — тарифы одинаково выгодны.' : 'Дешевле тариф ' + (c === 0 ? 'A' : 'B') + ': ' + eur(Math.min(a, b)) + ' против ' + eur(Math.max(a, b)) + '. ' + (c === 0 ? 'При малом числе ' + Uru + ' абонемент не окупается.' : 'При большом числе ' + Uru + ' абонемент окупается: за каждую единицу по тарифу B платят на ' + eur(d) + ' меньше.')] };
+    }
+    if (vi === 2) {   /* when are the two prices equal */
+      return { q: L(o.fr + ' Pour quel nombre ' + dU + ' les deux tarifs coûtent-ils le même prix ?', o.ru + ' При каком числе ' + Uru + ' оба тарифа стоят одинаково?'), ans: N(xs), sol: [
+        ['Цена по тарифу A — $' + cf(p, 'x') + '$, по тарифу B — $' + lin(q, s) + '$. Цены равны, когда:', cf(p, 'x') + '=' + lin(q, s)],
+        ['Вычитаем $' + cf(q, 'x') + '$ из обеих частей:', cf(d, 'x') + '=' + s],
+        ['Делим на ' + d + ':', 'x=' + s + '/' + d + '=' + xs],
+        'Проверка: $' + p + '*' + xs + '=' + A(xs) + '$ и $' + s + '+' + q + '*' + xs + '=' + B(xs) + '$ — по ' + eur(A(xs)) + ' в обоих тарифах.'] };
+    }
+    /* vi 3: read the graph */
+    const dx = xs > 6 ? 2 : 1, X1 = 2 * xs, Ymax = p * X1, dy = [5, 10, 20, 25, 50, 100].find(t => Ymax / t <= 10), Y1 = Math.ceil(Ymax / dy) * dy;
+    const P = clfPlane({ x0: 0, x1: X1, y0: 0, y1: Y1, dx, dy, u: X1 / dx > 10 ? 22 : 24, lm: 38 });
+    const la = clfLine(P, p, 0), lb = clfLine(P, q, s);
+    const fig = clfSvg(P, la.svg + lb.svg + clfLineLab(P, la, 'A') + clfLineLab(P, lb, 'B', true) + clfT(P.X(0) + 8, 12, 'Prix (€)', 'start', 'ftm', 13) + clfT(P.X(X1), P.Y(0) - 7, 'Nombre ' + dU, 'end', 'ftm', 13), 'prix selon les deux tarifs');
+    return { q: L(o.fr + ' Le graphique ci-dessous donne le prix à payer avec chaque tarif en fonction de $x$. Par lecture graphique, à partir de combien ' + dU + ' le tarif B devient-il plus avantageux que le tarif A ?', o.ru + ' На графике — цена по каждому тарифу в зависимости от $x$. По графику определи, начиная с какого числа ' + Uru + ' тариф B становится выгоднее тарифа A.'), fig, ans: N(xs + 1), sol: [
+      'Прямая A проходит через начало координат (нет абонемента), прямая B начинается с ' + eur(s) + ' (абонемент), но поднимается медленнее.',
+      'Прямые пересекаются при $x=' + xs + '$: здесь оба тарифа стоят ' + eur(A(xs)) + '. Правее точки пересечения прямая B ниже прямой A — тариф B дешевле.',
+      'При $x=' + xs + '$ цены ещё равны, поэтому тариф B становится выгоднее начиная с $x=' + (xs + 1) + '$. Проверка: $' + p + '*' + (xs + 1) + '=' + A(xs + 1) + '$, а $' + s + '+' + q + '*' + (xs + 1) + '=' + B(xs + 1) + '$.'] };
+  } });
+
+/* ===================== FICHES ===================== */
+fiche({ ch: 'cl', id: 'cl.litteral', ru: 'Подобные слагаемые и раскрытие скобок', fr: 'Réduire et développer', body: [
+  'Подобные слагаемые — с одинаковой буквенной частью: $3x$ и $-5x$, $2x^2$ и $x^2$. Их складывают, складывая коэффициенты: $3x+2x=5x$ — это «3 раза по $x$ и ещё 2 раза». Числа складывают с числами. А $3x+2$ или $x+x^2$ упростить нельзя — это разные «единицы счёта».',
+  'Раскрыть скобки («développer») — заменить произведение суммой: $k(a+b)=ka+kb$, множитель умножается на каждое слагаемое вместе со знаком. Минус перед скобкой — это умножение на $-1$: $-(x-4)=-x+4$.',
+  'Две скобки: $(a+b)(c+d)=ac+ad+bc+bd$ — каждое слагаемое на каждое. Это четыре части прямоугольника со сторонами $a+b$ и $c+d$. Потом приводим подобные («réduire»).',
+  'Значение выражения: подставляем число вместо буквы (отрицательное — в скобках) и считаем по порядку действий. $3x^2$ при $x=-2$: $3*(-2)^2=3*4=12$.'],
+  ex: [['Подобные', '4x+3-x+5=3x+8'], ['Минус перед скобкой', '5x-3(2x-4)=5x-6x+12=-x+12'], ['Две скобки', '(x+2)(x-5)=x^2-5x+2x-10=x^2-3x-10']] });
+fiche({ ch: 'cl', id: 'cl.identites-factorisation', ru: 'Формулы и разложение на множители', fr: 'Identités remarquables et factorisation', body: [
+  '$(a+b)(a-b)=a^2-b^2$: средние слагаемые взаимно уничтожаются. Удобно для счёта: $102*98=100^2-2^2=9996$, $(5+2√3)(5-2√3)=25-12=13$.',
+  '$(a+b)^2=a^2+2ab+b^2$ и $(a-b)^2=a^2-2ab+b^2$. Запись $(a+b)^2=a^2+b^2$ — ошибка: теряется удвоенное произведение $2ab$. Проверка: $(3+2)^2=25$, а $3^2+2^2=13$.',
+  'Разложить на множители («factoriser») — записать сумму как произведение. Общий множитель: $6x^2+9x=3x(2x+3)$ — выноси самый большой. Разность квадратов: $9x^2-25=(3x-5)(3x+5)$. Проверка — раскрыть скобки обратно.'],
+  ex: [['Общий множитель', '5x+5=5(x+1)'], ['Разность квадратов', 'x^2-49=(x-7)(x+7)'], ['Квадрат суммы', '(x+3)^2=x^2+6x+9']] });
+fiche({ ch: 'cl', id: 'cl.equations', ru: 'Уравнения', fr: 'Les équations', body: [
+  'Решение уравнения — число, при подстановке которого левая и правая части равны. Чтобы проверить, решение ли это, решать уравнение не нужно — достаточно подставить.',
+  'Решаем, делая одно и то же с обеими частями («les deux membres»): прибавляем или вычитаем одно и то же, умножаем или делим на одно и то же ненулевое число — равенство сохраняется. Цель: все $x$ — в одной части, числа — в другой, потом делим на коэффициент.',
+  'Уравнение-произведение: $A*B=0$, только если $A=0$ или $B=0$ (если оба множителя не нули, произведение не ноль). Уравнение $x^2=a$: при $a>0$ два решения, $√a$ и $-√a$; при $a=0$ одно, $0$; при $a<0$ решений нет.',
+  'Задача с текстом: назови неизвестное $x$, вырази через него остальные величины, найди величину, записанную двумя способами, — это и есть уравнение. Ответ проверь по условию.'],
+  ex: [['ax + b = c', '3x-2=25;3x=27;x=9'], ['ax + b = cx + d', '5x+3=2x+12;3x=9;x=3'], ['Произведение', '(x-3)(x+5)=0;x=3;x=-5']] });
+fiche({ ch: 'cl', id: 'cl.programmes', ru: 'Программы вычислений', fr: 'Les programmes de calcul', body: [
+  'Шаги выполняем строго по порядку, каждый раз с результатом предыдущего шага. Отрицательное число — в скобках.',
+  'Буквами: исходное число — $x$. Если умножается результат, в котором есть сумма, нужны скобки: «прибавить 4, умножить на 3, вычесть 5» — это $3(x+4)-5$, а не $x+4*3-5$.',
+  'Какое число выбрать, чтобы получить нужный результат: приравниваем выражение программы к этому результату и решаем уравнение.',
+  'Доказать, что результат «всегда …» («quel que soit le nombre choisi»): записать программу с буквой $x$, раскрыть скобки, привести подобные. Проверка на нескольких числах подсказывает ответ, но не доказывает его.'],
+  ex: [['Программа', 'x→x+4→3(x+4)→3(x+4)-5'], ['Упрощение', '3(x+4)-5=3x+12-5=3x+7'], ['Доказательство', '2(x+3)-2x=2x+6-2x=6']] });
+fiche({ ch: 'fn', id: 'fn.image-antecedent', ru: 'Функции: образ и прообраз', fr: 'Fonctions : image et antécédent', body: [
+  'Функция $f$ ставит каждому числу $x$ одно число $f(x)$. В записи $f(3)=7$ число 7 — образ («image») числа 3, а 3 — прообраз («antécédent») числа 7. Запись $$f : x \\mapsto 2x+1$$ означает то же, что $f(x)=2x+1$.',
+  'По формуле: образ — подставить число вместо $x$; прообраз — решить уравнение $f(x)=b$.',
+  'По таблице значений: образ — число под $x$; прообразы — числа над всеми клетками второй строки с нужным значением. По графику: образ — от оси абсцисс вертикально до кривой и прочитать высоту; прообразы — абсциссы всех точек кривой на нужной высоте.',
+  'У каждого числа один образ, а прообразов может быть несколько или ни одного.'],
+  ex: [['Образ', 'f(x)=3x-5;f(4)=3*4-5=7'], ['Прообраз числа 7', '3x-5=7;3x=12;x=4']] });
+fiche({ ch: 'fn', id: 'fn.lineaire-affine', ru: 'Линейные и аффинные функции', fr: 'Fonctions linéaires et affines', body: [
+  'Линейная функция («fonction linéaire») $f(x)=ax$ описывает пропорциональность; её график — прямая через начало координат. Коэффициент по любой точке: $a=f(x)/x$. В российских учебниках это «прямая пропорциональность».',
+  'Аффинная функция («fonction affine») $f(x)=ax+b$; её график — прямая. $b=f(0)$ — «ordonnée à l\'origine», там прямая пересекает ось ординат; $a$ — «coefficient directeur»: на сколько растёт $f(x)$, когда $x$ увеличивается на 1. В российских учебниках такую функцию называют линейной.',
+  'По двум значениям: $a=(f(x_2)-f(x_1))/(x_2-x_1)$, затем $b$ из равенства $f(x_1)=a*x_1+b$.',
+  'Проценты: увеличить на $t$ % — умножить на $1+t/100$, уменьшить — на $1-t/100$. Тариф «абонемент + цена за единицу» — аффинная функция; когда два тарифа стоят одинаково, находят из уравнения или по точке пересечения прямых.'],
+  ex: [['Скидка 20 %', 'f(x)=0.8x'], ['Абонемент 60 € + 10 € за раз', 'g(x)=10x+60'], ['Коэффициент по двум точкам', 'a=(11-5)/(3-1)=3']] });
+
+/* ===================== DICTIONARY ===================== */
+gloss('réduire une expression', 'привести подобные слагаемые', 'собрать вместе слагаемые с одинаковой буквенной частью: 3x + 2x = 5x');
+gloss('développer', 'раскрыть скобки', 'превратить произведение в сумму: 3(x + 2) = 3x + 6');
+gloss('factoriser', 'разложить на множители', 'превратить сумму в произведение: 3x + 6 = 3(x + 2)');
+gloss('une expression littérale', 'буквенное выражение');
+gloss('un facteur commun', 'общий множитель');
+gloss('une identité remarquable', 'формула сокращённого умножения', '(a + b)(a − b) = a² − b² и другие');
+gloss('une équation', 'уравнение');
+gloss('une solution d\'une équation', 'решение (корень) уравнения', 'число, при подстановке которого равенство верно');
+gloss('résoudre une équation', 'решить уравнение', 'найти все его решения');
+gloss('les membres d\'une équation', 'части уравнения', 'левая и правая части от знака =');
+gloss('une équation produit', 'уравнение вида «произведение равно нулю»', 'например (x − 3)(x + 5) = 0');
+gloss('un programme de calcul', 'программа вычислений', 'цепочка действий с выбранным числом');
+gloss('le nombre de départ', 'исходное (выбранное) число');
+gloss('quel que soit', 'при любом, каким бы ни был', 'quel que soit le nombre choisi — какое бы число ни выбрали');
+gloss('une fonction', 'функция');
+gloss('l\'image d\'un nombre', 'образ числа', 'f(3) = 7: 7 — образ числа 3');
+gloss('un antécédent', 'прообраз', 'f(3) = 7: 3 — прообраз числа 7');
+gloss('la représentation graphique', 'график функции', 'то же, что la courbe représentative');
+gloss('graphiquement', 'по графику', 'déterminer graphiquement — найти по рисунку');
+gloss('un tableau de valeurs', 'таблица значений функции');
+gloss('une fonction linéaire', 'линейная функция f(x) = ax', 'в российских учебниках — «прямая пропорциональность»');
+gloss('une fonction affine', 'аффинная функция f(x) = ax + b', 'в российских учебниках её называют линейной');
+gloss('le coefficient directeur', 'угловой коэффициент', 'число a в f(x) = ax + b');
+gloss('l\'ordonnée à l\'origine', 'свободный член b', 'ордината точки, где прямая пересекает ось ординат');
