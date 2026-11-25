@@ -1440,7 +1440,7 @@ function geoGlobe(pts) {
   [-60, -30, 30, 60].forEach(lo => { const rx = R * Math.abs(Math.sin(geoRad(lo))); S.path('M0 ' + (-R) + 'A' + geoC(rx) + ' ' + R + ' 0 0 ' + (lo > 0 ? 1 : 0) + ' 0 ' + R, 'fl2', [geoV(lo > 0 ? rx : -rx, 0)]); const ps = []; for (let i = -90; i <= 90; i += 15) ps.push(P(i, lo)); S.line(ps); });
   S.seg(P(0, -90), P(0, 90), 'fl'); S.seg(geoV(0, -R), geoV(0, R), 'fl');
   S.text(geoV(0, -R - 12), 'N'); S.text(geoV(0, R + 12), 'S'); S.text(geoV(-R - 12, 0), 'O'); S.text(geoV(R + 12, 0), 'E');
-  S.text(geoV(-R * 0.62, -9), 'équateur', { cls: 'ftm', fs: 12 }); S.text(geoV(30, R * 0.74), 'Greenwich', { cls: 'ftm', fs: 12, anchor: 'start' });
+  S.text(geoV(R + 6, 17), 'équateur', { cls: 'ftm', fs: 12, anchor: 'start' }); S.text(geoV(0, R + 29), 'méridien de Greenwich', { cls: 'ftm', fs: 12 });
   pts.forEach(([la, lo]) => { const p = P(la, lo); S.dot(p, 3.5); S.boxes.push([p.x - 3, p.y - 3, p.x + 3, p.y + 3]); });
   pts.forEach(([la, lo, n]) => geoPtLab(S, P(la, lo), geoV(1, -1), n, { gap: 3 }));
   return S.svg('globe terrestre');
