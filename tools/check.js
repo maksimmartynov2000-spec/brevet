@@ -137,8 +137,10 @@ const textSizes = (page) => page.evaluate(() => {
     for (const d of '2468') await page.click('[data-pk="' + d + '"]');
     await page.waitForTimeout(300); ok(await page.isVisible('.hello'), 'верный PIN — вход');
     await page.evaluate(() => window.__brevet.quiet());
+    await page.evaluate(() => setTr(true));
     await page.evaluate(() => { window.__brevet.newExam('blanc'); window.__brevet.go('#/exam/run'); }); await page.waitForTimeout(300);
     ok(/^(19|20):\d\d$/.test(await page.textContent('#tmr')), 'brevet blanc: таймер 20 минут на Partie 1');
+    ok(await page.evaluate(() => $('#tTr').hidden && !document.documentElement.classList.contains('tr')), 'в пробнике нет «Перевода», условия по-французски (хотя в тренировке перевод был включён)');
     await page.evaluate(() => { DB.cur.parts[0].end = Date.now() + 1500; save(); }); await page.waitForTimeout(2600);
     ok(await page.evaluate(() => DB.cur && DB.cur.part === 1), 'время вышло — Partie 1 собрана, началась Partie 2');
     await page.screenshot({ path: path.join(WORK, 'exam-p2.png') });
@@ -147,6 +149,37 @@ const textSizes = (page) => page.evaluate(() => {
     await page.screenshot({ path: path.join(WORK, 'exam-result.png'), fullPage: true });
     ok(!errs.length, 'без ошибок JS ' + errs.slice(0, 3).join('; '));
     await ctx.close();
+  }
+
+  console.log('Код прогресса: ученик → репетитор → ученик:');
+  {
+    const mk = async () => { const c = await browser.newContext({ viewport: { width: 393, height: 852 }, deviceScaleFactor: 1, hasTouch: true }); const p = await c.newPage(); p.on('pageerror', (e) => errs.push(String(e))); await p.goto(url); await p.waitForTimeout(300); return [c, p]; };
+    const errs = [];
+    const [cs, st] = await mk(); await signIn(st, 'Алана', '1357');
+    await st.evaluate(() => { for (let i = 0; i < 12; i++) window.__brevet.record(window.__brevet.TOPICS[i % 3].id, true); });
+    await st.goto(url + '#/'); await st.waitForTimeout(200);
+    ok(await st.isVisible('#bCode'), 'после 10 заданий на «Сегодня» честное напоминание и кнопка «Отправить код»');
+    await st.click('#bCode'); await st.waitForTimeout(300);
+    const msg1 = await st.inputValue('#sheet textarea');
+    ok(/BRV2\./.test(msg1) && msg1.length < 4096, 'код готов, сообщение ' + msg1.length + ' знаков');
+    await st.click('#cCopy'); await st.waitForTimeout(100);
+    ok(await st.evaluate(() => DB.bk.at > 0), 'после копирования напоминание сбрасывается');
+    const [ct, tu] = await mk(); await signIn(tu, 'Боря');
+    await tu.goto(url + '#/me'); await tu.waitForTimeout(200); await tu.click('#bPaste'); await tu.fill('#mvCode', 'Вот мой код:\n' + msg1); await tu.click('#mvGo'); await tu.waitForTimeout(300);
+    await tu.click('#shYes'); await tu.waitForTimeout(400);
+    ok(await tu.evaluate(() => DB.name === 'Алана' && Object.values(DB.days).reduce((a, b) => a + b, 0) === 12 && profiles().length === 2), 'у репетитора появилась Алана с её прогрессом, Боря остался');
+    await tu.evaluate(() => { window.__brevet.quiet(); for (let i = 0; i < 5; i++) window.__brevet.record(window.__brevet.TOPICS[5].id, true); });
+    const msg2 = await tu.evaluate(async () => 'Brevet · ' + DB.name + '\n' + await progressCode());
+    await st.goto(url + '#/me'); await st.waitForTimeout(200); await st.click('#bPaste'); await st.fill('#mvCode', msg2); await st.click('#mvGo'); await st.waitForTimeout(300);
+    ok(await st.isVisible('#rsGo'), 'у ученика код от репетитора узнаётся как его собственный, перед загрузкой — «сейчас / в коде»');
+    await st.click('#rsGo'); await st.waitForTimeout(300);
+    ok(await st.evaluate(() => Object.values(DB.days).reduce((a, b) => a + b, 0) === 17 && !!skOf(window.__brevet.TOPICS[5].id).m && profOf(DB.id).pin), 'урок у репетитора добавился (12 + 5), PIN ученика на месте');
+    ok(await st.evaluate(() => snaps(DB.id).length >= 1), 'перед загрузкой сохранилась копия прежнего состояния');
+    await st.goto(url + '#/t/' + firstT); await st.waitForTimeout(200);
+    await st.evaluate(() => showSolution()); await st.waitForTimeout(150);
+    ok(await st.isVisible('#bReport'), 'в разборе есть «Нашёл ошибку в задании? Сообщить»');
+    ok(!errs.length, 'без ошибок JS ' + errs.slice(0, 3).join('; '));
+    await cs.close(); await ct.close();
   }
 
   console.log('Самообновление:');

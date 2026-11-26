@@ -9,7 +9,7 @@ function viewLogin() {
   let h = '<section class="card login"><div class="logo">' + LOGO + '</div><h2>Brevet · математика</h2><p class="muted">Подготовка к бревету 2027: ' + esc(APP.examLabel) + '.</p></section>';
   if (ps.length) {
     h += '<section class="card"><h3>Кто занимается?</h3><div class="lst">' + ps.map(p => '<button class="lrow" data-prof="' + p.id + '"><span class="lic">' + esc((p.name || '?')[0].toUpperCase()) + '</span><span class="lt"><b>' + esc(p.name) + '</b><span class="muted">' + (p.pin ? 'вход по PIN' : 'без PIN') + '</span></span>' + (p.pin ? ico('lock') : '') + '</button>').join('') + '</div></section>';
-    h += '<div class="row"><button class="btn" id="bNew">' + ico('plus') + 'Новый ученик</button><button class="btn ghost" id="bMove">Перенести прогресс</button></div>';
+    h += '<div class="row"><button class="btn" id="bNew">' + ico('plus') + 'Новый ученик</button><button class="btn ghost" id="bMove">' + ico('load') + 'Вставить код</button></div>';
   } else h += newProfileForm();
   shell(h);
   $$('[data-prof]').forEach(b => b.onclick = () => enterProfile(b.dataset.prof));
@@ -21,7 +21,7 @@ function newProfileForm() {
   return '<section class="card" id="npf"><h3>Как тебя зовут?</h3><input class="inp plain" id="npName" maxlength="30" autocomplete="given-name" placeholder="Имя" inputmode="text" enterkeyhint="next">' +
     '<h3 class="mt">PIN из 4 цифр</h3><p class="muted">Чтобы никто другой не зашёл под твоим именем. Можно без PIN — поставить его позже в настройках.</p>' +
     '<input class="inp plain pin" id="npPin" maxlength="4" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="••••" enterkeyhint="done">' +
-    '<div class="row"><button class="btn primary big wide" id="npGo">Начать</button></div><button class="btn ghost" id="npMove">Уже занимался на другом устройстве? Перенести прогресс</button></section>';
+    '<div class="row"><button class="btn primary big wide" id="npGo">Начать</button></div><button class="btn ghost" id="npMove">Уже занимался на другом устройстве? Вставить код</button></section>';
 }
 function wireNewProfile() {
   const go1 = $('#npGo'); if (!go1) return;
@@ -72,30 +72,53 @@ function forgotPin(p) {
   };
 }
 
-/* ---------- moving progress in from another device (code or file) ---------- */
-function moveInSheet() {
-  const sh = openSheet('<h3>Перенести прогресс</h3><p class="muted">На старом устройстве открой «Я → Данные и копии» и нажми «Код для переноса» или «Сохранить копию». Здесь вставь код или выбери файл.</p>' +
-    '<textarea class="inp plain" id="mvCode" rows="3" placeholder="BRV1.…" autocomplete="off" autocapitalize="off" spellcheck="false"></textarea>' +
-    '<div class="row"><button class="btn primary" id="mvGo">Загрузить код</button><label class="btn" for="mvFile">' + ico('load') + 'Файл</label><input type="file" id="mvFile" accept=".json,application/json" hidden></div>');
-  const take = async obj => {
-    let inc; try { inc = readBackup(obj); } catch (e) { return toast(e.message); }
-    closeSheet();
-    if (DB) return previewRestore(inc);
-    const nm = inc.name || 'Ученик'; const same = profiles().find(p => p.name.toLowerCase() === nm.toLowerCase());
-    if (same) { openProfile(same.id); applyIncoming(inc, 'перед переносом'); }
-    else { await createProfile(nm, null); applyIncoming(inc, 'перенос'); }
-    document.documentElement.classList.remove('nologin'); setTr(DB.ru); toast('Прогресс перенесён'); go('#/');
-  };
-  $('#mvGo', sh).onclick = async () => { try { take(await readCode($('#mvCode').value)); } catch (e) { toast(e.message || 'Код не читается'); } };
-  $('#mvFile', sh).onchange = e => { const f = e.target.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => { try { take(JSON.parse(rd.result)); } catch (er) { toast('Это не файл прогресса'); } }; rd.readAsText(f); };
+/* ---------- the progress code: the student sends it to the tutor, the tutor sends it back ----------
+   Progress lives only on the device. The code carries all of it: the tutor pastes it on his device,
+   continues with the student at the lesson, then sends his code back — the student pastes it and goes on.
+   A code always finds «its» student by the id (or the name) and only adds to the progress, never wipes it. */
+async function codeSheet() {
+  if (!DB) return;
+  const code = await progressCode();
+  const text = 'Brevet · ' + DB.name + ' · ' + new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }) + '\n' + code;
+  const sh = openSheet('<h3>Код прогресса</h3><p class="muted">В коде весь твой прогресс. Отправь его ' + esc(APP.tutorTo) + ' в Telegram или WhatsApp: так прогресс сохранится у него, и на уроке он продолжит его вместе с тобой. Потом он пришлёт код обратно — вставь его здесь же, «Я → Вставить код».</p>' +
+    '<textarea class="inp plain code" rows="4" readonly aria-label="код прогресса">' + esc(text) + '</textarea><div class="row">' +
+    (navigator.share ? '<button class="btn primary" id="cShare">' + ico('share') + 'Отправить</button>' : '') + '<button class="btn' + (navigator.share ? '' : ' primary') + '" id="cCopy">Скопировать</button></div>');
+  const done = () => { DB.bk = { at: Date.now(), n: totalTasks() }; save(); };
+  $('#cCopy', sh).onclick = () => { copyText(text); done(); };
+  if ($('#cShare', sh)) $('#cShare', sh).onclick = () => navigator.share({ text }).then(() => { done(); closeSheet(); toast('Код отправлен'); route(); }).catch(() => { /* closed the share sheet */ });
+}
+function pasteSheet() {
+  const sh = openSheet('<h3>Вставить код</h3><p class="muted">Скопируй сообщение с кодом целиком (код начинается с BRV) и вставь сюда. Прогресс ученика из кода добавится к тому, что уже есть, — ничего не сотрётся.</p>' +
+    '<textarea class="inp plain" id="mvCode" rows="4" placeholder="BRV2.…" autocomplete="off" autocapitalize="off" spellcheck="false"></textarea>' +
+    '<div class="row"><button class="btn primary" id="mvGo">Загрузить</button><label class="btn" for="mvFile">' + ico('load') + 'Файл копии</label><input type="file" id="mvFile" accept=".json,application/json" hidden></div>');
+  $('#mvGo', sh).onclick = async () => { try { takeProgress(await readCode($('#mvCode').value)); } catch (e) { toast(e.message || 'Код не читается'); } };
+  $('#mvFile', sh).onchange = e => { const f = e.target.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => { try { takeProgress(readBackup(JSON.parse(rd.result))); } catch (er) { toast(er.message || 'Это не файл прогресса'); } }; rd.readAsText(f); };
+}
+const moveInSheet = pasteSheet;
+function enterApp() { document.documentElement.classList.remove('nologin'); setTr(DB.ru); }
+/* which student the progress belongs to: this one, another one on this device, or a new one */
+function takeProgress(inc) {
+  closeSheet();
+  const ps = profiles();
+  const target = (inc.src && ps.find(p => p.id === inc.src)) || ps.find(p => p.name.toLowerCase() === String(inc.name).toLowerCase());
+  if (!target) {
+    return confirmSheet('Новый ученик: ' + inc.name, 'На этом устройстве ещё нет ученика «' + esc(inc.name) + '». Добавить его вместе с прогрессом из кода?' + (DB ? ' Профиль «' + esc(DB.name) + '» останется как был.' : ''), 'Добавить', async () => {
+      if (DB) save(); await createProfile(inc.name, null, inc.src); applyIncoming(inc, 'прогресс из кода'); enterApp(); toast('Добавлен ученик «' + inc.name + '»'); go('#/');
+    });
+  }
+  if (DB && target.id === DB.id) return previewRestore(inc);
+  const open = () => { if (DB) save(); openProfile(target.id); enterApp(); previewRestore(inc); };
+  if (target.pin) return pinSheet(target.name, async pin => { if (await pinOk(target, pin)) { closeSheet(); open(); return true; } return false; });
+  confirmSheet('Код ученика «' + target.name + '»', 'Это прогресс ученика «' + esc(target.name) + '». Открыть его профиль и добавить прогресс из кода?', 'Открыть', open);
 }
 /* before anything is changed: what is here now and what the copy holds */
 function previewRestore(inc) {
   const a = dbSummary(DB), b = dbSummary(inc);
   const row = (t, x, y) => '<tr><td>' + t + '</td><td>' + x + '</td><td>' + y + '</td></tr>';
-  const sh = openSheet('<h3>Загрузить копию?</h3><table class="tbl"><tr><th></th><th>Сейчас</th><th>В копии</th></tr>' + row('Заданий решено', a.tasks, b.tasks) + row('Тем освоено', a.topics, b.topics) + row('Пробников', a.exams, b.exams) + '</table>' +
-    '<p class="muted">Ничего не пропадёт: прогресс объединится (по каждой теме берётся лучший результат), а текущее состояние сохранится отдельной копией в «Данные и копии».</p><div class="row"><button class="btn primary" id="rsGo">Объединить</button><button class="btn ghost" onclick="closeSheet()">Отмена</button></div>');
-  $('#rsGo', sh).onclick = () => { applyIncoming(inc, 'перед загрузкой копии'); closeSheet(); toast('Готово: прогресс объединён'); go('#/'); };
+  const sh = openSheet('<h3>' + esc(DB.name) + ': добавить прогресс?</h3><table class="tbl"><tr><th></th><th>Сейчас</th><th>В коде</th></tr>' + row('Заданий решено', a.tasks, b.tasks) + row('Тем освоено', a.topics, b.topics) + row('Пробников', a.exams, b.exams) + '</table>' +
+    '<p class="muted">Ничего не сотрётся: по каждой теме останется лучший результат, а нынешнее состояние сохранится копией в «Я → Данные и копии».</p><div class="row"><button class="btn primary" id="rsGo">Объединить</button><button class="btn ghost" id="rsNo">Отмена</button></div>');
+  $('#rsGo', sh).onclick = () => { applyIncoming(inc, 'перед загрузкой кода'); closeSheet(); toast('Готово: прогресс объединён'); go('#/'); route(); };
+  $('#rsNo', sh).onclick = () => { closeSheet(); route(); };
 }
 
 /* ---------- Today ---------- */
@@ -116,12 +139,16 @@ function viewToday() {
   h += '<a class="card count" href="#/me"><span class="cbig"><span class="num">' + Math.max(0, days) + '</span><span class="lab">' + plural(days, 'день', 'дня', 'дней') + ' до бревета</span></span><span class="ctx"><b>Математика · DNB</b><span class="muted">' + esc(APP.examLabel) + '</span><span class="bar"><i style="width:' + r.p + '%"></i></span><span class="muted">готовность ' + r.p + '%</span></span></a>';
   const weak = TOPICS.filter(t => isWeak(t.id)).length;
   if (weak) h += '<a class="card rcard" href="#/t/err"><span class="lic">' + ico('redo') + '</span><span class="lt"><b>Работа над ошибками</b><span class="muted">' + weak + ' ' + plural(weak, 'тема', 'темы', 'тем') + ' с недавними ошибками</span></span></a>';
-  if (backupDue()) h += '<a class="card rcard late" href="#/data"><span class="lic">' + ico('shield') + '</span><span class="lt"><b>Сохрани копию прогресса</b><span class="muted">' + (DB.bk.at ? 'Последняя копия — ' + new Date(DB.bk.at).toLocaleDateString('ru-RU') : 'Копии ещё не было') + '. Это минута, а прогресс не пропадёт, даже если сломается телефон.</span></span></a>';
+  if (backupDue()) h += '<section class="card guide"><div class="cont"><span class="lic">' + ico('shield') + '</span><span class="lt"><b>' + (DB.bk.at ? 'Пора отправить код прогресса' : 'Прогресс хранится только на этом телефоне') + '</b><span class="muted">' +
+    (DB.bk.at ? 'Последний раз — ' + new Date(DB.bk.at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }) + ', с тех пор решено ' + (totalTasks() - (DB.bk.n || 0)) + '. ' : 'Если телефон потеряется или приложение удалится, всё решённое пропадёт. ') +
+    'Отправь код ' + esc(APP.tutorTo) + ' — это 10 секунд, и прогресс сохранится у него.</span></span></div><button class="btn primary" id="bCode">' + ico('share') + 'Отправить код</button></section>';
   h += '<div class="exrow"><a class="exchip" href="#/exam">' + ico('nocalc') + '<span><b>Partie 1</b><small>20 минут</small></span></a><a class="exchip" href="#/prog">' + ico('pen') + '<span><b>Задачи</b><small>Partie 2</small></span></a><a class="exchip" href="#/dico">' + ico('dico') + '<span><b>Словарик</b><small>FR → RU</small></span></a></div>';
   shell(h);
   if ($('#bDiag')) $('#bDiag').onclick = () => { newExam('diag'); go('#/exam/run'); };
+  if ($('#bCode')) $('#bCode').onclick = codeSheet;
 }
-function backupDue() { const n = totalTasks(); return n - (DB.bk.n || 0) >= 40 && Date.now() - (DB.bk.at || 0) > 7 * 864e5; }
+/* the reminder: first after 10 answers, then once a week if 30 more answers were added */
+function backupDue() { const n = totalTasks(); return DB.bk.at ? n - (DB.bk.n || 0) >= 30 && Date.now() - DB.bk.at > 7 * 864e5 : n >= 10; }
 function warnHtml() { return SAVE_FAIL ? '<section class="card warnc"><b>Не получается сохранить прогресс</b><p class="muted">Память браузера переполнена. Сохрани копию файлом («Я → Данные и копии») и освободи место на устройстве.</p></section>' : ''; }
 function syncWarn() { const a = $('#app'); if (a && SAVE_FAIL && !$('.warnc')) a.insertAdjacentHTML('afterbegin', warnHtml()); }
 
@@ -158,7 +185,7 @@ function viewExam() {
   chrome({ title: 'Пробники', tab: 2 });
   let h = '';
   if (DB.cur) { const md = MODES[DB.cur.mode]; h += '<a class="card rcard late" href="#/exam/run"><span class="lic">' + ico('timer') + '</span><span class="lt"><b>Продолжить: ' + esc(md.ru) + '</b><span class="muted">Ответы сохранены. ' + (DB.cur.parts[DB.cur.part].end ? 'Осталось ' + mmss((DB.cur.parts[DB.cur.part].end - Date.now()) / 1000) : '') + '</span></span></a>'; }
-  h += '<section class="card"><p class="muted" style="margin:0">Бревет 2027: Partie 1 — 6 баллов за 20 минут без калькулятора, Partie 2 — 14 баллов за 1 ч 40. Пробник с таймером, как на экзамене; подсказки и решения — после.</p></section>';
+  h += '<section class="card"><p class="muted" style="margin:0">Бревет 2027: Partie 1 — 6 баллов за 20 минут без калькулятора, Partie 2 — 14 баллов за 1 ч 40. Пробник — как на экзамене: с таймером, без подсказок и без перевода. Разбор и решения — после.</p></section>';
   h += '<div class="lst">' + ['p1', 'p2', 'blanc', 'quick', 'diag'].map(k => { const md = MODES[k]; return '<button class="lrow" data-mode="' + k + '"><span class="lic big">' + ico(md.ic) + '</span><span class="lt"><b>' + md.ru + '</b><span class="frn" lang="fr">' + md.fr + '</span><span class="muted">' + md.sub + '</span></span>' + ico('play') + '</button>'; }).join('') + '</div>';
   const hist = DB.exams.slice().reverse();
   if (hist.length) h += '<div class="sechead">История</div><div class="lst">' + hist.slice(0, 15).map((e, i) => '<' + (i === 0 && DB.last ? 'a href="#/exam/res"' : 'div') + ' class="lrow"><span class="lic num">' + (e.mode === 'diag' ? e.ok + '/' + e.n : n20(e.note)) + '</span><span class="lt"><b>' + esc(MODES[e.mode] ? MODES[e.mode].ru : e.mode) + '</b><span class="muted">' + new Date(e.t0).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }) + (e.mode === 'diag' ? '' : ' · ' + n20(e.note) + ' из ' + e.max) + '</span></span>' + (i === 0 && DB.last ? ico('eye') : '') + '</' + (i === 0 && DB.last ? 'a' : 'div') + '>').join('') + '</div>';
@@ -167,7 +194,7 @@ function viewExam() {
     const k = b.dataset.mode, md = MODES[k];
     const start = () => { newExam(k); go('#/exam/run'); };
     if (DB.cur) return confirmSheet('Начать новый пробник?', 'Незаконченный пробник «' + esc(MODES[DB.cur.mode].ru) + '» будет закрыт без оценки.', 'Начать новый', start, true);
-    confirmSheet(md.ru, md.sub + '. ' + (k === 'diag' ? 'Подсказок нет; что знаешь — засчитается.' : 'Таймер запустится сразу. Если закрыть приложение, время продолжит идти.'), 'Начать', start);
+    confirmSheet(md.ru, md.sub + '. ' + (k === 'diag' ? 'Подсказок нет; что знаешь — засчитается.' : 'Таймер запустится сразу; перевода в пробнике нет. Если закрыть приложение, время продолжит идти.'), 'Начать', start);
   });
 }
 
@@ -177,10 +204,12 @@ function viewMe() {
   const r = ready(), stk = streak(), tt = totalTasks();
   let h = '<section class="card mehero"><span class="lic big">' + esc((DB.name || '?')[0].toUpperCase()) + '</span><span class="lt"><span class="mename">' + esc(DB.name) + '</span><span class="muted">Серия ' + dn(stk) + ' · лучшая ' + dn(Math.max(stk, bestStreak())) + '</span></span></section>';
   h += '<section class="card"><div class="pstats"><div><b>' + tt + '</b><span>заданий решено</span></div><div><b>' + r.m + '</b><span>тем освоено из ' + r.n + '</span></div><div><b>' + r.p + '%</b><span>готовность</span></div></div>' + weekChart() + '<p class="meta" style="margin:6px 0 0">Готовность = 50 % темы + 25 % задачи Partie 2 + 25 % последний пробник (' + (r.ex == null ? 'ещё не было' : r.ex + '%') + ').</p></section>';
-  h += '<div class="lst">' + [['#/plan', 'cal', 'План до бревета', 'что и когда'], ['#/badges', 'trophy', 'Значки', Object.keys(DB.badges).length + ' из ' + badgeList().length], ['#/data', 'shield', 'Данные и копии', DB.bk.at ? 'копия от ' + new Date(DB.bk.at).toLocaleDateString('ru-RU') : 'копии ещё нет'], ['#/settings', 'gear', 'Настройки', 'имя, PIN, цель дня, тема'], ['#/dico', 'dico', 'Словарик', 'FR → RU']].map(([href, ic, t, s]) => '<a class="lrow" href="' + href + '"><span class="lic">' + ico(ic) + '</span><span class="lt"><b>' + t + '</b><span class="muted">' + esc(s) + '</span></span></a>').join('') + '</div>';
+  h += '<section class="card"><h3>Код прогресса</h3><p class="muted">Прогресс хранится только на этом устройстве. Отправляй код ' + esc(APP.tutorTo) + ' хотя бы раз в неделю — так он не пропадёт, а на уроке его можно продолжить на другом устройстве. ' + (DB.bk.at ? 'Последний раз: ' + new Date(DB.bk.at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }) + '.' : 'Ещё ни разу не отправлялся.') + '</p><div class="row"><button class="btn primary" id="bCode">' + ico('share') + 'Отправить код</button><button class="btn" id="bPaste">' + ico('load') + 'Вставить код</button></div></section>';
+  h += '<div class="lst">' + [['#/plan', 'cal', 'План до бревета', 'что и когда'], ['#/badges', 'trophy', 'Значки', Object.keys(DB.badges).length + ' из ' + badgeList().length], ['#/data', 'shield', 'Данные и копии', 'копии на устройстве, файл'], ['#/settings', 'gear', 'Настройки', 'имя, PIN, цель дня, тема'], ['#/dico', 'dico', 'Словарик', 'FR → RU']].map(([href, ic, t, s]) => '<a class="lrow" href="' + href + '"><span class="lic">' + ico(ic) + '</span><span class="lt"><b>' + t + '</b><span class="muted">' + esc(s) + '</span></span></a>').join('') + '</div>';
   h += '<div class="row"><button class="btn" id="bSwitch">' + ico('swap') + 'Сменить ученика</button></div>';
   shell(h);
   $('#bSwitch').onclick = () => { signOut(); go('#/login'); };
+  $('#bCode').onclick = codeSheet; $('#bPaste').onclick = pasteSheet;
 }
 function weekChart() {
   const days = []; const d = today0(); d.setDate(d.getDate() - 13);
@@ -236,22 +265,17 @@ function viewSettings() {
 function viewData() {
   chrome({ title: 'Данные и копии', back: '#/me', tab: 3 });
   const per = LS.get('persist', null), sn = snaps(DB.id);
-  let h = '<section class="card"><h3>Где хранится прогресс</h3><p class="muted">Только на этом устройстве, в памяти браузера. Он сохраняется после каждого ответа. Раз в день приложение само делает копию на устройстве. Если телефон потеряется или приложение удалят с экрана «Домой», спасёт только копия, сохранённая отдельно: файлом или кодом.</p>' +
+  let h = '<section class="card"><h3>Где хранится прогресс</h3><p class="muted">Только на этом устройстве, в памяти браузера. Он сохраняется после каждого ответа, а раз в день приложение само делает копию здесь же. Но если телефон потеряется или приложение удалят с экрана «Домой», спасёт только код, отправленный ' + esc(APP.tutorTo) + ', или файл копии.</p>' +
     '<div class="lst"><div class="lrow"><span class="lic">' + ico(per ? 'shield' : 'help') + '</span><span class="lt"><b>' + (per ? 'Браузер не будет очищать память приложения' : per === false ? 'Браузер может очистить память при нехватке места' : 'Защита памяти: проверяется') + '</b><span class="muted">' + (isStandalone() ? 'Открыто с экрана «Домой» — хорошо.' : isIOS() ? 'Открыто в Safari: лучше добавить на экран «Домой».' : 'Открыто в браузере.') + '</span></span></div>' +
-    '<div class="lrow"><span class="lic">' + ico('save') + '</span><span class="lt"><b>Последняя копия файлом</b><span class="muted">' + (DB.bk.at ? new Date(DB.bk.at).toLocaleString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) : 'ещё не было') + '</span></span></div></div></section>';
-  h += '<section class="card"><h3>Сохранить копию</h3><p class="muted">Файл можно положить в «Файлы» (iCloud Drive) или отправить Максиму Николаевичу в мессенджере. Раз в неделю приложение напомнит.</p><div class="row"><button class="btn primary" id="dSave">' + ico('save') + 'Сохранить копию</button><button class="btn" id="dCode">' + ico('share') + 'Код для переноса</button></div></section>';
-  h += '<section class="card"><h3>Загрузить копию</h3><p class="muted">С другого устройства или из старой копии. Сначала покажу, что изменится; текущий прогресс не потеряется — он объединится с копией.</p><div class="row"><label class="btn" for="dFile">' + ico('load') + 'Из файла</label><input type="file" id="dFile" accept=".json,application/json" hidden><button class="btn" id="dPaste">Вставить код</button></div></section>';
+    '<div class="lrow"><span class="lic">' + ico('save') + '</span><span class="lt"><b>Последний код или копия</b><span class="muted">' + (DB.bk.at ? new Date(DB.bk.at).toLocaleString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) : 'ещё не было') + '</span></span></div></div></section>';
+  h += '<section class="card"><h3>Код прогресса</h3><p class="muted">Короткий текст, в котором весь прогресс. Отправь его ' + esc(APP.tutorTo) + ' — он вставит код у себя и продолжит с тобой на уроке, а потом пришлёт свой код обратно. Раз в неделю приложение напомнит.</p><div class="row"><button class="btn primary" id="dCode">' + ico('share') + 'Отправить код</button><button class="btn" id="dPaste">' + ico('load') + 'Вставить код</button></div></section>';
+  h += '<section class="card"><h3>Копия файлом</h3><p class="muted">Запасной способ: файл можно положить в «Файлы» (iCloud Drive). Загрузка копии сначала покажет, что изменится; текущий прогресс не потеряется — он объединится с копией.</p><div class="row"><button class="btn" id="dSave">' + ico('save') + 'Сохранить файл</button><label class="btn" for="dFile">' + ico('load') + 'Загрузить файл</label><input type="file" id="dFile" accept=".json,application/json" hidden></div></section>';
   if (sn.length) h += '<section class="card"><h3>Копии на этом устройстве</h3><p class="muted">Делаются сами: одна в день и перед каждой загрузкой. Можно вернуть прогресс к такому состоянию — текущий тоже сохранится копией.</p><div class="lst">' + sn.map((s, i) => '<button class="lrow" data-snap="' + i + '"><span class="lic">' + ico('redo') + '</span><span class="lt"><b>' + new Date(s.at).toLocaleString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) + '</b><span class="muted">' + esc(s.why || '') + ' · заданий: ' + dbSummary(s.db).tasks + '</span></span></button>').join('') + '</div></section>';
   shell(h);
   $('#dSave').onclick = exportFile;
-  $('#dCode').onclick = async () => {
-    const code = await progressCode();
-    const sh = openSheet('<h3>Код для переноса</h3><p class="muted">Скопируй и вставь на новом устройстве: «Перенести прогресс» на экране входа или «Вставить код» здесь. В коде весь прогресс (' + code.length + ' знаков).</p><textarea class="inp plain code" rows="4" readonly>' + esc(code) + '</textarea><div class="row"><button class="btn primary" id="cCopy">Скопировать</button>' + (navigator.share ? '<button class="btn" id="cShare">Поделиться</button>' : '') + '</div>');
-    $('#cCopy', sh).onclick = () => copyText(code);
-    if ($('#cShare', sh)) $('#cShare', sh).onclick = () => navigator.share({ text: code }).catch(() => {});
-  };
-  $('#dPaste').onclick = moveInSheet;
-  $('#dFile').onchange = e => { const f = e.target.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => { try { previewRestore(readBackup(JSON.parse(rd.result))); } catch (er) { toast(er.message || 'Это не файл прогресса'); } }; rd.readAsText(f); };
+  $('#dCode').onclick = codeSheet;
+  $('#dPaste').onclick = pasteSheet;
+  $('#dFile').onchange = e => { const f = e.target.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => { try { takeProgress(readBackup(JSON.parse(rd.result))); } catch (er) { toast(er.message || 'Это не файл прогресса'); } }; rd.readAsText(f); };
   $$('[data-snap]').forEach(b => b.onclick = () => {
     const s = sn[+b.dataset.snap];
     confirmSheet('Вернуть это состояние?', 'Прогресс станет таким, каким был ' + new Date(s.at).toLocaleString('ru-RU') + '. Текущее состояние сохранится копией — его тоже можно будет вернуть.', 'Вернуть', () => {

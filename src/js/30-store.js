@@ -9,7 +9,8 @@
 const APP = {
   id: 'brevet', title: 'Brevet',
   exam: '2027-06-28', examLabel: 'понедельник, 28 июня 2027, 10:00–12:00',
-  tableur: 'https://maksimmartynov2000-spec.github.io/Knights/'
+  tableur: 'https://maksimmartynov2000-spec.github.io/Knights/',
+  tutorTo: 'Максиму Николаевичу'                /* to whom the progress code is sent (dative) */
 };
 const DBV = 1;                     /* version of the progress format; bump it together with migrate() */
 const LS = {
@@ -101,8 +102,10 @@ function openProfile(id) {
   askPersist();
   return DB;
 }
-async function createProfile(name, pin) {
-  const db = newDb(normName(name));
+/* id: when a student's progress arrives from another device, the profile keeps that student's id,
+   so the codes sent back and forth always find the same student */
+async function createProfile(name, pin, id) {
+  const db = newDb(normName(name)); if (id && !profOf(id)) db.id = id;
   const ps = profiles(); ps.push({ id: db.id, name: db.name, pin: pin ? await pinMake(pin) : null, at: Date.now() }); saveProfiles(ps);
   LS.set('db:' + db.id, db);
   return openProfile(db.id);
@@ -127,14 +130,14 @@ const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.p
 
 /* ---------- progress as a file or as a code ---------- */
 function backupData() { return { app: APP.id, kind: 'progress', v: DBV, at: Date.now(), db: DB }; }
-/* strict check of what comes from outside: only known fields of known shapes */
+const okId = k => /^[a-z0-9.\-_]{1,60}$/i.test(k);
+const okDay = k => /^\d{4}-\d{2}-\d{2}$/.test(k);
+/* strict check of what comes from outside: only known fields of known shapes; src = the id of the student on the other device */
 function sanitizeDb(d) {
   if (!d || typeof d !== 'object') return null;
   const num = (x, lo, hi) => (typeof x === 'number' && isFinite(x) && x >= lo && x <= hi ? x : 0);
-  const out = newDb(normName(d.name) || 'Ученик'); out.id = DB ? DB.id : out.id; out.created = num(d.created, 0, 4e12) || Date.now();
-  const okId = k => /^[a-z0-9.\-_]{1,60}$/i.test(k);
-  const okDay = k => /^\d{4}-\d{2}-\d{2}$/.test(k);
-  if (d.sk && typeof d.sk === 'object') for (const k in d.sk) { const s = d.sk[k]; if (okId(k) && s && typeof s === 'object') out.sk[k] = { a: num(s.a, 0, 1e6), c: num(s.c, 0, 1e6), s: num(s.s, 0, 1e6), m: s.m ? 1 : 0, t: num(s.t, 0, 4e12), d: s.d ? 1 : 0 }; }
+  const out = newDb(normName(d.name) || 'Ученик'); out.src = typeof d.id === 'string' && /^p[a-z0-9]{4,30}$/.test(d.id) ? d.id : null; out.created = num(d.created, 0, 4e12) || Date.now();
+  if (d.sk && typeof d.sk === 'object') for (const k in d.sk) { const s = d.sk[k]; if (okId(k) && s && typeof s === 'object') out.sk[k] = { a: num(s.a, 0, 1e6), c: num(s.c, 0, 1e6), s: num(s.s, 0, 1e6), m: s.m ? 1 : 0, t: num(s.t, 0, 4e12), d: s.d ? 1 : 0, r: typeof s.r === 'string' ? s.r.replace(/[^01]/g, '').slice(-8) : '' }; }
   if (d.pb && typeof d.pb === 'object') for (const k in d.pb) { const s = d.pb[k]; if (okId(k) && s && typeof s === 'object') out.pb[k] = { n: num(s.n, 0, 1e6), best: num(s.best, 0, 1), last: num(s.last, 0, 1), t: num(s.t, 0, 4e12) }; }
   if (d.days && typeof d.days === 'object') for (const k in d.days) if (okDay(k)) out.days[k] = num(d.days[k], 0, 1e5);
   if (d.log && typeof d.log === 'object') for (const k in d.log) { const s = d.log[k]; if (okDay(k) && s && typeof s === 'object') out.log[k] = { n: num(s.n, 0, 1e5), ok: num(s.ok, 0, 1e5) }; }
@@ -149,12 +152,12 @@ function sanitizeDb(d) {
 /* two copies of one student's progress → the best of both (nothing done is lost) */
 function mergeDb(a, b) {
   const o = JSON.parse(JSON.stringify(a));
-  for (const k in b.sk) { const x = o.sk[k], y = b.sk[k]; o.sk[k] = !x ? y : { a: Math.max(x.a, y.a), c: Math.max(x.c, y.c), s: Math.max(x.s, y.s), m: x.m || y.m ? 1 : 0, t: Math.max(x.t, y.t), d: x.d && y.d ? 1 : 0 }; }
+  for (const k in b.sk) { const x = o.sk[k], y = b.sk[k]; o.sk[k] = !x ? y : { a: Math.max(x.a, y.a), c: Math.max(x.c, y.c), s: x.t >= y.t ? x.s : y.s, m: x.m || y.m ? 1 : 0, t: Math.max(x.t, y.t), d: x.d && y.d ? 1 : 0, r: (x.t >= y.t ? x.r : y.r) || '' }; }
   for (const k in b.pb) { const x = o.pb[k], y = b.pb[k]; o.pb[k] = !x ? y : { n: Math.max(x.n, y.n), best: Math.max(x.best, y.best), last: x.t >= y.t ? x.last : y.last, t: Math.max(x.t, y.t) }; }
   for (const k in b.days) o.days[k] = Math.max(o.days[k] || 0, b.days[k]);
   for (const k in b.log) { const x = o.log[k] || { n: 0, ok: 0 }, y = b.log[k]; o.log[k] = { n: Math.max(x.n, y.n), ok: Math.max(x.ok, y.ok) }; }
   for (const k in b.badges) o.badges[k] = o.badges[k] ? Math.min(o.badges[k], b.badges[k]) : b.badges[k];
-  const seen = new Set(o.exams.map(e => e.t0 + '|' + e.mode)); b.exams.forEach(e => { if (!seen.has(e.t0 + '|' + e.mode)) o.exams.push(e); });
+  const seen = new Set(o.exams.map(e => Math.round(e.t0 / 1000) + '|' + e.mode)); b.exams.forEach(e => { if (!seen.has(Math.round(e.t0 / 1000) + '|' + e.mode)) o.exams.push(e); });
   o.exams.sort((x, y) => x.t0 - y.t0); o.exams = o.exams.slice(-30);
   if (!o.diag && b.diag) o.diag = b.diag;
   o.bk = { at: Math.max(o.bk.at || 0, b.bk.at || 0), n: Math.max(o.bk.n || 0, b.bk.n || 0) };
@@ -171,23 +174,62 @@ function applyIncoming(inc, why) {
   DB = Object.assign(mergeDb(DB, inc), keep, { v: DBV, snapDay: DB.snapDay });
   save();
 }
-/* progress code: JSON → deflate → base64url, so it fits in a message */
+
+/* ---------- the progress code: what the student sends to the tutor and back ----------
+   Compact on purpose: after a whole school year it still fits in one Telegram message (< 4096 characters).
+   Times are kept to the day, the days are one list of numbers, only the last exams keep their «что повторить». */
+const DAY0 = Date.UTC(2026, 0, 1) / 864e5;
+const t2d = t => (t ? Math.max(0, Math.round(t / 864e5 - DAY0)) : -1);
+const d2t = n => (n < 0 ? 0 : (n + DAY0) * 864e5 + 12 * 3600e3);          /* noon UTC of that day */
+const k2d = k => Math.round(Date.UTC(+k.slice(0, 4), +k.slice(5, 7) - 1, +k.slice(8, 10)) / 864e5 - DAY0);
+const d2k = n => { const d = new Date((n + DAY0) * 864e5); return d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0') + '-' + String(d.getUTCDate()).padStart(2, '0'); };
+/* topics grouped by chapter ('nc': { 'frac-addsub': [a, c, s, m + 2·d, day, last answers as bits] }),
+   tests to the minute, «что повторить» only for the last test: everything the app shows, nothing more */
+const rBits = r => (r ? parseInt('1' + String(r).replace(/[^01]/g, '').slice(-8), 2) : 0);
+const bitsR = n => (n > 1 ? (+n).toString(2).slice(1) : '');
+const MIN0 = DAY0 * 1440;
+function packDb(d) {
+  const sk = {};
+  for (const k in d.sk) { const s = d.sk[k]; const i = k.indexOf('.'); const ch = i > 0 ? k.slice(0, i) : '', rest = i > 0 ? k.slice(i + 1) : k; (sk[ch] = sk[ch] || {})[rest] = [s.a, s.c, s.s, (s.m ? 1 : 0) + (s.d ? 2 : 0), t2d(s.t), rBits(s.r)]; }
+  const pb = {}; for (const k in d.pb) { const s = d.pb[k]; pb[k.replace(/^p2\./, '')] = [s.n, Math.round(100 * s.best), Math.round(100 * s.last), t2d(s.t)]; }
+  const ks = Object.keys(d.days).filter(okDay).sort(); const d0 = ks.length ? k2d(ks[0]) : 0, d1 = ks.length ? k2d(ks[ks.length - 1]) : -1;
+  const dn = []; for (let i = d0; i <= d1; i++) dn.push(d.days[d2k(i)] || 0);
+  const ex = d.exams.slice(-30).map((e, i, all) => [e.mode, Math.round(e.t0 / 60000 - MIN0), Math.round(e.p1 * 10), Math.round(e.p2 * 10), e.max, e.n, e.ok].concat(i === all.length - 1 ? [(e.weak || []).join(' ')] : []));
+  const bd = {}; for (const k in d.badges) bd[k] = t2d(d.badges[k]);
+  return { a: APP.id, v: 2, id: d.id, n: d.name, c: t2d(d.created), sk, pb, d0, dn, ex, bd, dg: d.diag ? [t2d(d.diag.at), d.diag.n, d.diag.ok] : 0, g: d.goal || 0 };
+}
+function unpackDb(p) {
+  if (!p || p.a !== APP.id || p.v !== 2) throw new Error('Это не код прогресса Brevet');
+  const arr = x => (Array.isArray(x) ? x : []);
+  const d = { id: p.id, name: p.n, created: d2t(p.c), sk: {}, pb: {}, days: {}, log: {}, badges: {}, exams: [], goal: p.g };
+  for (const ch in p.sk || {}) for (const rest in p.sk[ch] || {}) { const s = arr(p.sk[ch][rest]); d.sk[ch ? ch + '.' + rest : rest] = { a: +s[0], c: +s[1], s: +s[2], m: s[3] & 1 ? 1 : 0, t: d2t(+s[4]), d: s[3] & 2 ? 1 : 0, r: bitsR(s[5]) }; }
+  for (const k in p.pb || {}) { const s = arr(p.pb[k]); d.pb['p2.' + k] = { n: +s[0], best: s[1] / 100, last: s[2] / 100, t: d2t(+s[3]) }; }
+  arr(p.dn).forEach((n, i) => { if (n) { const k = d2k(p.d0 + i); d.days[k] = +n; d.log[k] = { n: +n, ok: 0 }; } });
+  d.exams = arr(p.ex).map(e => { const t0 = (e[1] + MIN0) * 60000; return { mode: e[0], t0, t1: t0, p1: e[2] / 10, p2: e[3] / 10, note: Math.round(e[2] + e[3]) / 10, max: e[4], n: e[5], ok: e[6], weak: String(e[7] || '').split(' ').filter(Boolean) }; });
+  for (const k in p.bd || {}) d.badges[k] = d2t(p.bd[k]);
+  if (Array.isArray(p.dg)) d.diag = { at: d2t(p.dg[0]), n: p.dg[1], ok: p.dg[2] };
+  return d;
+}
 const b64url = u8 => { let s = ''; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
 const unb64url = s => { const b = atob(s.replace(/-/g, '+').replace(/_/g, '/')); const u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; };
 async function pipeBytes(u8, stream) { const r = new Response(new Blob([u8]).stream().pipeThrough(stream)); return new Uint8Array(await r.arrayBuffer()); }
-async function progressCode() {
-  const txt = new TextEncoder().encode(JSON.stringify(backupData()));
-  if (typeof CompressionStream === 'function') { try { return 'BRV1.' + b64url(await pipeBytes(txt, new CompressionStream('deflate-raw'))); } catch (e) { /* plain below */ } }
+async function progressCode(db) {
+  const txt = new TextEncoder().encode(JSON.stringify(packDb(db || DB)));
+  if (typeof CompressionStream === 'function') { try { return 'BRV2.' + b64url(await pipeBytes(txt, new CompressionStream('deflate-raw'))); } catch (e) { /* plain below */ } }
   return 'BRV0.' + b64url(txt);
 }
+/* the code may come inside a message with other words around it */
 async function readCode(code) {
-  const m = /BRV([01])\.([A-Za-z0-9_-]+)/.exec(String(code || '').replace(/\s+/g, ''));
-  if (!m) throw new Error('Это не код прогресса Brevet');
-  let u8 = unb64url(m[2]);
-  if (m[1] === '1') { if (typeof DecompressionStream !== 'function') throw new Error('Этот браузер не умеет читать сжатый код. Попробуйте файл.'); u8 = await pipeBytes(u8, new DecompressionStream('deflate-raw')); }
-  return JSON.parse(new TextDecoder().decode(u8));
+  const m = /BRV([012])\.([A-Za-z0-9_-]+)/.exec(String(code || '').replace(/\s+/g, ''));
+  if (!m) throw new Error('Не нашёл код. Вставь сообщение с кодом целиком — он начинается с BRV');
+  let u8; try { u8 = unb64url(m[2]); } catch (e) { throw new Error('Код повреждён — скопируй его ещё раз целиком'); }
+  if (m[1] !== '0') { if (typeof DecompressionStream !== 'function') throw new Error('Этот браузер не умеет читать код. Обнови iOS или открой в другом браузере.'); try { u8 = await pipeBytes(u8, new DecompressionStream('deflate-raw')); } catch (e) { throw new Error('Код повреждён или скопирован не до конца'); } }
+  let obj; try { obj = JSON.parse(new TextDecoder().decode(u8)); } catch (e) { throw new Error('Код повреждён или скопирован не до конца'); }
+  return obj.v === 2 ? sanitizeDb(unpackDb(obj)) : readBackup(obj);
 }
+/* a progress file (or an old code) → a clean copy of the progress */
 function readBackup(obj) {
+  if (obj && obj.a === APP.id && obj.v === 2) return sanitizeDb(unpackDb(obj));
   if (!obj || obj.app !== APP.id || !obj.db) throw new Error('Это копия от другого приложения');
   const d = sanitizeDb(migrate(obj.db)); if (!d) throw new Error('В копии нет прогресса');
   return d;

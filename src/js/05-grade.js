@@ -25,10 +25,10 @@ const FORMS = {
       if (bad) return GM('Correct value, but the brackets are not fully expanded.', 'Значение верное, но скобки раскрыты не до конца.');
     }
     if (spec.nt) {
-      if (terms.length > spec.nt) return GM('Correct, but like terms are not collected. Simplify further.', 'Верно, но подобные слагаемые не приведены. Упрости дальше.');
+      if (terms.length > spec.nt) return GM('Correct, but like terms are not collected. Simplify further.', 'Значение верное, но подобные слагаемые не приведены — так ответ не засчитают.');
     } else {
       const P = toPoly(ast);
-      if (P && terms.length > P.size) return GM('Correct, but like terms are not collected. Simplify further.', 'Верно, но подобные слагаемые не приведены. Упрости дальше.');
+      if (P && terms.length > P.size) return GM('Correct, but like terms are not collected. Simplify further.', 'Значение верное, но подобные слагаемые не приведены — так ответ не засчитают.');
     }
     return null;
   },
@@ -114,7 +114,7 @@ const FORMS = {
     if (spec.dN != null && (pDeg(PN) > spec.dN || pDeg(PD) > spec.dD)) return GM('Correct value, but the fraction is not fully simplified: cancel common factors.', 'Значение верное, но дробь не сокращена до конца: сократи общие множители.');
     let g = 0, allInt = true;
     [PN, PD].forEach(P => P.forEach(c => { if (Math.abs(c - Math.round(c)) > 1e-9) allInt = false; else g = gcd(g, Math.round(c)); }));
-    if (allInt && g > 1 && D) return GM('Correct, but numerator and denominator have a common factor ' + g + '. Cancel it.', 'Верно, но у числителя и знаменателя есть общий множитель ' + g + '. Сократи.');
+    if (allInt && g > 1 && D) return GM('Correct, but numerator and denominator have a common factor ' + g + '. Cancel it.', 'Значение верное, но у числителя и знаменателя есть общий множитель ' + g + ' — дробь не сокращена.');
     if (!allInt && D) return GM('Use whole numbers in the numerator and denominator.', 'Используй целые числа в числителе и знаменателе.');
     return null;
   },
@@ -280,7 +280,7 @@ function gradeNum(spec, raw) {
     if (!numOk(raw)) { if (isFinite(v) && close(v, K, 1e-6)) return R_NO(GM('Give a decimal rounded ' + (SF ? 'to ' + NSF + ' significant figures.' : 'to 3 decimal places.'), 'Дай десятичное число, округлённое ' + (SF ? 'до 3 значащих цифр.' : 'до 3 знаков после запятой.')), { near: true }); return R_NO(); }
     if (close(v, target, 1e-9)) {
       if (SF) { const sf = sigFigs(raw); if (sf != null && sf !== NSF && !(sf < NSF && close(target, v, 1e-12) && Number.isInteger(v))) return R_NO(GM('Correct, but give exactly ' + NSF + ' significant figures.', 'Верно, но дай ровно ' + NSF + ' значащие цифры.'), { near: true }); }
-      if (forms.includes('dp3')) { const dp = (raw.split('.')[1] || '').length; if (dp !== 3) return R_NO(GM('Correct, but give exactly 3 decimal places.', 'Верно, но дай ровно 3 знака после запятой.'), { near: true }); }
+      if (forms.includes('dp3')) { const dp = (raw.split('.')[1] || '').length; if (dp !== 3) return R_NO(GM('Correct, but give exactly 3 decimal places.', 'Значение верное, но нужно ровно 3 знака после запятой.'), { near: true }); }
       return R_OK();
     }
     if (Math.abs(v - K) < Math.abs(K) * 0.01) return R_NO(GM('Close — check your rounding.', 'Близко — проверь округление.'), { near: true });
@@ -299,7 +299,7 @@ function gradeNum(spec, raw) {
   if (spec.dec && /\//.test(raw)) return R_NO(GM('Right value, but write it as a decimal.', 'Значение верное, но запиши десятичной дробью.'), { near: true });
   if (forms.includes('frac') && raw.includes('.')) return R_NO(GM('Correct value, but give it as a fraction, not a decimal.', 'Значение верное, но дай ответ дробью, а не десятичной.'), { near: true });
   const fm = /^(-?)(\d+)\/(\d+)$/.exec(raw.replace(/ /g, '')) || (nv.mixed ? /(\d+)\/(\d+)$/.exec(raw) && [0, '', /(\d+)\/(\d+)$/.exec(raw)[1], /(\d+)\/(\d+)$/.exec(raw)[2]] : null);
-  if (fm && gcd(+fm[2], +fm[3]) > 1) return R_NO(GM('Correct, but simplify the fraction.', 'Верно, но сократи дробь.'), { near: true });
+  if (fm && gcd(+fm[2], +fm[3]) > 1) return R_NO(GM('Correct, but simplify the fraction.', 'Значение верное, но дробь не сокращена — нужна несократимая дробь.'), { near: true });
   if (fm && +fm[3] === 1) return R_NO(GM('Write it as a whole number.', 'Запиши целым числом.'), { near: true });
   if (forms.includes('mixed') && !nv.mixed && Math.abs(K) > 1 && !Number.isInteger(K)) return R_NO(GM('Correct, but write it as a mixed number, e.g. 2 1/8 (with a space).', 'Верно, но запиши смешанным числом, например 2 1/8 (через пробел).'), { near: true });
   return R_OK();
@@ -383,7 +383,7 @@ function gradeRound(spec, raw, v) {
     if (Math.abs(v - K) <= step * 1.0001) return R_NO(GM('Close — look at the next digit: 5 or more rounds up, 4 or less rounds down.', 'Близко — посмотри на следующую цифру: 5 и больше — округляем вверх, 4 и меньше — вниз.'), { near: true });
     return R_NO();
   }
-  if (spec.dp != null) { const d = (raw.split('.')[1] || '').length; if (d !== spec.dp) return R_NO(GM('Right value, but write exactly ' + spec.dp + ' decimal place(s) — keep a final zero if there is one.', 'Значение верное, но запиши ровно ' + spec.dp + ' ' + (spec.dp === 1 ? 'знак' : 'знака') + ' после точки — конечный ноль тоже пишем.'), { near: true }); }
+  if (spec.dp != null) { const d = (raw.split('.')[1] || '').length; if (d !== spec.dp) return R_NO(GM('Right value, but write exactly ' + spec.dp + ' decimal place(s) — keep a final zero if there is one.', 'Значение верное, но запиши ровно ' + spec.dp + ' ' + (spec.dp === 1 ? 'знак' : 'знака') + ' после запятой (конечный ноль тоже пишут: 8,0).'), { near: true }); }
   if (spec.sf != null) { const s = sigFigs(raw); if (s != null && s !== spec.sf && !(s < spec.sf && Number.isInteger(v))) return R_NO(GM('Right value, but write exactly ' + spec.sf + ' significant figures.', 'Значение верное, но запиши ровно ' + spec.sf + ' значащие цифры.'), { near: true }); }
   return R_OK();
 }

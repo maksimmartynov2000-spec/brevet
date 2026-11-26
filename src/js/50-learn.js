@@ -163,6 +163,7 @@ function renderPractice(fresh) {
   h += '<div class="row qbtns">' + practiceButtons(t) + '</div>';
   if (P.hint) h += '<div class="hints">' + t.hints.slice(0, P.hint).map((x, i) => '<div class="hint"><b>Подсказка ' + (i + 1) + '.</b> ' + rt(x) + '</div>').join('') + '</div>';
   if (P.sol) h += '<div class="solbox"><h3>Решение</h3><div class="ansline">Ответ: ' + answerHtml(it.ans) + '</div>' + solHtml(it) + '</div>';
+  if (P.done || P.tries) h += '<button type="button" class="linkbtn" id="bReport">Нашёл ошибку в задании? Сообщить</button>';
   h += '</section>';
   h += nextBox(t);
   if (fresh) shell(h); else { const y = window.scrollY; $('#app').innerHTML = h; window.scrollTo(0, y); }
@@ -177,6 +178,7 @@ function renderPractice(fresh) {
   if (b('bSol')) b('bSol').onclick = showSolution;
   if (b('bNext')) b('bNext').onclick = () => newQuestion();
   if (b('bSame')) b('bSame').onclick = () => newQuestion(true);
+  if (b('bReport')) b('bReport').onclick = () => reportIssue('Тема ' + t.id + ' («' + t.ru + '»), тип ' + P.vi + ', номер ' + P.seed, it, Object.keys(P.vals).sort().map(k => P.vals[k]));
   P.switched = null;
 }
 const lvlChip = l => '<span class="chip lvl' + l + '">' + ['', 'база', 'бревет', 'сверх'][l] + '</span>';
@@ -260,6 +262,7 @@ function renderProblem(fresh) {
     if (S.fb) h += '<div class="fb pop ' + S.fb.cls + '"><b class="t">' + S.fb.t + '</b>' + (S.fb.m ? '<span>' + S.fb.m + '</span>' : '') + '</div>';
     h += '<div class="row">' + (S.done ? '' : '<button class="btn primary" data-chk="' + qi + '">' + ico('check') + 'Проверить</button>') + (S.sol ? '' : '<button class="btn ghost" data-sol="' + qi + '">Решение</button>') + '</div>';
     if (S.sol) h += '<div class="solbox"><div class="ansline">Ответ: ' + answerHtml(q.ans) + '</div>' + solHtml(q) + '</div>';
+    if (S.done || S.tries) h += '<button type="button" class="linkbtn" data-rep="' + qi + '">Нашёл ошибку в задании? Сообщить</button>';
     h += '</section>';
   });
   const done = Q2.st.filter(s => s.done).length;
@@ -276,6 +279,16 @@ function renderProblem(fresh) {
   $$('[data-chk]').forEach(b => b.onclick = () => checkProblemQ(+b.dataset.chk));
   $$('[data-sol]').forEach(b => b.onclick = () => { const S = Q2.st[+b.dataset.sol]; S.sol = true; if (!S.done) { S.done = true; S.ok = false; S.first = false; } finishProblemIfDone(); renderProblem(); });
   if ($('#bAgain')) $('#bAgain').onclick = () => viewProblem(Q2.id);
+  $$('[data-rep]').forEach(b => b.onclick = () => { const qi = +b.dataset.rep, S = Q2.st[qi]; reportIssue('Задача ' + Q2.id + ' («' + pb.ru + '»), номер ' + Q2.seed + ', вопрос ' + (qi + 1), p.qs[qi], Object.keys(S.vals).sort().map(k => S.vals[k])); });
+}
+/* «Нашёл ошибку в задании?» — everything needed to find exactly this question again (topic, type, number) */
+function reportIssue(where, it, vals) {
+  const plain = x => String(x == null ? '' : x).replace(/\$\$?([^$]*)\$\$?/g, '$1');
+  const key = fieldsOf(it.ans).map(f => f.spec.k === 'mcq' ? plain(f.spec.opts[f.spec.c].fr) : f.spec.k === 'order' ? 'порядок шагов' : keyInput(f.spec)).join(' | ');
+  const text = 'Brevet · ошибка в задании\n' + where + '\nУсловие: ' + plain(it.q.fr) + (it.m ? ' ' + it.m : '') + '\nОтвет ученика: ' + (vals.filter(v => v !== '' && v != null).join(' | ') || '—') + '\nОтвет приложения: ' + key + '\nВерсия ' + (BUILD || 'dev');
+  const sh = openSheet('<h3>Сообщить об ошибке</h3><p class="muted">Отправь это ' + esc(APP.tutorTo) + ' и коротко напиши, что не так. По номеру задание найдётся и исправится.</p><textarea class="inp plain code" rows="5" readonly aria-label="описание задания">' + esc(text) + '</textarea><div class="row">' + (navigator.share ? '<button class="btn primary" id="rpShare">' + ico('share') + 'Отправить</button>' : '') + '<button class="btn' + (navigator.share ? '' : ' primary') + '" id="rpCopy">Скопировать</button></div>');
+  $('#rpCopy', sh).onclick = () => { copyText(text); closeSheet(); };
+  if ($('#rpShare', sh)) $('#rpShare', sh).onclick = () => navigator.share({ text }).then(closeSheet).catch(() => { /* closed */ });
 }
 function checkProblemQ(qi) {
   const S = Q2.st[qi], q = Q2.p.qs[qi]; if (S.done) return;

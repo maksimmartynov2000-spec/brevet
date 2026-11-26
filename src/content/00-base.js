@@ -26,7 +26,7 @@ topic({ id: 'nc.frac-addsub', ch: 'nc', lvl: 1, calc: false, variants: 3,
         res.d === d ? 'Числитель и знаменатель не имеют общих делителей — дробь уже несократимая.' : ['Сокращаем: числитель и знаменатель делятся на ' + (d / res.d) + '.', n + '/' + d + '=' + Fr.str(res)]] };
     }
     const pairs = [[2, 3], [3, 4], [2, 5], [4, 5], [3, 5], [2, 7], [4, 3], [5, 6], [3, 8], [6, 4], [10, 4], [6, 9], [4, 10]];
-    const [d1, d2] = r.pick(pairs); const a = r.ri(1, d1 + 2), b = r.ri(1, d2 + 1); const m = lcm2(d1, d2);
+    const [d1, d2] = r.pick(pairs); let a = r.ri(1, d1 + 2), b = r.ri(1, d2 + 1); if (a % d1 === 0) a++; if (b % d2 === 0) b--; if (!b) b = 1;   /* no whole numbers such as 4/4 */ const m = lcm2(d1, d2);
     const k1 = m / d1, k2 = m / d2; const minus = vi === 2; const n = minus ? a * k1 - b * k2 : a * k1 + b * k2; const res = F(n, m);
     const steps = [
       ['Знаменатели ' + d1 + ' и ' + d2 + ' разные — доли разного размера. Наименьшее число, которое делится и на ' + d1 + ', и на ' + d2 + ', — это ' + m + '.'],

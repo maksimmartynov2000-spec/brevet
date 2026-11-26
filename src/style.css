@@ -680,3 +680,4 @@ textarea.code{font-family:var(--f-mono);font-size:13px;word-break:break-all}
 .pill{white-space:nowrap}
 .sechead{flex-wrap:wrap;row-gap:2px}
 .sechead .secsub{flex-basis:100%;margin-left:0;text-align:left}
+.linkbtn{align-self:flex-start;border:0;background:none;padding:6px 0;color:var(--accent-ink);font-size:15px;cursor:pointer;text-decoration:underline;text-underline-offset:3px;min-height:44px}

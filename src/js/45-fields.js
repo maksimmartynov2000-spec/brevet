@@ -41,20 +41,12 @@ function solHtml(it) {
     return h + '</div>';
   }).join('') + '</div>';
 }
-/* format hint under a field — Russian, short */
+/* Under a field there are no hints about the form of the answer: the statement says it (as on the exam),
+   and a wrong form is explained after «Проверить». Only how to type several answers is said. */
 function fmtHelp(spec) {
-  const f = spec.forms || [];
-  if (spec.k === 'mcq' || spec.k === 'order' || spec.nohelp) return '';
-  if (spec.help) return spec.help.ru || '';
-  if (spec.k === 'ratio') return 'Отношение через двоеточие, например <code>3:5</code>';
-  if (spec.k === 'list') return 'Числа через точку с запятой, например <code>1 ; 2 ; 4</code>';
-  if (spec.k === 'dur') return 'Например <code>' + durStr({ hm: 285, min: 85, h: 150, ms: 565, s: 90 }[spec.u || 'hm'], spec.u || 'hm') + '</code>';
-  if (spec.dp != null) return 'Округли: ровно ' + spec.dp + ' ' + plural(spec.dp, 'знак', 'знака', 'знаков') + ' после запятой';
-  if (spec.sf != null) return 'Ровно ' + spec.sf + ' значащие цифры';
-  if (f.includes('std')) return 'Научная запись: <code>4,5×10^-3</code> — клавиши × и ^';
-  if (f.includes('frac')) return 'Дробь через /, например <code>7/12</code>; несократимая';
-  if (spec.k === 'sol') return 'Число; два решения — через <code>;</code>';
-  if (spec.k === 'expr') return 'Буквы — на клавиатуре, степень <code>^</code>, например <code>3x^2-5x</code>';
+  if (spec.k === 'sol') return 'Если решений несколько — через «;»';
+  if (spec.k === 'list') return 'Несколько чисел — через «;»';
+  if (spec.k === 'ratio') return 'Отношение — через «:»';
   return '';
 }
 function varsFor(it) {

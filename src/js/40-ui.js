@@ -147,6 +147,8 @@ function chrome(o) {
   $('#abTitle').textContent = VIEW.title;
   $('#abBack').hidden = root;
   $('#tTr').hidden = !VIEW.tr; $('#tKb').hidden = !VIEW.kb;
+  /* screens without «Перевод» (the mock exams) always show the French text */
+  document.documentElement.classList.toggle('tr', !!(VIEW.tr && DB && DB.ru));
   $('#tTr').setAttribute('aria-pressed', DB && DB.ru ? 'true' : 'false');
   $('#tKb').setAttribute('aria-pressed', DB && DB.kbd ? 'true' : 'false');
   $$('.tab').forEach((t, i) => t.classList.toggle('on', i === VIEW.tab));
