@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="app-build" content="dev">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#F5F3EE" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#12151A" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Brevet">
+<meta name="application-name" content="Brevet">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>Brevet · математика</title>
+<!--
+  Brevet — подготовка к бревету по математике (DNB 2027) для учеников, которые говорят по-русски.
+  Этот файл собран из исходников в src/ командой python3 tools/build.py — руками его не править.
+  Метка сборки (app-build) должна оставаться в самом начале файла: её ставит tools/stamp.py,
+  а приложение сравнивает её со свежим index.html на сайте и обновляется само.
+-->
+<script>try{var t=JSON.parse(localStorage.getItem('brevet:theme')||'"auto"');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch(e){}</script>
+<style>
+/*@CSS@*/
+</style>
+</head>
+<body>
+<div id="splash" aria-hidden="true"><div class="spl"><svg viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#1F3558"/><text x="32" y="45" text-anchor="middle" font-family="Georgia, serif" font-weight="600" font-size="38" fill="#FBFAF7">B</text><circle cx="49" cy="46" r="4.5" fill="#E3A94B"/></svg></div><div class="splname">Brevet</div></div>
+<header class="appbar" id="appbar">
+  <button type="button" class="ab-back" id="abBack" aria-label="Назад" hidden><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+  <div class="ab-title" id="abTitle">Brevet</div>
+  <div class="tools">
+    <button type="button" class="tgl" id="tTr" aria-pressed="false" hidden>Перевод</button>
+    <button type="button" class="tgl ic" id="tKb" aria-pressed="false" aria-label="Клавиатура телефона" title="Клавиатура телефона" hidden><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="6" width="19" height="12" rx="2.5"/><path d="M6 10h.01M9.3 10h.01M12.6 10h.01M15.9 10h.01M18 10h.01M6.5 14h11"/></svg></button>
+  </div>
+</header>
+<div class="page"><main id="app"></main></div>
+<nav class="tabbar" id="tabbar" aria-label="Разделы"></nav>
+<div class="kb" id="kb" hidden></div>
+<div class="toast" id="toast" role="status" hidden></div>
+<script>
+/*@KATEX@*/
+</script>
+<script>
+/*@JS@*/
+</script>
+</body>
+</html>
