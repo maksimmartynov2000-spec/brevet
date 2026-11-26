@@ -1,20 +1,23 @@
 /* ===================== CONTENT API · Brevet =====================
    Everything the app teaches is declared with the functions in this file:
-     chapter({...})   — a domain of the programme (Nombres et calculs, Géométrie…)
-     topic({...})     — a trainer: one skill, endless generated questions (Partie 1 style)
-     probleme({...})  — a Partie 2 exercise: a context and several questions «по мотивам» a real sujet
-     fiche({...})     — a cheat sheet for a chapter (Russian, with the French words)
-     gloss(fr, ru)    — an entry of the French–Russian maths dictionary
+     chapter({...})      — a domain of the programme (Nombres et calculs, Géométrie…)
+     topic({...})        — a trainer: one skill, endless generated questions (Partie 1 style)
+     probleme({...})     — a Partie 2 exercise: a context and several questions «по мотивам» a real sujet
+     fiche({...})        — a cheat sheet for a chapter (Russian, with the exact French wording to write on the exam)
+     gloss(fr, ru)       — an entry of the French–Russian maths dictionary (terms, with a note)
+     lex / lexf / lexn   — the word lexicon behind «нажми на слово — увидишь перевод» (src/content/lex.js)
+     automatisme({...})  — an item of the ministry's list of automatismes, linked to the topics that train it
 
    Languages
-     L(fr, ru) — a text of the question: French as on the exam, Russian behind the «Перевод» button.
-     Hints, solution steps and fiches are Russian only (the interface language); French terms go in «…».
+     L(fr, ru) — a text of the question: French as on the exam, Russian for «Перевод».
+     Hints, solution steps and fiches are Russian (the interface language); French terms go in «…».
+     redac — how to write the answer on the exam, in French (Partie 2 questions).
    Formulas inside texts
      $…$   — formula in input syntax: $3/4$, $x^2+1$, $√2$, $2*10^3$, $3.5$ (shown as 3,5), $a=b$.
      $$…$$ — raw TeX for the rare cases input syntax cannot express.
    Numbers in plain text: nf(3.5) → «3,5», nf(45000) → «45 000», eur(12.5) → «12,50 €».
 */
-const CHAPTERS = [], TOPICS = [], PROBLEMS = [], FICHES = [], GLOSS = [];
+const CHAPTERS = [], TOPICS = [], PROBLEMS = [], FICHES = [], GLOSS = [], LEXI = [], AUTOS = [];
 const L = (fr, ru) => ({ fr, ru });
 /* a text that is the same in both languages (a formula, a number) */
 const bi = t => (t && typeof t === 'object' ? t : { fr: String(t), ru: String(t) });
@@ -37,9 +40,20 @@ function fixSpec(sp) {
   return sp;
 }
 function fixQ(it) { it.q = bi(it.q); it.sol = (it.sol || []).map(fixStep); fixSpec(it.ans); return it; }
+/* redac: the model write-up in French — a string or an array of lines. For «put the steps in order» and
+   «choose the justification» questions it is the right order / the right option, so authors need not repeat it. */
+function fixRedac(q) {
+  if (typeof q.redac === 'string') q.redac = [q.redac];
+  if (!Array.isArray(q.redac) || !q.redac.length) {
+    if (q.ans.k === 'order') q.redac = q.ans.items.map(o => o.fr);
+    else if (q.ans.k === 'mcq' && q.red) q.redac = [q.ans.opts[q.ans.c].fr];
+    else q.redac = [];
+  }
+  return q;
+}
 
 /* topic({ id: 'nc.frac-add', ch: 'nc', ru: 'Сложение дробей', fr: 'Additionner des fractions',
-           lvl: 1 | 2 | 3,       — 1 база (пробелы 5e–4e), 2 уровень бревета, 3 сверх (сложнее экзамена)
+           lvl: 1 | 2,           — 1 база (пробелы 5e–4e), 2 уровень бревета. Сложнее экзамена в приложении ничего нет.
            calc: false,          — false: без калькулятора (Partie 1), true: с калькулятором
            variants: 3,          — сколько типов заданий, gen получает vi = 0 … variants−1
            hints: ['…', '…'],    — 1–3 подсказки по-русски, от идеи к почти решению
@@ -53,23 +67,44 @@ function topic(def) {
 
 /* probleme({ id: 'p2.salaires', ch: 'st', ru: 'Зарплаты в компании', fr: 'Salaires dans une entreprise',
               src: 'Sujet de référence 2027 n°1 · exercice 1', pts: 4, lvl: 2,
-              gen(r) { return { ctx: L(fr, ru), fig?, qs: [ { q: L(fr, ru), m?, tex?, fig?, ans, sol, pts?, red? }, … ] }; } })
+              gen(r) { return { ctx: L(fr, ru), fig?, qs: [ { q: L(fr, ru), m?, tex?, fig?, ans, sol, redac, pts?, red? }, … ] }; } })
+   sol   — the explanation in Russian: why each step is right.
+   redac — «как записать на экзамене»: the model answer in French, as a pupil would write it on the copie
+           (a string or an array of lines, formulas in $…$): the property used, the calculation, the conclusion sentence.
+           Not needed for ORD questions and for MQ questions with red: true — there it is taken from the answer.
    red: true marks a «rédaction» question (choose the justification / put the steps in order). */
 function probleme(def) {
   def.kind = 'prob'; def.lvl = def.lvl || 2; def.calc = def.calc !== false;
   const g = def.gen;
   def.gen = function (r) {
     const p = g.call(def, r); p.ctx = p.ctx == null ? null : bi(p.ctx);
-    p.qs = p.qs.map(q => { fixQ(q); if (q.calc == null) q.calc = def.calc; if (!q.pts) q.pts = 1; return q; });
+    p.qs = p.qs.map(q => { fixQ(q); fixRedac(q); if (q.calc == null) q.calc = def.calc; if (!q.pts) q.pts = 1; return q; });
     return p;
   };
   PROBLEMS.push(def); return def;
 }
 
-/* fiche({ ch: 'nc', id: 'nc.fractions', ru: 'Дроби', fr: 'Les fractions', body: ['абзац с $3/4$', …], ex?: [['пример', 'формула'], …] }) */
+/* fiche({ ch: 'nc', id: 'nc.fractions', ru: 'Дроби', fr: 'Les fractions',
+            body: ['абзац с $3/4$', …],            — объяснение по-русски
+            ex?: [['пример', 'формула'], …],
+            frs?: ['Si un triangle est rectangle, alors …', …] })   — точные французские формулировки: определения, теоремы,
+                                                                      фразы, которые нужно уметь написать на экзамене */
 function fiche(def) { FICHES.push(def); return def; }
 /* gloss('la médiane', 'медиана', 'значение посередине упорядоченного ряда') */
 function gloss(fr, ru, note) { GLOSS.push({ fr, ru, note: note || '' }); }
+
+/* ---------- the word lexicon: every French word of every statement has an entry (tests/words.js checks it) ----------
+   lex('calculer|calcule|calculez|calculé', 'вычислить')   — forms as they occur in the texts, the first is the dictionary form
+   lex('en déduire', 'вывести из предыдущего результата')  — an expression of several words wins over its words
+   lexf('le|la|les|l\'', 'артикль')                         — function words and units: translated on tap, never saved to «Мои слова»
+   lexn('Paris|Lyon|Marseille')                             — proper nouns (first names from PRENOMS_* are known already) */
+function lex(forms, ru) { LEXI.push({ f: forms, ru, k: 0 }); }
+function lexf(forms, ru) { LEXI.push({ f: forms, ru, k: 1 }); }
+function lexn(forms) { LEXI.push({ f: forms, ru: '', k: 2 }); }
+
+/* automatisme({ n: 1, dom: 'nc', fr: 'short quote of the official wording', ru: 'по-русски', topics: ['nc.frac-ecritures', …] })
+   — the ministry's «liste indicative d'automatismes» (octobre 2025), item by item */
+function automatisme(def) { AUTOS.push(def); return def; }
 
 /* ===================== answers ===================== */
 const N = (key, o) => Object.assign({ k: 'num', key: String(key) }, o || {});                                   /* a number; o: { unit: 'cm²', forms: ['frac'], dec: true } */

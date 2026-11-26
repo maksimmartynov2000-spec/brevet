@@ -17,7 +17,7 @@ const ok = (c, what) => { console.log((c ? '  ✓ ' : '  ✗ ') + what); if (!c)
 
 /* a whole school year, generously: every topic tried, 230 days of work, 30 tests, all problems, all badges */
 function yearDb() {
-  const d = S.newDb('Алана'); let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const d = S.newDb('Мила'); let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
   const day0 = Date.UTC(2026, 10, 25);
   A.TOPICS.forEach((t) => { d.sk[t.id] = { a: 5 + Math.floor(rnd() * 60), c: Math.floor(rnd() * 50), s: Math.floor(rnd() * 6), m: rnd() < 0.8 ? 1 : 0, t: day0 + Math.floor(rnd() * 210) * 864e5 + 3600e3 * 15, d: rnd() < 0.1 ? 1 : 0, r: [...Array(8)].map(() => (rnd() < 0.7 ? '1' : '0')).join('') }; });
   A.PROBLEMS.forEach((p) => { d.pb[p.id] = { n: 1 + Math.floor(rnd() * 5), best: Math.round(rnd() * 100) / 100, last: Math.round(rnd() * 100) / 100, t: day0 + Math.floor(rnd() * 210) * 864e5 }; });
@@ -30,14 +30,14 @@ function yearDb() {
 const db = yearDb();
 const packed = JSON.stringify(S.packDb(db));
 const code = 'BRV2.' + zlib.deflateRawSync(Buffer.from(packed)).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-const msg = 'Brevet · Алана · 25 июня\n' + code;
+const msg = 'Brevet · Мила · 25 июня\n' + code;
 console.log('Год занятий: ' + A.TOPICS.length + ' тем, ' + Object.keys(db.days).length + ' дней, ' + db.exams.length + ' пробников → код ' + code.length + ' знаков, сообщение ' + msg.length);
 ok(msg.length < 4096, 'сообщение с кодом короче 4096 знаков (лимит Telegram)');
 
 const back = S.sanitizeDb(S.unpackDb(JSON.parse(packed)));
 const a = S.dbSummary(db), b = S.dbSummary(back);
 ok(a.tasks === b.tasks && a.topics === b.topics && a.exams === b.exams && a.probs === b.probs, 'после кода те же числа: ' + JSON.stringify(b));
-ok(back.src === db.id && back.name === 'Алана', 'код знает, чей это прогресс (id и имя)');
+ok(back.src === db.id && back.name === 'Мила', 'код знает, чей это прогресс (id и имя)');
 const t0 = A.TOPICS[0].id;
 ok(back.sk[t0].r === db.sk[t0].r && back.sk[t0].m === db.sk[t0].m && back.sk[t0].a === db.sk[t0].a, 'по темам: попытки, освоение, последние ответы на месте');
 ok(Object.keys(back.days).every((k) => back.days[k] === db.days[k]) && Object.keys(back.days).length === Object.keys(db.days).length, 'задания по дням на месте');

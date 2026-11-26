@@ -39,7 +39,12 @@ function solHtml(it) {
     if (s.tex) h += '<div class="mth">' + K(s.tex) + '</div>';
     if (s.svg) h += '<div class="figw">' + s.svg + '</div>';
     return h + '</div>';
-  }).join('') + '</div>';
+  }).join('') + '</div>' + redacHtml(it);
+}
+/* «Как записать на экзамене»: the model answer in French (Partie 2) */
+function redacHtml(it) {
+  if (!it.redac || !it.redac.length) return '';
+  return '<div class="redac"><div class="chl">Как записать на экзамене</div><div class="redtx frtx" lang="fr">' + it.redac.map(l => '<p>' + rt(frTypo(l)) + '</p>').join('') + '</div></div>';
 }
 /* Under a field there are no hints about the form of the answer: the statement says it (as on the exam),
    and a wrong form is explained after «Проверить». Only how to type several answers is said. */

@@ -681,3 +681,8 @@ textarea.code{font-family:var(--f-mono);font-size:13px;word-break:break-all}
 .sechead{flex-wrap:wrap;row-gap:2px}
 .sechead .secsub{flex-basis:100%;margin-left:0;text-align:left}
 .linkbtn{align-self:flex-start;border:0;background:none;padding:6px 0;color:var(--accent-ink);font-size:15px;cursor:pointer;text-decoration:underline;text-underline-offset:3px;min-height:44px}
+/* «как записать на экзамене»: the model answer in French */
+.redac{border-left:3px solid var(--amber);background:var(--warn-soft);border-radius:10px;padding:10px 14px;margin-top:10px;display:flex;flex-direction:column;gap:4px;min-width:0;overflow-x:auto}
+.redac .chl{color:var(--warn)}
+.redtx p{margin:3px 0;font-size:17px;line-height:1.5;color:var(--ink)}
+.redtx .katex-display{margin:4px 0;text-align:left}

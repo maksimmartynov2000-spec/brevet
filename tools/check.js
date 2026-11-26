@@ -155,7 +155,7 @@ const textSizes = (page) => page.evaluate(() => {
   {
     const mk = async () => { const c = await browser.newContext({ viewport: { width: 393, height: 852 }, deviceScaleFactor: 1, hasTouch: true }); const p = await c.newPage(); p.on('pageerror', (e) => errs.push(String(e))); await p.goto(url); await p.waitForTimeout(300); return [c, p]; };
     const errs = [];
-    const [cs, st] = await mk(); await signIn(st, 'Алана', '1357');
+    const [cs, st] = await mk(); await signIn(st, 'Мила', '1357');
     await st.evaluate(() => { for (let i = 0; i < 12; i++) window.__brevet.record(window.__brevet.TOPICS[i % 3].id, true); });
     await st.goto(url + '#/'); await st.waitForTimeout(200);
     ok(await st.isVisible('#bCode'), 'после 10 заданий на «Сегодня» честное напоминание и кнопка «Отправить код»');
@@ -164,10 +164,10 @@ const textSizes = (page) => page.evaluate(() => {
     ok(/BRV2\./.test(msg1) && msg1.length < 4096, 'код готов, сообщение ' + msg1.length + ' знаков');
     await st.click('#cCopy'); await st.waitForTimeout(100);
     ok(await st.evaluate(() => DB.bk.at > 0), 'после копирования напоминание сбрасывается');
-    const [ct, tu] = await mk(); await signIn(tu, 'Боря');
+    const [ct, tu] = await mk(); await signIn(tu, 'Тимур');
     await tu.goto(url + '#/me'); await tu.waitForTimeout(200); await tu.click('#bPaste'); await tu.fill('#mvCode', 'Вот мой код:\n' + msg1); await tu.click('#mvGo'); await tu.waitForTimeout(300);
     await tu.click('#shYes'); await tu.waitForTimeout(400);
-    ok(await tu.evaluate(() => DB.name === 'Алана' && Object.values(DB.days).reduce((a, b) => a + b, 0) === 12 && profiles().length === 2), 'у репетитора появилась Алана с её прогрессом, Боря остался');
+    ok(await tu.evaluate(() => DB.name === 'Мила' && Object.values(DB.days).reduce((a, b) => a + b, 0) === 12 && profiles().length === 2), 'у репетитора появилась Мила с её прогрессом, Тимур остался');
     await tu.evaluate(() => { window.__brevet.quiet(); for (let i = 0; i < 5; i++) window.__brevet.record(window.__brevet.TOPICS[5].id, true); });
     const msg2 = await tu.evaluate(async () => 'Brevet · ' + DB.name + '\n' + await progressCode());
     await st.goto(url + '#/me'); await st.waitForTimeout(200); await st.click('#bPaste'); await st.fill('#mvCode', msg2); await st.click('#mvGo'); await st.waitForTimeout(300);

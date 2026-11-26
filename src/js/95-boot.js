@@ -105,4 +105,6 @@ boot();
 /* for the automatic checks (tools/check.js, tests/) */
 window.__upd = { get build() { return BUILD; }, get on() { return UPD_ON; }, get found() { return updNew; }, check: () => updCheck(true), busy: isBusy };
 window.__brevet = { TOPICS, PROBLEMS, CHAPTERS, get DB() { return DB; }, go, route, newExam, handIn, record, mkRng, grade, keyInput, gradeField,
-  quiet() { QUIET = true; CELE.length = 0; $$('.cele').forEach(e => e.remove()); } };
+  quiet() { QUIET = true; CELE.length = 0; $$('.cele').forEach(e => e.remove()); },
+  /* a given question on screen: topic id, type number, seed — for tools/preview.js and for finding a reported task */
+  show(id, vi, seed) { const t = TP(id); P = { mode: id, id, n: 0 }; Object.assign(P, { it: t.gen(mkRng(seed), vi % t.variants), vi: vi % t.variants, seed, vals: {}, tries: 0, hint: 0, sol: false, done: false, ok: null, fb: null, rec: false }); renderPractice(true); } };

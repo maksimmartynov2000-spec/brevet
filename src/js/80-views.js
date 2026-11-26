@@ -294,7 +294,11 @@ function viewFiche(ch) {
   const c = CH(ch); if (!c) return go('#/prog');
   chrome({ title: 'Шпаргалка', back: '#/ch/' + ch, tab: 1 });
   const fs = FICHES.filter(f => f.ch === ch);
-  shell('<section class="card theory"><span class="chnum">' + esc(c.ru) + '</span>' + fs.map((f, i) => '<details' + (i === 0 ? ' open' : '') + '><summary>' + esc(f.ru) + ' <span class="frn" lang="fr">' + esc(f.fr) + '</span></summary>' + (f.body || []).map(p => '<p>' + rt(p) + '</p>').join('') + (f.ex && f.ex.length ? '<div class="ex">' + f.ex.map(e => '<div><span class="muted">' + rt(e[0]) + '</span>' + (e[1] ? '<div class="mth">' + K(mi(e[1])) + '</div>' : '') + '</div>').join('') + '</div>' : '') + '</details>').join('') + '</section>');
+  shell('<section class="card theory"><span class="chnum">' + esc(c.ru) + '</span>' + fs.map((f, i) => '<details' + (i === 0 ? ' open' : '') + '><summary>' + esc(f.ru) + ' <span class="frn" lang="fr">' + esc(f.fr) + '</span></summary>' +
+    (f.body || []).map(p => '<p>' + rt(p) + '</p>').join('') +
+    (f.ex && f.ex.length ? '<div class="ex">' + f.ex.map(e => '<div><span class="muted">' + rt(e[0]) + '</span>' + (e[1] ? '<div class="mth">' + K(mi(e[1])) + '</div>' : '') + '</div>').join('') + '</div>' : '') +
+    (f.frs && f.frs.length ? '<div class="redac"><div class="chl">По-французски — как писать на экзамене</div><div class="redtx frtx" lang="fr">' + f.frs.map(t => '<p>' + rt(frTypo(t)) + '</p>').join('') + '</div></div>' : '') +
+    '</details>').join('') + '</section>');
 }
 const glossKey = s => s.toLowerCase().replace(/^(le |la |les |l'|l’|un |une |des )/, '').normalize('NFD').replace(/[̀-ͯ]/g, '');
 function viewDico() {
