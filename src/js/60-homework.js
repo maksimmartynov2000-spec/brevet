@@ -24,6 +24,7 @@ function hwNote(k, id, ok) {
   it.done = (it.done || 0) + 1; if (ok) it.ok = (it.ok || 0) + 1;
   if (h.items.every(x => hwItemDone(x) || !hwItemAlive(x))) {
     h.doneAt = Math.floor(Date.now() / 60000) * 60000; pushHwh(DB, h);
+    DB.hwAsk = h.id;                 /* on this device: remind to send the code until it is sent */
     celebrate({ ic: 'book', title: 'Домашнее задание выполнено!', text: 'Отправь код ' + APP.tutorTo + ' — он увидит, что всё сделано.' });
   }
 }
@@ -70,7 +71,7 @@ function viewHw() {
   else {
     const tot = hwTotals(hw), left = hw.items.filter(it => hwItemAlive(it) && !hwItemDone(it));
     h += '<section class="card hero"><div class="htx"><span class="chnum">задано ' + dateRu(ymd(new Date(hw.id))) + '</span><b class="h2">' + (hw.doneAt ? 'Выполнено' : 'Домашнее задание') + '</b><span class="muted">' + (hw.doneAt ? 'сделано ' + dateRu(ymd(new Date(hw.doneAt))) + ' · ' : '') + (hwDueText(hw) || 'без срока') + (hw.doneAt ? '' : ' · осталось примерно ' + hwMinutes(left) + ' мин') + '</span></div><div class="bar"><i style="width:' + pct(tot.done, tot.n) + '%"></i></div>' +
-      (hw.doneAt ? '<p class="muted">Сделано ' + tot.done + ' из ' + tot.n + ', верно с первой попытки ' + tot.ok + '. ' + ((DB.bk.at || 0) >= hw.doneAt ? 'Код после этого уже отправлялся.' : 'Отправь код ' + esc(APP.tutorTo) + ' — он увидит результат.') + '</p><div class="row"><button class="btn primary" id="hwCode">' + ico('share') + 'Отправить код</button></div>'
+      (hw.doneAt ? '<p class="muted">Сделано ' + tot.done + ' из ' + tot.n + ', верно с первой попытки ' + tot.ok + '. ' + (DB.hwAsk === hw.id ? 'Отправь код ' + esc(APP.tutorTo) + ' — он увидит результат.' : '') + '</p><div class="row"><button class="btn primary" id="hwCode">' + ico('share') + 'Отправить код</button></div>'
         : '<div class="row"><a class="btn primary" href="' + hwNextStep() + '">' + ico('play') + (tot.done ? 'Продолжить' : 'Начать') + '</a></div>') + '</section>';
     h += '<div class="lst">' + hw.items.map(hwRow).join('') + '</div>';
   }

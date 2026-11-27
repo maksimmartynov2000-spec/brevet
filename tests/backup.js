@@ -26,7 +26,9 @@ const day0 = new Date(2026, 10, 25, 15, 0, 0).getTime();
 const ymd = (ms) => { const d = new Date(ms); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 
 /* room for growth: the size is measured for 120 topics and 55 problems, more than the app has */
-const TOPIC_IDS = A.TOPICS.map((t) => t.id), PROB_IDS = A.PROBLEMS.map((p) => p.id);
+/* (a topic that has no permanent number yet is reported at the end, by name) */
+const KNOWN = new Set(S.IDX);
+const TOPIC_IDS = A.TOPICS.map((t) => t.id).filter((id) => KNOWN.has(id)), PROB_IDS = A.PROBLEMS.map((p) => p.id).filter((id) => KNOWN.has(id));
 while (TOPIC_IDS.length < 120) { const id = 'zz.reserve-topic-' + TOPIC_IDS.length; TOPIC_IDS.push(id); S.IDX.push(id); }
 while (PROB_IDS.length < 55) { const id = 'p2.reserve-probleme-' + PROB_IDS.length; PROB_IDS.push(id); S.IDX.push(id); }
 const LEMMAS = A.LEXI.filter((e) => e.k === 0).map((e) => S.lexLemma(e));

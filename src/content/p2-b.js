@@ -19,11 +19,13 @@ const pbFr = (n, d) => { const f = F(n, d); return f.d === 1 ? String(f.n) : f.n
 const pbPct = v => nf(v) + ' %';
 /* Russian noun after a number: pbRu(22, 'песня', 'песни', 'песен') → 'песни' */
 const pbRu = (n, one, few, many) => (n % 10 === 1 && n % 100 !== 11 ? one : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? few : many);
-/* French typography in plain text (not inside $…$): no line break before « ? ! : ; », between a number and its unit, around « = » */
-const PB_UNITS = 'cm³|cm²|cm|mm³|mm²|mm|m³|m²|m/s|m|km/h|km|dm³|dm|mL|cL|L|kWh|kg|g|€|%|°|min|h|s|см³|см²|см|мм³|мм|м³|м²|м/с|м|км/ч|км|дм³|мл|л|кВт·ч|кг|г|мин|ч|с';
+/* French typography in plain text (not inside $…$): no line break before « ? ! : ; », between a number and its unit, before « = » and after it when what follows is short */
+const PB_UNITS = 'k€|cm³|cm²|cm|mm³|mm²|mm|m³|m²|m/s|m|km/h|km|dm³|dm|mL|cL|L|kWh|kg|g|€|%|°|min|h|s|см³|см²|см|мм³|мм|м³|м²|м/с|м|км/ч|км|дм³|мл|л|кВт·ч|кг|г|мин|ч|с';
 const PB_TY_U = new RegExp('(\\d) (?=(?:' + PB_UNITS + ')(?![A-Za-zА-Яа-яЁё0-9²³]))', 'g');
 function pbTy(s) {
-  return String(s).split(/(\$\$[^$]*\$\$|\$[^$]*\$)/).map((p, i) => i % 2 ? p : p.replace(/ ([?!:;])/g, '\u00a0$1').replace(PB_TY_U, '$1\u00a0').replace(/ ([=≈<>≤≥]) /g, '\u00a0$1\u00a0').replace(/(\d) (?=\d{3}(?!\d))/g, '$1\u00a0')).join('');
+  return String(s).split(/(\$\$[^$]*\$\$|\$[^$]*\$)/).map((p, i) => i % 2 ? p : p.replace(/ ([?!:;])/g, '\u00a0$1').replace(PB_TY_U, '$1\u00a0').replace(/(\d) (?=\d{3}(?!\d))/g, '$1\u00a0')
+    /* « AB = 3,6 cm » stays in one piece; after « = » a long number may go to the next line (83 L = 83 000 000 000 mm³ does not fit a narrow screen) */
+    .replace(/ ([=≈<>≤≥]) ([^ ]*)/g, (m, op, w) => '\u00a0' + op + (w.length > 12 ? ' ' : '\u00a0') + w)).join('');
 }
 const pbTyT = o => (o && typeof o === 'object' && 'fr' in o ? { fr: pbGl(pbTy(o.fr)), ru: pbGl(pbTy(o.ru)) } : typeof o === 'string' ? pbGl(pbTy(o)) : o);
 function pbTyA(a) { if (!a) return a; if (a.k === 'mcq') a.opts = a.opts.map(pbTyT); if (a.k === 'order') a.items = a.items.map(pbTyT); if (a.k === 'multi') a.parts.forEach(p => { if (p.lab) p.lab = pbTyT(p.lab); pbTyA(p.spec); }); return a; }
@@ -52,8 +54,8 @@ const pbFT = (n, d) => { const f = F(n, d); return f.d === 1 ? String(f.n) : pbD
 const pbFE = (n, d) => (F(n, d).d === d ? pbDf(n, d) : pbDf(n, d) + '=' + pbFT(n, d));                              /* 6/22 = 3/11 (or just 5/22) */
 const pbOrd = k => '$$' + k + '^{\\text{e}}$$';                                                                     /* 12e */
 /* a decimal value of a fraction for a comparison: « = 0,4 » when exact, « ≈ 0,36 » otherwise */
-const pbDecEq = (v, k = 2) => (pbIsD(v, k) ? '=' + pbT(v) : '\\approx ' + texNum(pbK(v, k)));
-const pbDS = (v, k = 2) => (pbIsD(v, k) ? fx(v) : pbK(v, k));                                                      /* the same value in input syntax: 0.4 · 0.36 */
+const pbDecEq = v => (pbIsD(v, 3) ? '=' + pbT(v) : '\\approx ' + texNum(pbK(v, 2)));
+const pbDS = v => (pbIsD(v, 3) ? fx(v) : pbK(v, 2));                                                      /* the same value in input syntax: 0.4 · 0.36 */
 /* Pythagorean triples for right triangles with «nice» sides */
 const PB_TRIPLES = [[3, 4, 5], [5, 12, 13], [8, 15, 17], [7, 24, 25], [20, 21, 29], [12, 35, 37], [9, 40, 41], [28, 45, 53], [11, 60, 61], [33, 56, 65], [16, 63, 65], [48, 55, 73], [13, 84, 85], [36, 77, 85], [39, 80, 89], [65, 72, 97]];
 
@@ -284,7 +286,9 @@ const PB_ALI = (() => {
   return out;
 })();
 function pbAliFig(d, al) {
-  const be = 180 - 2 * al, A0 = [-d.AB, 0], B0 = [0, 0], C0 = [0, d.BC], F0 = [d.BC * Math.sin(pbRad(be)), d.BC * Math.cos(pbRad(be))], G0 = [d.BG * Math.sin(pbRad(be + 60)), d.BG * Math.cos(pbRad(be + 60))];
+  /* always drawn as if A, B and G were aligned (the angle CBF is drawn as 30°), whatever the real angle is:
+     the statement says the figure is not in true size, and the drawing must not give the answer away */
+  const be = 30, A0 = [-d.AB, 0], B0 = [0, 0], C0 = [0, d.BC], F0 = [d.BC * Math.sin(pbRad(be)), d.BC * Math.cos(pbRad(be))], G0 = [d.BG * Math.sin(pbRad(be + 60)), d.BG * Math.cos(pbRad(be + 60))];
   const T = pbFit([A0, B0, C0, F0, G0], 340, 220, 28), A = T(A0), B = T(B0), C = T(C0), Fp = T(F0), G = T(G0);
   return svgFig(340, 220, pbLn(A, B) + pbLn(B, C) + pbLn(C, A) + pbLn(C, Fp) + pbLn(B, Fp) + pbLn(B, G) + pbLn(G, Fp) + pbRA(G, B, Fp, 8) + pbTick(B, C) + pbTick(B, Fp) +
     pbArc(C, B, Fp, 22) + pbAngTx(C, B, Fp, al + '°', 42) + [A, B, C, Fp, G].map(pbDot).join('') +
@@ -494,7 +498,12 @@ pbProb({ id: 'p2.reciproque-thales', ch: 'ge', lvl: 2, pts: 4,
           L('D\'après la réciproque du théorème de Thalès, les droites (TE) et (BM) sont parallèles.', 'По обратной теореме Фалеса прямые (TE) и (BM) параллельны.')]),
         sol: ['Обратная теорема Фалеса («réciproque du théorème de Thalès») требует двух условий: точки лежат на двух прямых в одном и том же порядке и отношения равны. Поэтому сначала — расположение точек.',
           'Потом каждое отношение считаем отдельно: заранее писать «=» между ними нельзя, ведь их равенство мы и проверяем.',
-          'Когда отношения совпали, записываем равенство и только в конце называем теорему и делаем вывод.'] },
+          'Когда отношения совпали, записываем равенство и только в конце называем теорему и делаем вывод.'],
+        redac: ['Les points T, A, M d\'une part, et les points E, A, B d\'autre part, sont alignés dans le même ordre.',
+          'D\'une part : $$' + pbDf('AT', 'AM') + '=' + pbDf(pbT(AT), pbT(AM)) + '=' + pbT(k) + '$$.',
+          'D\'autre part : $$' + pbDf('AE', 'AB') + '=' + pbDf(pbT(AE), pbT(AB)) + '=' + pbT(k) + '$$.',
+          'Donc $$' + pbDf('AT', 'AM') + '=' + pbDf('AE', 'AB') + '$$.',
+          'D\'après la réciproque du théorème de Thalès, les droites (TE) et (BM) sont parallèles.'] },
       { q: L('Le triangle ABM est l\'image du triangle AET par une homothétie de centre A. Quel est le rapport de cette homothétie ?', 'Треугольник ABM — образ треугольника AET при гомотетии с центром A. Чему равен коэффициент этой гомотетии?'),
         ans: MQ(r, rat, 0),
         redac: ['L\'homothétie de centre A transforme T en M. Le point A appartient au segment [TM] : T et M sont de part et d\'autre de A, donc le rapport est négatif.',
@@ -526,12 +535,14 @@ const PB_GOB = (() => {
   return out;
 })();
 function pbGobFig(d) {
-  const T = pbFit([[-d.BC, 0], [d.BC, d.OB]], 300, 240, 30), sh = p => [p[0] + 20, p[1] + 6];
-  const O = sh(T([0, 0])), A = sh(T([0, d.OA])), B = sh(T([0, d.OB])), D = sh(T([d.AD, d.OA])), C = sh(T([d.BC, d.OB])), D2 = sh(T([-d.AD, d.OA])), C2 = sh(T([-d.BC, d.OB]));
+  /* not to scale (the statement says so): with the real proportions the cone is a needle on a phone and the letters overlap,
+     so the widths are stretched; the axis stays vertical and the radii horizontal, O, D, C stay aligned */
+  const cx = 166, top = 38, bot = 214, ky = (bot - top) / d.OB, kx = 88 / d.BC, P = (x, y) => [cx + x * kx, bot - y * ky];
+  const O = P(0, 0), A = P(0, d.OA), B = P(0, d.OB), D = P(d.AD, d.OA), C = P(d.BC, d.OB), D2 = P(-d.AD, d.OA), C2 = P(-d.BC, d.OB);
   const el = (c, rx, cls) => '<ellipse cx="' + pbC(c[0]) + '" cy="' + pbC(c[1]) + '" rx="' + pbC(rx) + '" ry="' + pbC(rx * 0.16) + '" class="' + cls + '" fill="none"/>';
-  return svgFig(340, 252, pbPl([D2, D, C, C2], 'ffill', true) + el(B, C[0] - B[0], 'fl') + el(A, D[0] - A[0], 'fl2') + pbLn(O, D, 'fdash') + pbLn(O, D2, 'fdash') + pbLn(D, C) + pbLn(D2, C2) + pbLn(O, B, 'fdash') +
+  return svgFig(340, 246, pbPl([D2, D, C, C2], 'ffill', true) + el(B, C[0] - B[0], 'fl') + el(A, D[0] - A[0], 'fl2') + pbLn(O, D, 'fdash') + pbLn(O, D2, 'fdash') + pbLn(D, C) + pbLn(D2, C2) + pbLn(O, B, 'fdash') +
     pbLn(A, D) + pbLn(B, C) + pbRA(A, D, O, 7) + pbRA(B, C, O, 8) + [O, A, B, C, D].map(pbDot).join('') +
-    pbLab(O, 'O', pbDir(0, 1)) + pbLab(A, 'A', pbDir(-1, 0.3)) + pbLab(B, 'B', pbDir(-1, -0.25), 15) + pbLab(C, 'C', pbDir(1, -0.2)) + pbLab(D, 'D', pbDir(1, 0.1)),
+    pbTx([O[0], O[1] + 19], 'O') + pbTx([A[0] - 12, A[1] - 11], 'A') + pbTx([B[0] - 13, B[1] + 5], 'B') + pbLab(C, 'C', pbDir(1, -0.2)) + pbLab(D, 'D', pbDir(1, 0.1)),
     'Coupe d\'un cône de sommet O ; le gobelet est la partie entre les disques de rayons AD et BC');
 }
 pbProb({ id: 'p2.gobelet', ch: 'gm', lvl: 2, pts: 5,
@@ -577,7 +588,8 @@ pbProb({ id: 'p2.gobelet', ch: 'gm', lvl: 2, pts: 5,
         ['', 'OB=' + OA + '*' + BC + '/' + AD + '=' + OB, 'см']] },
       { q: L('Calculer le volume du grand cône de hauteur OB, en cm³, arrondi à l\'unité.', 'Вычисли объём большого конуса высотой OB в см³, округлив до единиц.'), ans: pbNR(Vb, 0, 'cm³'),
         redac: ['Le grand cône a pour rayon BC = ' + nf(BC) + ' cm et pour hauteur OB = ' + nf(OB) + ' cm.',
-          '$$V=' + pbDf('\\pi\\times R^2\\times H', 3) + '=' + pbDf('\\pi\\times ' + pbT(BC) + '^2\\times ' + pbT(OB), 3) + '\\approx ' + pbRd(Vb) + '$$',
+          '$$V=' + pbDf('\\pi\\times R^2\\times H', 3) + '$$',
+          '$$V=' + pbDf('\\pi\\times ' + pbT(BC) + '^2\\times ' + pbT(OB), 3) + '\\approx ' + pbRd(Vb) + '$$',
           'Le volume du grand cône est d\'environ ' + pbRd(Vb) + ' cm³.'], sol: [
         'Радиус основания большого конуса — BC = ' + nf(BC) + ' см, высота — OB = ' + nf(OB) + ' см.',
         { t: '', tex: 'V_2=\\dfrac{\\pi\\times ' + texNum(BC) + '^2\\times ' + texNum(OB) + '}{3}\\approx ' + texNum(pbK(Vb, 2)) + '\\text{ см}^3' },
@@ -588,11 +600,11 @@ pbProb({ id: 'p2.gobelet', ch: 'gm', lvl: 2, pts: 5,
           'При уменьшении с коэффициентом k все длины умножаются на k, площади — на k² (два измерения), объёмы — на k³ (три измерения: в формуле объёма радиус стоит дважды и ещё высота).',
           ['Поэтому', 'V_1=(' + kT + ')^3*V_2=' + k3T + '*V_2'],
           'Ошибка «объём умножается на k» — частая: кажется, что раз фигура в ' + nf(m) + ' раза меньше, то и объём в ' + nf(m) + ' раза меньше. Но уменьшается каждое из трёх измерений.'],
-        redac: ['Le petit cône est une réduction du grand cône de rapport $$k=' + pbDf('OA', 'OB') + '=' + pbDf(pbT(OA), pbT(OB)) + '=' + kX + '$$.',
+        redac: ['Rapport de la réduction : $$k=' + pbDf('OA', 'OB') + '=' + pbDf(pbT(OA), pbT(OB)) + '=' + kX + '$$.',
           'Dans une réduction de rapport k, les volumes sont multipliés par $k^3$.',
           'Donc $$V_1=' + (m === 3 ? '\\left(' + kX + '\\right)^3' : kX + '^3') + '\\times V_2=' + k3X + '\\times V_2$$.'] },
       { q: L('En déduire le volume du gobelet, en cm³, arrondi à l\'unité.', 'Найди объём стаканчика в см³, округлив до единиц.'), ans: pbNR(Vg, 0, 'cm³'),
-        redac: ['D\'après la question précédente : $$V_1=' + k3X + '\\times V_2\\approx ' + k3X + '\\times ' + pbRd(Vb) + '\\approx ' + pbRd(Vs) + '$$ (en cm³).',
+        redac: ['D\'après la question précédente (volumes en cm³) : $$V_1=' + k3X + '\\times V_2\\approx ' + k3X + '\\times ' + pbRd(Vb) + '\\approx ' + pbRd(Vs) + '$$.',
           'Le gobelet est le grand cône privé du petit cône : $$V_2-V_1\\approx ' + pbRd(Vb) + '-' + pbRd(Vs) + '=' + pbRd(Vg) + '$$.',
           'Le volume du gobelet est d\'environ ' + pbRd(Vg) + ' cm³.'], sol: [
         'Стаканчик — это большой конус без маленького: V = V₂ − V₁.',
@@ -636,7 +648,7 @@ pbProb({ id: 'p2.bonbons', ch: 'gm', lvl: 2, pts: 4,
     const { R, Lt, h, Vc, Vb, Vt } = d, nk = Math.round(n / 1000) * 1000;
     const ctx = L('Une confiserie fabrique des bonbons au goût réglisse. Chaque bonbon a la forme d\'une gélule de longueur totale ' + nf(Lt) + ' mm, formée d\'un cylindre de hauteur h et de deux demi-boules identiques de rayon R = ' + nf(R) + ' mm (voir le schéma). Rappels : volume d\'un cylindre $$V=\\pi\\times R^2\\times h$$ ; volume d\'une boule $$V=\\dfrac{4}{3}\\times\\pi\\times R^3$$ ; 1 L = 1 dm³.',
       'Кондитерская фабрика делает лакричные конфеты. Каждая конфета — капсула общей длиной ' + nf(Lt) + ' мм: цилиндр высотой h и две одинаковые полусферы радиусом R = ' + nf(R) + ' мм (см. схему). Напоминание: объём цилиндра $$V=\\pi\\times R^2\\times h$$; объём шара $$V=\\dfrac{4}{3}\\times\\pi\\times R^3$$; 1 л = 1 дм³.');
-    const Vs = nf(Vd), big = v => nf(v);
+    const Vs = nf(Vd), big = v => String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
     return { ctx, fig: pbBonFig(d), qs: [
       { q: L('Calculer la hauteur h du cylindre.', 'Вычисли высоту h цилиндра.'), ans: pbNE(h, 'mm'),
         redac: ['La longueur totale du bonbon est la somme de la hauteur du cylindre et de deux rayons (un pour chaque demi-boule).',
@@ -653,8 +665,8 @@ pbProb({ id: 'p2.bonbons', ch: 'gm', lvl: 2, pts: 4,
         'Округляем до единиц: ≈ ' + pbRd(Vc) + ' мм³.'] },
       { q: L('Calculer le volume total d\'un bonbon, arrondi au mm³.', 'Вычисли полный объём одной конфеты, округлив до мм³.'), ans: pbNR(Vt, 0, 'mm³'),
         redac: ['Les deux demi-boules forment une boule de rayon ' + nf(R) + ' mm.',
-          'Volume de la boule : $$' + pbDf(4, 3) + '\\times\\pi\\times ' + pbT(R) + '^3\\approx ' + pbRd(Vb) + '$$ (en mm³).',
-          'Volume total : $$' + pbRd(Vc) + '+' + pbRd(Vb) + '=' + pbRd(Vt) + '$$.',
+          'Volume de la boule (en mm³) : $$' + pbDf(4, 3) + '\\times\\pi\\times ' + pbT(R) + '^3\\approx ' + pbRd(Vb) + '$$.',
+          'Volume total (en mm³) : $$' + pbRd(Vc) + '+' + pbRd(Vb) + '=' + pbRd(Vt) + '$$.',
           'Le volume total d\'un bonbon est d\'environ ' + pbRd(Vt) + ' mm³.'], sol: [
         'Две одинаковые полусферы вместе составляют один целый шар радиуса R — это удобнее, чем считать половинки.',
         { t: 'Объём шара:', tex: '\\dfrac{4}{3}\\times\\pi\\times ' + texNum(R) + '^3\\approx ' + texNum(pbK(Vb, 2)) + '\\text{ мм}^3' },
@@ -668,11 +680,12 @@ pbProb({ id: 'p2.bonbons', ch: 'gm', lvl: 2, pts: 4,
         sol: ['1 л = 1 дм³ — это куб с ребром 1 дм. В 1 дм 100 мм, поэтому такой куб складывается из 100 × 100 × 100 = 1 000 000 кубиков по 1 мм³.',
           'Значит, ' + Vs + ' л = ' + Vs + ' × 1 000 000 мм³ = ' + big(Vd * 1e6) + ' мм³.',
           'Частые ошибки: 1 л = 1 000 см³ (а не мм³); множитель 100 годится для длин, а для объёмов его надо взять трижды; 1 м³ — это 1 000 л, а не 1 л.'],
-        redac: ['1 L = 1 dm³ et 1 dm = 100 mm, donc 1 dm³ = 100 × 100 × 100 mm³ = 1 000 000 mm³.',
-          'Donc ' + Vs + ' L = ' + Vs + ' × 1 000 000 mm³ = ' + big(Vd * 1e6) + ' mm³.'] },
+        redac: ['1 L = 1 dm³ et 1 dm = 100 mm.',
+          'Donc 1 dm³ = 1 000 000 mm³, car $$100\\times 100\\times 100=1\\,000\\,000$$.',
+          'Ainsi ' + Vs + ' L = ' + big(Vd * 1e6) + ' mm³, car $$' + Vd + '\\times 1\\,000\\,000=' + pbT(Vd * 1e6) + '$$.'] },
       { q: L('Combien de bonbons la confiserie peut-elle produire par jour avec ce mélange ? Arrondir au millier.', 'Сколько конфет фабрика может сделать за день из этой смеси? Округли до тысяч.'),
         ans: N(nk, { forms: ['approx'], tol: 0.006 }),
-        redac: ['On divise le volume de mélange par le volume d\'un bonbon, tous les deux en mm³ :',
+        redac: ['On divise le volume de mélange par le volume d\'un bonbon (tous les deux en mm³) :',
           '$$' + pbDf(pbT(Vd * 1e6), pbRd(Vt)) + '\\approx ' + pbT(Math.round(Vd * 1e6 / pbRd(Vt))) + '$$',
           'La confiserie peut produire environ ' + big(nk) + ' bonbons par jour.'], sol: [
         'Число конфет — во сколько раз объём смеси больше объёма одной конфеты. Объёмы должны быть в одних единицах — в мм³ (предыдущий вопрос).',
@@ -704,14 +717,14 @@ pbProb({ id: 'p2.potager', ch: 'gm', lvl: 1, pts: 4,
     const ci = c - 2, hmin = H * fr[0] / fr[1], V = ci * ci * hmin, VL = V / 1000, sacs = Math.ceil(VL / Ls - 1e-9);
     const frT = fr[0] + '/' + fr[1], frW = fr[0] === 2 ? 'aux deux tiers' : 'aux trois quarts', frR = fr[0] === 2 ? 'до двух третей' : 'до трёх четвертей';
     const ctx = L(nm + ' veut construire un carré potager sans fond, en forme de pavé droit à base carrée, de hauteur ' + H + ' cm. Chaque côté est formé de ' + nH + ' planches de ' + pbM(c) + ' m de long et de 15 cm de large, posées ' + (nH === 2 ? 'l\'une sur l\'autre' : 'les unes sur les autres') + '. Au magasin, les planches mesurent 2,50 m de long et 2 cm d\'épaisseur ; on les découpe. Dans chacun des 4 angles, on fixe une équerre avec ' + vis + ' vis. On remplit ensuite le carré de terre au minimum jusqu\'' + frW + ' de sa hauteur : la terre forme un pavé droit dont la base est un carré de ' + ci + ' cm de côté. Les tarifs du magasin sont donnés dans le tableau ci-dessous. Rappel : 1 L = 1 dm³.',
-      nm + ' хочет сделать грядку-короб без дна в форме прямоугольного параллелепипеда с квадратным основанием, высотой ' + H + ' см. Каждая сторона — ' + nH + ' доски длиной ' + pbM(c) + ' м и шириной 15 см, положенные одна на другую. В магазине доски длиной 2,50 м и толщиной 2 см; их распиливают. В каждом из 4 углов крепят уголок на ' + vis + ' шурупов. Потом короб засыпают землёй минимум ' + frR + ' высоты: земля образует прямоугольный параллелепипед с квадратным основанием со стороной ' + ci + ' см. Цены магазина — в таблице ниже: доска («planche»), уголок («équerre»), шурупы набором по 100 штук («vis, lot de 100»), мешок земли («sac de terre»). На рисунке — вид сверху («vue de dessus»), «terre» — земля. Напоминание: 1 л = 1 дм³.');
+      nm + ' хочет сделать грядку-короб без дна: это прямоугольный параллелепипед с квадратным основанием, высота ' + H + ' см. Каждая сторона — ' + nH + ' доски длиной ' + pbM(c) + ' м и шириной 15 см, одна на другой. В магазине доски длиной 2,50 м и толщиной 2 см; их распиливают. В каждом из 4 углов крепят уголок на ' + vis + ' шурупов. Короб засыпают землёй минимум ' + frR + ' высоты: слой земли — параллелепипед с квадратным основанием со стороной ' + ci + ' см. Цены — в таблице (шурупы — набором по 100 штук, земля — мешками); на рисунке — вид сверху. Напоминание: 1 л = 1 дм³.');
     const fig = tbl([['Article', 'Prix'], ['Planche 250 cm × 15 cm × 2 cm', eur(p1) + ' la pièce'], ['Équerre', eur(p2) + ' la pièce'], ['Vis (lot de 100)', eur(p3) + ' le lot'], ['Sac de terre de ' + Ls + ' L', eur(r.pick([6.9, 7.5])) + ' le sac']]) + pbPotFig(c, 2);
     const vt = (a, h) => a + '\\times ' + a + '\\times ' + pbT(h) + '=' + pbT(a * a * h);
     const vol = (a, h, div) => L('$$' + vt(a, h) + '$$ cm³, soit $$' + pbT(a * a * h / div) + '$$ L', '$$' + vt(a, h) + '$$ см³, то есть $$' + pbT(a * a * h / div) + '$$ л');
     return { ctx, fig, qs: [
       { q: L('Combien de planches de 2,50 m faut-il acheter ?', 'Сколько досок по 2,50 м нужно купить?'), ans: N(planks),
         redac: ['Chaque côté est formé de ' + nH + ' planches : il faut $4*' + nH + ' = ' + pieces + '$ planches de ' + pbM(c) + ' m.',
-          'Dans une planche de 2,50 m, on peut découper 2 planches de ' + pbM(c) + ' m (2 × ' + pbM(c) + ' m = ' + pbM(2 * c) + ' m), mais pas 3 (3 × ' + pbM(c) + ' m = ' + pbM(3 * c) + ' m).',
+          'Dans une planche de 2,50 m, on peut découper 2 planches de ' + pbM(c) + ' m, mais pas 3 : $2*' + fx(c / 100) + ' = ' + fx(2 * c / 100) + '$ et $3*' + fx(c / 100) + ' = ' + fx(3 * c / 100) + '$.',
           '$' + pieces + '÷2 = ' + planks + '$',
           'Il faut acheter ' + planks + ' planches de 2,50 m.'], sol: [
         'Нужно ' + nH + ' куска на сторону, сторон 4: всего ' + pieces + ' кусков по ' + pbM(c) + ' м.',
@@ -735,8 +748,8 @@ pbProb({ id: 'p2.potager', ch: 'gm', lvl: 1, pts: 4,
           { t: 'Объём:', tex: vt(ci, hmin) + '\\text{ см}^3' },
           '1 л = 1 дм³ = 10 × 10 × 10 = 1 000 см³, поэтому делим на 1 000: ' + nf(VL) + ' л.',
           'Типичные ошибки: взять всю высоту ' + H + ' см (а нужно лишь ' + frT + '), взять длину доски ' + c + ' см вместо внутренней стороны ' + ci + ' см, делить на 100 вместо 1 000.'],
-        redac: ['Hauteur minimale de terre : $' + frT + '*' + H + ' = ' + fx(hmin) + '$ (en cm).',
-          'Volume minimal de terre : $$' + vt(ci, hmin) + '$$ (en cm³).',
+        redac: ['Hauteur minimale de terre (en cm) : $$' + pbDf(fr[0], fr[1]) + '\\times ' + H + '=' + pbT(hmin) + '$$.',
+          'Volume minimal de terre (en cm³) : $$' + vt(ci, hmin) + '$$.',
           'Or 1 L = 1 dm³ = 1 000 cm³, donc le volume minimal de terre est de ' + nf(VL) + ' L.'] },
       { q: L('Combien de sacs de terre de ' + Ls + ' L faut-il acheter au minimum ?', 'Сколько мешков земли по ' + Ls + ' л нужно купить как минимум?'), ans: N(sacs),
         redac: ['$' + fx(VL) + '÷' + Ls + (pbIsD(VL / Ls, 2) ? ' = ' + fx(VL / Ls) : ' ≈ ' + pbK(VL / Ls, 2)) + '$',
@@ -792,16 +805,17 @@ pbProb({ id: 'p2.aquariums', ch: 'gm', lvl: 2, pts: 4,
       L('Les deux aquariums conviennent : ils contiennent environ ' + nf(pbRd(V1 * 10, 0)) + ' L et ' + nf(pbRd(V2 * 10, 0)) + ' L d\'eau, car 1 L = 100 cm³.', 'Подходят оба: в них примерно ' + nf(pbRd(V1 * 10, 0)) + ' л и ' + nf(pbRd(V2 * 10, 0)) + ' л воды, потому что 1 л = 100 см³.')];
     return { ctx, fig: pbAquFig({ d, H1, Lp, lp, H2, f }), qs: [
       { q: L('Calculer le volume d\'eau, en litres, contenu dans l\'aquarium 1. Arrondir au dixième.', 'Вычисли объём воды в аквариуме 1 в литрах. Округли до десятых.'), ans: pbNR(V1, 1, 'L'),
-        redac: ['Rayon du cylindre : $' + d + '÷2 = ' + rr + '$ (en cm). Hauteur d\'eau : $' + f[0] + '/' + f[1] + '*' + H1 + ' = ' + fx(h1) + '$ (en cm).',
-          '$$V_1=\\pi\\times ' + rr + '^2\\times ' + pbT(h1) + '\\approx ' + pbT(pbRd(V1 * 1000, 0)) + '$$ (en cm³).',
+        redac: ['Rayon du cylindre (en cm) : $' + d + '÷2 = ' + rr + '$.',
+          'Hauteur d\'eau (en cm) : $$' + pbDf(f[0], f[1]) + '\\times ' + H1 + '=' + pbT(h1) + '$$.',
+          'Volume d\'eau (en cm³) : $$\\pi\\times ' + rr + '^2\\times ' + pbT(h1) + '\\approx ' + pbT(pbRd(V1 * 1000, 0)) + '$$.',
           'Or 1 L = 1 dm³ = 1 000 cm³, donc l\'aquarium 1 contient environ ' + pbS(V1, 1) + ' L d\'eau.'], sol: [
         'Вода в цилиндре — тоже цилиндр: тот же радиус, но высота не ' + H1 + ' см, а только ' + f[0] + '/' + f[1] + ' от неё.',
         ['Радиус — половина диаметра, высота воды:', 'r=' + d + '/2=' + rr + ';h=' + f[0] + '/' + f[1] + '*' + H1 + '=' + fx(h1), 'см'],
         { t: '', tex: 'V=\\pi\\times ' + rr + '^2\\times ' + texNum(fx(h1)) + '\\approx ' + fmtBig(pbK(V1 * 1000, 1)) + '\\text{ см}^3' },
         '1 л = 1 дм³ = 10 × 10 × 10 = 1 000 см³, поэтому делим на 1 000: ≈ ' + pbS(V1, 1) + ' л.'] },
       { q: L('Calculer le volume d\'eau, en litres, contenu dans l\'aquarium 2. Arrondir au dixième si nécessaire.', 'Вычисли объём воды в аквариуме 2 в литрах. Если нужно, округли до десятых.'), ans: V2ex ? pbNE(V2, 'L') : pbNR(V2, 1, 'L'),
-        redac: ['Hauteur d\'eau : $' + f[0] + '/' + f[1] + '*' + H2 + ' = ' + fx(h2) + '$ (en cm).',
-          '$$V_2=' + Lp + '\\times ' + lp + '\\times ' + pbT(h2) + '=' + pbT(Lp * lp * h2) + '$$ (en cm³).',
+        redac: ['Hauteur d\'eau (en cm) : $$' + pbDf(f[0], f[1]) + '\\times ' + H2 + '=' + pbT(h2) + '$$.',
+          'Volume d\'eau (en cm³) : $$' + Lp + '\\times ' + lp + '\\times ' + pbT(h2) + '=' + pbT(Lp * lp * h2) + '$$.',
           V2ex ? 'Or 1 L = 1 000 cm³, donc l\'aquarium 2 contient ' + nf(V2) + ' L d\'eau.' : 'Or 1 L = 1 000 cm³, donc l\'aquarium 2 contient ' + nf(V2) + ' L, soit environ ' + pbS(V2, 1) + ' L d\'eau.'], sol: [
         'Вода занимает параллелепипед с тем же дном ' + Lp + ' × ' + lp + ' см и высотой ' + f[0] + '/' + f[1] + ' от ' + H2 + ' см.',
         ['', f[0] + '/' + f[1] + '*' + H2 + '=' + fx(h2), 'см'],
@@ -823,8 +837,8 @@ pbProb({ id: 'p2.aquariums', ch: 'gm', lvl: 2, pts: 4,
         { t: '', tex: 'h=\\dfrac{' + fmtBig(String(Vmin * 1000)) + '}{\\pi\\times ' + rr + '^2}\\approx ' + texNum(pbK(hx, 3)) + '\\text{ см}' },
         'Округляем до миллиметра (до десятых сантиметра): ≈ ' + pbS(hx, 1) + ' см. ' + (hx <= H1 ? 'Это не больше высоты аквариума (' + H1 + ' см): налить столько можно, но при обычном заполнении до ' + f[0] + '/' + f[1] + ' (' + nf(h1) + ' см) воды будет ' + (h1 >= hx ? 'достаточно.' : 'меньше нужного.') : 'Это больше высоты самого аквариума (' + H1 + ' см): столько воды в него вообще не поместится.')] },
       { q: L('Un poisson combattant coûte ' + pf + ' €. Une famille achète un poisson et l\'aquarium ' + s + ', vendu ' + pa + ' €. Le vendeur fait une réduction de ' + red + ' % sur le prix total. Combien la famille va-t-elle payer ?', 'Рыбка стоит ' + pf + ' €. Семья покупает рыбку и аквариум ' + s + ' за ' + pa + ' €. Продавец делает скидку ' + red + ' % на всю покупку. Сколько заплатит семья?'), ans: pbNE(pay, '€'),
-        redac: ['Prix total : $' + pf + ' + ' + pa + ' = ' + tot + '$, soit ' + tot + ' €.',
-          'Une réduction de ' + red + ' % revient à multiplier le prix par $1 - ' + red + '/100 = ' + fx((100 - red) / 100) + '$.',
+        redac: ['Prix total (en €) : $' + pf + ' + ' + pa + ' = ' + tot + '$.',
+          'Une réduction de ' + red + ' % revient à multiplier le prix par $$1-' + pbDf(red, 100) + '=' + pbT((100 - red) / 100) + '$$.',
           '$' + tot + '*' + fx((100 - red) / 100) + ' = ' + fx(pay) + '$',
           'La famille va payer ' + eur(r2(pay)) + '.'], sol: [
         ['Полная стоимость:', pf + '+' + pa + '=' + tot, '€'],
@@ -851,8 +865,8 @@ pbProb({ id: 'p2.playlist', ch: 'st', lvl: 1, pts: 4,
     const pr = PB_PRIMES.filter(p => p <= n), kp = pr.length;
     const ctx = L(nm + ' prépare pour son enfant une liste de ' + n + ' chansons : ' + a + ' chants de Noël, ' + b + ' comptines et des berceuses. Jouées à la suite, toutes ces chansons durent ' + T + ' minutes. Le lecteur est réglé en mode aléatoire : chaque chanson de la liste a la même chance d\'être jouée. Les chansons sont numérotées de 1 à ' + n + '.',
       nm + ' составляет для ребёнка список из ' + n + ' ' + pbRu(n, 'песни', 'песен', 'песен') + ': ' + a + ' ' + pbRu(a, 'рождественская песня', 'рождественские песни', 'рождественских песен') + ', ' + b + ' ' + pbRu(b, 'детская песенка', 'детские песенки', 'детских песенок') + ' и колыбельные. Если слушать подряд, все песни звучат ' + T + ' ' + pbRu(T, 'минуту', 'минуты', 'минут') + '. Плеер включён в режим случайного выбора: каждая песня списка может зазвучать с одинаковой вероятностью. Песни пронумерованы от 1 до ' + n + '.');
-    /* a decimal value for a comparison: « = 0.4 » when it is exact, « ≈ 0.36 » otherwise */
-    const dS = v => (pbIsD(v, 2) ? fx(v) : pbK(v, 2)), dv = v => (pbIsD(v, 2) ? ' = ' : ' ≈ ') + dS(v);
+    /* a decimal value for a comparison: « = 0.375 » when it is exact, « ≈ 0.36 » otherwise */
+    const dS = pbDS, dv = v => (pbIsD(v, 3) ? ' = ' : ' ≈ ') + pbDS(v);
     /* the three ways to count the primes, and the verdict each one gives */
     const cmpTx = (k, fr) => { const x = k * thr[1], y = n * thr[0], f = pbFr(k, n);
       const frac = k + '/' + n + (f !== k + '/' + n ? ' = ' + f : '');
@@ -1085,20 +1099,20 @@ pbProb({ id: 'p2.festival', ch: 'st', lvl: 2, pts: 4,
         'Смотрим на вторые (реальные) столбцы и подписи к ним: ' + R.join(', ') + '.',
         '«Supérieur ou égal» — больше или равно, поэтому значение, равное ' + thr + ', тоже считаем. Подходят: ' + R.filter(v => v >= thr).join(', ') + ' — всего ' + nThr + '.'] },
       { q: L('Calculer le pourcentage d\'augmentation entre le coût prévisionnel et le coût réel de l\'édition ' + years[e] + '. Arrondir à l\'unité.', 'Вычисли, на сколько процентов реальная стоимость фестиваля ' + years[e] + ' года больше плановой. Округли до целых.'), ans: pbNR(inc, 0, '%'),
-        redac: ['Augmentation du coût : $' + R[e] + ' - ' + P[e] + ' = ' + (R[e] - P[e]) + '$ (en k€).',
+        redac: ['Augmentation du coût (en k€) : $' + R[e] + ' - ' + P[e] + ' = ' + (R[e] - P[e]) + '$.',
           'On la compare au coût prévisionnel : $$' + pbDf(R[e] - P[e], P[e]) + '\\times 100' + (pbIsD(inc, 0) ? '=' : '\\approx ') + pbRd(inc) + '$$.',
           'Le pourcentage d\'augmentation est ' + (pbIsD(inc, 0) ? 'de ' : 'd\'environ ') + pbRd(inc) + ' %.'], sol: [
         'Процент увеличения считают от начального (планового) значения: (новое − старое) ÷ старое × 100.',
         ['', '(' + R[e] + '-' + P[e] + ')/' + P[e] + '*100≈' + pbK(inc, 2), '%'],
         'Округляем до целых: ≈ ' + pbRd(inc) + ' %. (Делить на реальную стоимость ' + R[e] + ' — частая ошибка: тогда получится уменьшение от реальной к плановой, другое число.)'] },
       { q: L('Calculer le coût réel moyen de ces six éditions, en k€. Arrondir au dixième si nécessaire.', 'Вычисли среднюю реальную стоимость этих шести фестивалей в k€. Если нужно, округли до десятых.'), ans: meanAns,
-        redac: ['Somme des six coûts réels : $' + R.join(' + ') + ' = ' + R.reduce((s, v) => s + v, 0) + '$ (en k€).',
+        redac: ['Somme des six coûts réels (en k€) : $' + R.join(' + ') + ' = ' + R.reduce((s, v) => s + v, 0) + '$.',
           'On divise par le nombre d\'éditions : $$' + pbDf(R.reduce((s, v) => s + v, 0), 6) + (meanEx ? '=' + pbT(mean) : '\\approx ' + texNum(pbK(mean, 1))) + '$$.',
           'Le coût réel moyen est ' + (meanEx ? 'de ' : 'd\'environ ') + meanT + ' k€.'], sol: [
         'Среднее («moyenne») — сумма всех значений, делённая на их количество.',
         ['', '(' + R.join('+') + ')/6=' + (R.reduce((s, v) => s + v, 0)) + '/6' + (meanEx ? '=' + fx(mean) : '≈' + pbK(mean, 2))],
         meanEx ? 'Средняя реальная стоимость — ' + nf(mean) + ' k€.' : 'Округляем до десятых: ≈ ' + pbS(mean, 1) + ' k€.'] },
-      { q: L('Un journaliste affirme : « Le coût réel moyen est d\'environ ' + meanT + ' k€, donc la moitié des éditions ont coûté plus de ' + meanT + ' k€. » Que penser de cette affirmation ?', 'Журналист говорит: «Средняя реальная стоимость — около ' + meanT + ' k€, значит, половина фестивалей стоила больше ' + meanT + ' k€». Что скажешь об этом утверждении?'), red: true,
+      { q: L('Un journaliste affirme : « Le coût réel moyen est ' + (meanEx ? 'de ' : 'd\'environ ') + meanT + ' k€, donc la moitié des éditions ont coûté plus de ' + meanT + ' k€. » Que penser de cette affirmation ?', 'Журналист говорит: «Средняя реальная стоимость — ' + (meanEx ? '' : 'около ') + meanT + ' k€, значит, половина фестивалей стоила больше ' + meanT + ' k€». Что скажешь об этом утверждении?'), red: true,
         ans: MQ(r, [L('Elle est fausse : seulement ' + above + ' édition' + (above > 1 ? 's' : '') + ' sur 6 ' + (above > 1 ? 'ont' : 'a') + ' coûté plus de ' + meanT + ' k€. C\'est la médiane, et non la moyenne, qui partage la série en deux groupes de même effectif.', 'Неверно: только ' + above + ' из 6 фестивалей ' + (above === 1 ? 'стоил' : 'стоили') + ' больше ' + meanT + ' k€. Ряд пополам делит медиана, а не среднее.'),
           L('Elle est vraie : la moyenne partage toujours une série en deux groupes de même effectif.', 'Верно: среднее всегда делит ряд на две равные по количеству части.'),
           L('Elle est vraie, car la moyenne d\'une série est toujours égale à sa médiane.', 'Верно, потому что среднее ряда всегда равно его медиане.'),
@@ -1107,8 +1121,8 @@ pbProb({ id: 'p2.festival', ch: 'st', lvl: 2, pts: 4,
           'Причина — один очень дорогой фестиваль (' + bigY + ', ' + Math.max(...R) + ' k€): он «тянет» среднее вверх, и большинство значений оказываются ниже среднего.',
           'Половину ряда отделяет медиана («médiane»): здесь (' + sorted[2] + ' + ' + sorted[3] + ') ÷ 2 = ' + nf(med) + ' k€. Среднее и медиана совпадают только в особых случаях. Плановая стоимость к вопросу не относится.'] },
       { q: L('Le coût prévisionnel moyen des sept éditions de ' + years[0] + ' à ' + yNew + ' est de ' + nf(mNew) + ' k€. Quel est le coût prévisionnel de l\'édition ' + yNew + ' ?', 'Средняя плановая стоимость семи фестивалей с ' + years[0] + ' по ' + yNew + ' год — ' + nf(mNew) + ' k€. Какова плановая стоимость фестиваля ' + yNew + ' года?'), ans: N(xNew, { unit: 'k€' }),
-        redac: ['Somme des sept coûts prévisionnels : $7*' + mNew + ' = ' + (7 * mNew) + '$ (en k€).',
-          'Somme des six coûts prévisionnels connus : $' + P.join(' + ') + ' = ' + sumP + '$ (en k€).',
+        redac: ['Somme des sept coûts prévisionnels (en k€) : $7*' + mNew + ' = ' + (7 * mNew) + '$.',
+          'Somme des six coûts prévisionnels connus (en k€) : $' + P.join(' + ') + ' = ' + sumP + '$.',
           '$' + (7 * mNew) + ' - ' + sumP + ' = ' + xNew + '$',
           'Le coût prévisionnel de l\'édition ' + yNew + ' est de ' + xNew + ' k€.'], sol: [
         'Если среднее семи значений равно ' + nf(mNew) + ', то их сумма равна 7 × ' + nf(mNew) + ' — так определяется среднее.',
@@ -1190,7 +1204,8 @@ pbProb({ id: 'p2.agrandissement', ch: 'gm', lvl: 2, pts: 5,
           'Dans un agrandissement de rapport k, les longueurs sont multipliées par k et les aires sont multipliées par $k^2$.',
           'Ici, le rapport est ' + kT + ' : l\'aire du triangle MAT est $' + fx(k) + '^2 = ' + fx(k2) + '$ fois plus grande que l\'aire du triangle MHS.'] },
       { q: L('Calculer l\'aire du triangle MAT.', 'Вычисли площадь треугольника MAT.'), ans: pbNE(pbRd(A2, 4), 'cm²'),
-        redac: ['Le triangle MAT est rectangle en T, donc son aire est $$' + pbDf('MT\\times AT', 2) + '=' + pbDf(pbT(MT) + '\\times ' + pbT(AT), 2) + '=' + pbT(pbRd(A2, 4)) + '$$.',
+        redac: ['Le triangle MAT est rectangle en T, donc son aire est $$' + pbDf('MT\\times AT', 2) + '$$.',
+          '$$' + pbDf(pbT(MT) + '\\times ' + pbT(AT), 2) + '=' + pbT(pbRd(A2, 4)) + '$$',
           'L\'aire du triangle MAT est de ' + nf(pbRd(A2, 4)) + ' cm².'], sol: [
         ['Площадь прямоугольного треугольника MHS — половина произведения катетов:', MH + '*' + HS + '/2=' + fx(A1), 'см²'],
         ['Площадь MAT больше в k² раз:', fx(A1) + '*' + fx(k) + '^2=' + fx(pbRd(A2, 4)), 'см²'],

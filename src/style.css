@@ -798,7 +798,7 @@ html.lesson .sol,html.lesson .redtx{font-size:18.5px}
 .prsol{margin:6px 0 0 1.9em;font-size:.95em}
 .prsol .sol .stp{font-size:1em}
 .prsol .redac{margin-top:6px}
-.prfoot{display:flex;justify-content:space-between;font-size:.72em;color:#7b8290;margin-top:14px;border-top:1px solid #c9ccd2;padding-top:4px}
+.prfoot{display:flex;justify-content:space-between;font-size:.78em;color:#7b8290;margin-top:14px;border-top:1px solid #c9ccd2;padding-top:4px}
 .prbreak{break-after:page;page-break-after:always;height:0}
 @media print{
   @page{size:A4;margin:14mm 14mm 15mm}

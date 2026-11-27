@@ -49,8 +49,22 @@ function paTy(s) {
   return String(s).split(/(\$\$[^$]*\$\$|\$[^$]*\$)/).map((p, i) => i % 2 ? p : p.replace(/ ([?!:;])/g, ' $1').replace(PA_TYU, '$1 ').replace(/(\d) (?=\d{3}(?!\d))/g, '$1 ')).join('');
 }
 /* in a write-up (redac) a short formula is never cut at the end of a line: «39 = 3 × 13» stays whole and the line breaks between
-   formulas. The formula is turned into TeX inside a group {…}, where KaTeX does not break; a fraction is one piece already. */
-const paNb = s => String(s).replace(/\$\$[^$]*\$\$|\$([^$]*)\$/g, (m, f) => (f == null || f.length > 18 || f.includes('/') ? m : '$${' + mi(f, true) + '}$$'));
+   formulas. The formula is turned into TeX inside a group {…}, where KaTeX does not break; a fraction is one piece already.
+   The unit written right after the formula («$…$ €», with a no-break space) and a full stop or a comma go into the group too,
+   so that they never start the next line alone. On a line of pure calculation (no sentence) fractions are written in full size,
+   as on paper; in a sentence they stay small. 360000 becomes 360 000. */
+const paTex = f => mi(f, true).replace(/\d{5,}/g, d => d.replace(/\B(?=(\d{3})+(?!\d))/g, '\\,'));
+function paNb(s) {
+  const calc = String(s).replace(/\$\$[^$]*\$\$|\$[^$]*\$/g, '').replace(/[^A-Za-zÀ-ÿ]/g, '').length < 4;
+  return String(s).replace(/\$\$[^$]*\$\$|\$([^$]*)\$(\u00a0[^\s.,;:!?$]+)?([.,]?)/g, (m, f, u, pt) => {
+    if (f == null) return m;
+    const big = calc && f.includes('/'); if (f.length > 22 && !big) return m;
+    const t = big ? paTex(f) : paTex(f).replace(/\\dfrac/g, '\\frac');
+    if (f.length > 22) return '$$' + t + '$$' + (u || '') + (pt || '');   /* a long line of fractions may still break at «=» */
+    /* the formula is a group of its own, so no extra space appears between «)» and the unit or the full stop */
+    return '$${{' + t + '}' + (u ? '\\text{ ' + u.slice(1).replace(/%/g, '\\%').replace(/²/g, '}^2\\text{').replace(/³/g, '}^3\\text{') + '}' : '') + (pt ? '\\text{' + pt + '}' : '') + '}$$';
+  });
+}
 const paTyT = o => (o && typeof o === 'object' && 'fr' in o ? { fr: paTy(o.fr), ru: paTy(o.ru) } : typeof o === 'string' ? paTy(o) : o);
 function paTyA(a) { if (!a) return a; if (a.k === 'mcq') a.opts = a.opts.map(paTyT); if (a.k === 'order') a.items = a.items.map(paTyT); if (a.k === 'multi') a.parts.forEach(p => { if (p.lab) p.lab = paTyT(p.lab); paTyA(p.spec); }); return a; }
 function paTyS(s) { if (typeof s === 'string') return paTy(s); if (Array.isArray(s)) return [paTy(s[0] || '')].concat(s.slice(1)); return s; }
@@ -318,14 +332,14 @@ paProb({ id: 'p2.ia-energie', ch: 'nc', lvl: 2, pts: 4,
           ['Сначала записываем ' + nf(X) + ' в стандартном виде, потом перемножаем степени десятки (показатели складываются):', X + '*10^9=' + sx.a + '*10^' + sx.e + '*10^9=' + stdStr(ia)],
           'Стандартный вид («écriture scientifique») — это $a*10^n$, где $1≤a<10$; здесь $a=' + sa.a + '$.'],
         redac: ['On sait que 1 GWh = $10^9$ Wh.',
-          nf(X) + ' GWh = $' + X + '*10^9$ Wh = $' + sx.a + '*10^' + sx.e + '*10^9$ Wh = $' + stdStr(ia) + '$ Wh.',
+          nf(X) + ' GWh = ' + nf(X) + ' × $10^9$ Wh = $' + sx.a + '*10^' + sx.e + '*10^9$ Wh = $' + stdStr(ia) + '$ Wh.',
           'La consommation annuelle de l\'IA est de $' + stdStr(ia) + '$ Wh.'] },
       { q: L('Convertir la consommation annuelle d\'un collège en wattheures, en écriture scientifique.', 'Переведи годовое потребление одного коллежа в ватт-часы, в стандартном виде.'),
         ans: N(stdStr(co), { forms: ['std'], unit: 'Wh' }), sol: [
           '1 кВт·ч = $10^3$ Вт·ч, поэтому умножаем на $10^3$.',
           ['', Y + '*10^3=' + sy.a + '*10^' + sy.e + '*10^3=' + stdStr(co)]],
         redac: ['On sait que 1 kWh = $10^3$ Wh.',
-          nf(Y) + ' kWh = $' + Y + '*10^3$ Wh = $' + sy.a + '*10^' + sy.e + '*10^3$ Wh = $' + stdStr(co) + '$ Wh.',
+          nf(Y) + ' kWh = ' + nf(Y) + ' × $10^3$ Wh = $' + sy.a + '*10^' + sy.e + '*10^3$ Wh = $' + stdStr(co) + '$ Wh.',
           'La consommation annuelle d\'un collège est de $' + stdStr(co) + '$ Wh.'] },
       { q: L('Pour savoir combien de collèges on pourrait alimenter pendant un an avec la consommation de l\'IA, quel calcul faut-il faire ? Choisir la proposition correctement justifiée.', 'Чтобы узнать, сколько коллежей можно целый год снабжать электричеством за счёт потребления ИИ, какое вычисление нужно сделать? Выбери вариант с верным обоснованием.'), red: true,
         ans: MQ(r, [
@@ -384,6 +398,8 @@ paProb({ id: 'p2.funiculaire', ch: 'pp', lvl: 2, pts: 5,
     const ctx = L('Un funiculaire est un moyen de transport sur rails, tiré par un câble, utilisé sur des lignes à forte pente. Le tableau donne ses tarifs : le tarif enfant est accordé aux enfants de 5 à 11 ans ; le tarif de groupe s\'applique à partir de 20 personnes (adultes et enfants).',
       'Фуникулёр — транспорт на рельсах, который тянет трос; его используют на крутых склонах. В таблице — тарифы: «Tarif individuel» — индивидуальный, «Tarif de groupe» — групповой (от 20 человек, взрослые и дети вместе), «aller simple» — в одну сторону, «aller-retour» — туда и обратно, «adulte» — взрослый, «enfant» — ребёнок (детский тариф — от 5 до 11 лет).');
     const dT = fx(T1 - T2);
+    /* the calculation offered in an option, with a full-size fraction: an economy (T1 − T2) or a price over a price, × 100 */
+    const fr3 = (n, dn) => '$$' + mi((n === T1 - T2 ? '(' + fx(T1) + '-' + fx(T2) + ')' : fx(n)) + '/' + fx(dn) + '*100', true) + '$$';
     return { ctx, fig, qs: [
       { q: L('Un groupe de ' + nA + ' adultes et ' + nE + ' enfants (âgés de 6 à 10 ans) fait un aller-retour en funiculaire. Quel est le prix à payer par le groupe avec le tarif individuel ?', 'Группа из ' + nA + ' взрослых и ' + nE + ' детей (от 6 до 10 лет) едет на фуникулёре туда и обратно. Сколько заплатит группа по индивидуальному тарифу?'),
         ans: N(fx(T1), { unit: '€' }), sol: [
@@ -400,14 +416,15 @@ paProb({ id: 'p2.funiculaire', ch: 'pp', lvl: 2, pts: 5,
           'Avec le tarif de groupe, le groupe paie ' + eur(T2) + '.'] },
       { q: L('Quel calcul donne le pourcentage de réduction obtenu avec le tarif de groupe par rapport au tarif individuel ? Choisir la bonne justification.', 'Какое вычисление даёт процент скидки группового тарифа по сравнению с индивидуальным? Выбери верное обоснование.'), red: true,
         ans: MQ(r, [
-          L('On divise l\'économie réalisée par le prix au tarif individuel, puis on multiplie par 100 : $(' + fx(T1) + '-' + fx(T2) + ')/' + fx(T1) + '*100$', 'Делим экономию на цену по индивидуальному тарифу и умножаем на 100: $(' + fx(T1) + '-' + fx(T2) + ')/' + fx(T1) + '*100$'),
-          L('On divise l\'économie réalisée par le prix au tarif de groupe, puis on multiplie par 100 : $(' + fx(T1) + '-' + fx(T2) + ')/' + fx(T2) + '*100$', 'Делим экономию на цену по групповому тарифу и умножаем на 100: $(' + fx(T1) + '-' + fx(T2) + ')/' + fx(T2) + '*100$'),
-          L('On divise le prix au tarif de groupe par le prix au tarif individuel, puis on multiplie par 100 : $' + fx(T2) + '/' + fx(T1) + '*100$', 'Делим цену по групповому тарифу на цену по индивидуальному и умножаем на 100: $' + fx(T2) + '/' + fx(T1) + '*100$'),
+          L('On divise l\'économie réalisée par le prix au tarif individuel, puis on multiplie par 100 : ' + fr3(T1 - T2, T1), 'Делим экономию на цену по индивидуальному тарифу и умножаем на 100: ' + fr3(T1 - T2, T1)),
+          L('On divise l\'économie réalisée par le prix au tarif de groupe, puis on multiplie par 100 : ' + fr3(T1 - T2, T2), 'Делим экономию на цену по групповому тарифу и умножаем на 100: ' + fr3(T1 - T2, T2)),
+          L('On divise le prix au tarif de groupe par le prix au tarif individuel, puis on multiplie par 100 : ' + fr3(T2, T1), 'Делим цену по групповому тарифу на цену по индивидуальному и умножаем на 100: ' + fr3(T2, T1)),
           L('On calcule la différence entre les deux prix : $' + fx(T1) + '-' + fx(T2) + '$', 'Считаем разность двух цен: $' + fx(T1) + '-' + fx(T2) + '$')], 0), sol: [
           'Процент скидки показывает, какую часть исходной цены составляет экономия. Исходная цена — та, с которой сравнивают: здесь это индивидуальный тариф. Поэтому экономию делим именно на него.',
           'Деление на групповую цену — частая ошибка: тогда сравнивают с новой ценой, а не с исходной. Частное ' + fx(T2).replace('.', ',') + ' ÷ ' + fx(T1).replace('.', ',') + ' × 100 — это процент, который группа всё-таки платит, а не скидка. А разность цен — это экономия в евро, а не в процентах.'],
         redac: ['La réduction se calcule par rapport au prix de départ, c\'est-à-dire le prix au tarif individuel.',
-          'On divise l\'économie réalisée par ce prix, puis on multiplie par 100 : $(' + fx(T1) + '-' + fx(T2) + ')/' + fx(T1) + '*100$.'] },
+          'On divise l\'économie réalisée par ce prix, puis on multiplie par 100 :',
+          '$(' + fx(T1) + '-' + fx(T2) + ')/' + fx(T1) + '*100$'] },
       { q: L('Calculer ce pourcentage de réduction.' + pn.fr, 'Вычисли этот процент скидки.' + pn.ru), ans: pn.ans, sol: [
           ['Экономия группы:', fx(T1) + '-' + fx(T2) + '=' + dT, '€'],
           ['Её доля от индивидуальной цены, в процентах:', dT + '/' + fx(T1) + '*100' + pn.eq + (pn.eq === '=' ? fx(pct) : paK(pct, 1)), '%'],
@@ -429,7 +446,8 @@ paProb({ id: 'p2.funiculaire', ch: 'pp', lvl: 2, pts: 5,
           ['Значит, горизонтальная длина = перепад высот ÷ уклон:', h + '÷' + fx(p / 100) + '=' + Lh, 'м'],
           ['Проверка:', h + '÷' + Lh + '=' + fx(p / 100)],
           'Типичная ошибка — умножить ' + h + ' на ' + nf(p / 100) + ': получится ' + nf(h * p / 100) + ' м, меньше перепада высот, а при уклоне меньше 100 % горизонтальная длина всегда больше перепада.'],
-        redac: ['On sait que pente = dénivelé ÷ longueur horizontale, donc $' + p + '/100=' + h + '/AC$.',
+        redac: ['On sait que pente = dénivelé ÷ longueur horizontale, donc :',
+          '$' + p + '/100=' + h + '/AC$',
           '$AC=' + h + '*100÷' + p + '=' + Lh + '$',
           'La longueur horizontale AC est de ' + Lh + ' m.'] }] };
   } });
@@ -525,15 +543,17 @@ paProb({ id: 'p2.promo-bonbons', ch: 'pp', lvl: 1, pts: 3,
         ans: MQ(r, [
           L('Le format ' + best + ', car pour ' + M + ' kg on paie ' + eur(TX) + ' au lieu de ' + eur(TY) + '.', 'Формат ' + best + ', потому что за ' + M + ' кг платим ' + eur(TX) + ' вместо ' + eur(TY) + '.'),
           L('Le format B, car un sachet B coûte moins cher qu\'un sachet A : ' + eur(pB) + ' < ' + eur(pA) + '.', 'Формат B, потому что пакет B дешевле пакета A: ' + eur(pB) + ' < ' + eur(pA) + '.'),
-          L('Le format ' + (TA < nB * pB ? 'A' : 'B') + ', car ' + nA + ' sachets A coûtent ' + eur(TA) + ' et ' + nB + ' sachets B coûtent ' + eur(nB * pB) + '.', 'Формат ' + (TA < nB * pB ? 'A' : 'B') + ', потому что ' + nP(nA) + ' A стоят ' + eur(TA) + ', а ' + nP(nB) + ' B — ' + eur(nB * pB) + '.'),
+          /* the offer is forgotten; when format B is cheaper even without the offer, that reasoning would not be wrong — another typical error instead */
+          TA < nB * pB ? L('Le format A, car ' + nA + ' sachets A coûtent ' + eur(TA) + ' et ' + nB + ' sachets B coûtent ' + eur(nB * pB) + '.', 'Формат A, потому что ' + nP(nA) + ' A стоят ' + eur(TA) + ', а ' + nP(nB) + ' B — ' + eur(nB * pB) + '.')
+            : L('Le format A, car il faut acheter moins de sachets : ' + nA + ' au lieu de ' + nB + '.', 'Формат A, потому что пакетов нужно меньше: ' + nA + ' вместо ' + nB + '.'),
           L('Le format B, car avec l\'offre tous les sachets B sont moins chers.', 'Формат B, потому что по акции все пакеты B дешевле.')], 0), sol: [
           'Сравнивать нужно цену одного и того же количества конфет — ' + M + ' кг — с учётом акции: ' + eur(TA) + ' (формат A) и ' + eur(TB) + ' (формат B).',
-          'Цены пакетов сравнивать нельзя: в пакете B вдвое меньше конфет. Без учёта акции цена формата B (' + eur(nB * pB) + ') неверна. А акция снижает цену только части пакетов, а не всех.'],
+          'Цены пакетов сравнивать нельзя: в пакете B вдвое меньше конфет. ' + (TA < nB * pB ? 'Без учёта акции цена формата B (' + eur(nB * pB) + ') неверна. ' : 'Меньше пакетов — не значит дешевле: сравнивают сумму, которую платят за ' + M + ' кг. ') + 'А акция снижает цену только части пакетов, а не всех.'],
         redac: ['Pour ' + M + ' kg de bonbons, on paie ' + eur(TA) + ' avec le format A et ' + eur(TB) + ' avec le format B, en profitant de l\'offre.',
           'Comme $' + fx(TX) + '<' + fx(TY) + '$, ' + nm + ' doit choisir le format ' + best + ' pour payer le moins cher possible.'] },
       { q: L('Pour un lot de ' + OF[0] + ' sachets B, quel pourcentage de réduction cette offre représente-t-elle ?' + pn.fr, 'Какую скидку в процентах даёт акция на ' + nP(OF[0]) + ' B?' + pn.ru),
         ans: pn.ans, sol: [
-          'Процент скидки — это доля экономии от цены без акции. Если один пакет стоит $p$, то ' + nP(OF[0]) + ' без акции стоят $' + OF[0] + 'p$, а акция экономит ' + (OF[1] ? 'половину цены одного пакета, $0.5p$' : 'цену одного пакета, $p$') + '. При делении $p$ сокращается, поэтому ответ не зависит от цены пакета.',
+          'Процент скидки — это доля экономии от цены без акции. Пусть один пакет стоит $p$ евро. Тогда без акции за ' + nP(OF[0]) + ' платят $' + OF[0] + 'p$ евро, а акция экономит ' + (OF[1] ? 'половину цены одного пакета: $0.5p$ евро' : 'цену одного пакета: $p$ евро') + '. При делении буква $p$ сокращается, поэтому ответ не зависит от цены пакета.',
           ['Доля экономии в процентах:', (OF[1] ? '0.5' : '1') + '/' + OF[0] + '*100' + pn.eq + (pn.eq === '=' ? fx(pct) : paK(pct, 1)), '%'],
           'Частая ошибка — ответить «' + (OF[1] ? '50' : '100') + ' %»: скидка касается только одного пакета из ' + OF[0] + ', а не всей покупки.'],
         redac: ['Sans l\'offre, ' + OF[0] + ' sachets B coûtent $' + OF[0] + '*' + fx(pB) + '=' + fx(OF[0] * pB) + '$ €.',
@@ -618,13 +638,14 @@ paProb({ id: 'p2.prog-identite', ch: 'cl', lvl: 2, pts: 4,
   ru: 'Программа и её секрет', fr: 'Un programme de calcul surprenant',
   src: 'Métropole 2020 · exercice 2',
   gen(r) {
-    const a = r.ri(3, 9), c = r.ri(1, 6), b = a * a + c, k = r.ri(3, 10);
+    const a = r.ri(3, 9), c = r.ri(1, 6), b = a * a + c;
+    let k; do k = r.ri(3, 10); while (k === a);   /* with −a one factor would be 0 and the result would be the number added at the end */
     let s; do s = r.ri(3, 9); while (s === k);   /* not 2 and not k: the last answer must not be a number already tested in questions 1 and 2 */
     const R = s * s + c;
     const fig = paTbl([['Programme de calcul'], ['Choisir un nombre.'], ['Ajouter ' + a + ' à ce nombre.'], ['Soustraire ' + a + ' au nombre choisi au départ.'], ['Multiplier les deux résultats précédents.'], ['Ajouter ' + b + '.']]);
     const ctx = L('On considère le programme de calcul suivant.',
       'Дана программа вычислений: выбрать число; прибавить к нему ' + a + '; вычесть ' + a + ' из исходного числа; перемножить два полученных результата; прибавить ' + b + '.');
-    const run = x => [x + '+' + a + '=' + (x + a), x + '-' + a + '=' + (x - a), np(x + a) + '*' + np(x - a) + '=' + ((x + a) * (x - a)), np((x + a) * (x - a)) + '+' + b + '=' + ((x + a) * (x - a) + b)].join(';');
+    const run = x => [x + '+' + a + '=' + (x + a), x + '-' + a + '=' + (x - a), np(x + a) + '*' + np(x - a) + '=' + ((x + a) * (x - a)), ((x + a) * (x - a)) + '+' + b + '=' + ((x + a) * (x - a) + b)].join(';');
     return { ctx, fig, qs: [
       { q: L('Quel résultat obtient-on si le nombre choisi au départ est 2 ?', 'Какой результат получится, если выбрать число 2?'), ans: N(4 + c), sol: [
           'Две ветки программы считаем отдельно: «прибавить ' + a + '» и «вычесть ' + a + '» применяются к исходному числу 2, потом результаты перемножаем.',
@@ -632,7 +653,7 @@ paProb({ id: 'p2.prog-identite', ch: 'cl', lvl: 2, pts: 4,
         redac: [paEqs(run(2)) + '.', 'Si le nombre choisi au départ est 2, on obtient ' + (4 + c) + '.'] },
       { q: L('Quel résultat obtient-on si le nombre choisi au départ est $-' + k + '$ ?', 'Какой результат получится, если выбрать число $-' + k + '$?'), ans: N(k * k + c), sol: [
           ['', run(-k)],
-          k > a ? 'Произведение двух отрицательных чисел положительно.' : k === a ? 'Один из множителей равен 0, поэтому и произведение равно 0.' : 'Множители разных знаков, поэтому произведение отрицательно.'],
+          k > a ? 'Оба множителя отрицательны, а произведение двух отрицательных чисел положительно.' : 'Множители разных знаков, поэтому их произведение отрицательно.'],
         redac: [paEqs(run(-k)) + '.', 'Si le nombre choisi au départ est $-' + k + '$, on obtient ' + (k * k + c) + '.'] },
       { q: L('Un élève remarque qu\'en calculant le double de 2 et en ajoutant ' + c + ', il obtient ' + (4 + c) + ', le même résultat qu\'à la question 1. Il pense que le programme revient à calculer le double du nombre de départ, puis à ajouter ' + c + '. A-t-il raison ? Choisir la réponse correctement justifiée.',
           'Ученик заметил: если удвоить 2 и прибавить ' + c + ', получится ' + (4 + c) + ' — как в вопросе 1. Он думает, что программа сводится к тому, чтобы удвоить исходное число и прибавить ' + c + '. Прав ли он? Выбери ответ с верным обоснованием.'), red: true,
@@ -653,9 +674,10 @@ paProb({ id: 'p2.prog-identite', ch: 'cl', lvl: 2, pts: 4,
           ['Раскрываем скобки: каждое слагаемое первой скобки умножаем на каждое слагаемое второй:', 'x^2-' + a + 'x+' + a + 'x-' + (a * a) + '+' + b],
           ['$-' + a + 'x$ и $+' + a + 'x$ взаимно уничтожаются (это формула $(x+a)(x-a)=x^2-a^2$):', 'x^2-' + (a * a) + '+' + b + '=x^2+' + c],
           'Так видно, почему ученик ошибся: программа даёт квадрат числа плюс ' + c + ', а не удвоенное число плюс ' + c + '. Они совпадают только при $x=0$ и $x=2$.'],
-        redac: ['Le programme donne $(x+' + a + ')(x-' + a + ')+' + b + '$.',
-          'Or $(x+' + a + ')(x-' + a + ')=x^2-' + a + 'x+' + a + 'x-' + (a * a) + '=x^2-' + (a * a) + '$.',
-          'Le résultat du programme est donc $x^2-' + (a * a) + '+' + b + '=x^2+' + c + '$.'] },
+        redac: ['Le programme donne $(x+' + a + ')(x-' + a + ')+' + b + '$. On développe le produit :',
+          '$(x+' + a + ')(x-' + a + ')=x^2-' + a + 'x+' + a + 'x-' + (a * a) + '$',
+          '$=x^2-' + (a * a) + '$',
+          'Le résultat du programme est donc $x^2-' + (a * a) + '+' + b + '$, soit $x^2+' + c + '$.'] },
       { q: L('Quel(s) nombre(s) doit-on choisir au départ pour obtenir ' + R + ' comme résultat ?', 'Какое число (или какие числа) нужно выбрать, чтобы получить результат ' + R + '?'),
         ans: SOL(s + ', ' + (-s)), sol: [
           ['Результат равен $x^2+' + c + '$, решаем уравнение:', 'x^2+' + c + '=' + R],
@@ -680,13 +702,13 @@ paProb({ id: 'p2.prime-course', ch: 'cl', lvl: 1, pts: 3,
       { q: L('Si le deuxième recevait ' + t + ' euros, quelle serait la somme des trois primes ?', 'Если бы второй получил ' + t + ' евро, какой была бы сумма трёх призов?'), ans: N(Pt, { unit: '€' }), sol: [
           ['Первый получил бы ' + t + ' + ' + d1 + ', третий ' + t + ' − ' + d3 + ':', t + '+' + (t + d1) + '+' + (t - d3) + '=' + Pt, '€'],
           'Это ' + (Pt < P ? 'меньше' : 'больше') + ', чем ' + P + ' €, — значит, второй получает не ' + t + ' €, а ' + (Pt < P ? 'больше' : 'меньше') + '. Подбирать дальше долго, поэтому составим уравнение.'],
-        redac: ['Le premier recevrait $' + t + '+' + d1 + '=' + (t + d1) + '$ euros et le troisième $' + t + '-' + d3 + '=' + (t - d3) + '$ euros.',
+        redac: ['Le premier recevrait $' + t + '+' + d1 + '=' + (t + d1) + '$ euros et le troisième $' + t + '-' + d3 + '=' + (t - d3) + '$ euros.',
           '$' + (t + d1) + '+' + t + '+' + (t - d3) + '=' + Pt + '$',
           'La somme des trois primes serait de ' + Pt + ' euros.'] },
       { q: L('On note $x$ la prime du deuxième coureur, en euros. Quelle équation traduit le problème ?', 'Обозначим приз второго гонщика $x$ (в евро). Какое уравнение описывает задачу?'), red: true,
         ans: MQ(r, ['$' + eq + '$', '$x+(x-' + d1 + ')+(x+' + d3 + ')=' + P + '$', '$(x+' + d1 + ')+(x-' + d3 + ')=' + P + '$', '$3x=' + P + '$'], 0), sol: [
           'Первый получает на ' + d1 + ' больше второго: $x+' + d1 + '$. Третий — на ' + d3 + ' меньше: $x-' + d3 + '$. Сумма всех трёх призов (включая приз самого второго, $x$) равна ' + P + '.',
-          'Ошибки: перепутать «больше» и «меньше»; забыть приз второго гонщика; разделить фонд поровну ($3x$) — но призы разные.'],
+          'Ошибки в других вариантах: перепутаны «больше» и «меньше»; забыт приз самого второго гонщика; фонд разделён поровну — уравнение $3x=' + P + '$ годилось бы только для трёх одинаковых призов.'],
         redac: ['Le premier reçoit ' + d1 + ' euros de plus que le deuxième, soit $x+' + d1 + '$ ; le troisième reçoit ' + d3 + ' euros de moins que le deuxième, soit $x-' + d3 + '$.',
           'La somme des trois primes est égale à ' + P + ' euros : $' + eq + '$.'] },
       { q: L('Résoudre cette équation. Quelle est la prime du deuxième coureur ?', 'Реши это уравнение. Какой приз у второго гонщика?'), ans: N(x, { unit: '€' }), sol: [

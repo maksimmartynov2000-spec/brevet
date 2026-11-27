@@ -86,7 +86,7 @@ function codeSheet(forTutor) {
     : 'В коде весь твой прогресс. Отправь его ' + esc(APP.tutorTo) + ' в Telegram или WhatsApp: так прогресс сохранится у него, и на уроке он продолжит его вместе с тобой. Потом он пришлёт код обратно — вставь его здесь же, «Я → Вставить код».') + '</p>' +
     '<textarea class="inp plain code" rows="4" readonly aria-label="код прогресса">' + esc(text) + '</textarea><div class="row">' +
     (navigator.share ? '<button class="btn primary" id="cShare">' + ico('share') + 'Отправить</button>' : '') + '<button class="btn' + (navigator.share ? '' : ' primary') + '" id="cCopy">Скопировать</button></div>');
-  const done = () => { DB.bk = { at: Date.now(), n: totalTasks() }; save(); };
+  const done = () => { DB.bk = { at: Date.now(), n: totalTasks() }; DB.hwAsk = 0; save(); };
   $('#cCopy', sh).onclick = () => { copyText(text); done(); };
   if ($('#cShare', sh)) $('#cShare', sh).onclick = () => navigator.share({ text }).then(() => { done(); closeSheet(); toast('Код отправлен'); route(); }).catch(() => { /* closed the share sheet */ });
 }
@@ -176,7 +176,7 @@ function hwCard() {
   const hw = DB.hw; if (!hw || !hw.items.length) return '';
   const tot = hwTotals(hw);
   if (hw.doneAt) {
-    if ((DB.bk.at || 0) >= hw.doneAt) return '';
+    if (DB.hwAsk !== hw.id) return '';
     return '<section class="card guide hwc"><div class="cont"><span class="lic">' + ico('check') + '</span><span class="lt"><b>Домашнее задание выполнено</b><span class="muted">Отправь код ' + esc(APP.tutorTo) + ' — он увидит, что всё сделано: ' + tot.done + ' из ' + tot.n + ', верно с первой попытки ' + tot.ok + '.</span></span></div><button class="btn primary" id="bHwCode">' + ico('share') + 'Отправить код</button></section>';
   }
   const left = hw.items.filter(it => hwItemAlive(it) && !hwItemDone(it));
@@ -185,7 +185,7 @@ function hwCard() {
     '<div class="row"><a class="btn primary" href="' + hwNextStep() + '">' + ico('play') + (tot.done ? 'Продолжить' : 'Начать') + '</a><a class="btn ghost" href="#/hw">Всё задание</a></div></section>';
 }
 /* the reminder: first after 10 answers, then once a week if 30 more answers were added */
-function backupDue() { const n = totalTasks(); if (DB.hw && DB.hw.doneAt && (DB.bk.at || 0) < DB.hw.doneAt) return false; return DB.bk.at ? n - (DB.bk.n || 0) >= 30 && Date.now() - DB.bk.at > 7 * 864e5 : n >= 10; }
+function backupDue() { const n = totalTasks(); if (DB.hw && DB.hwAsk === DB.hw.id) return false; return DB.bk.at ? n - (DB.bk.n || 0) >= 30 && Date.now() - DB.bk.at > 7 * 864e5 : n >= 10; }
 function warnHtml() { return SAVE_FAIL ? '<section class="card warnc"><b>Не получается сохранить прогресс</b><p class="muted">Память браузера переполнена. Сохрани копию файлом («Я → Данные и копии») и освободи место на устройстве.</p></section>' : ''; }
 function syncWarn() { const a = $('#app'); if (a && SAVE_FAIL && !$('.warnc')) a.insertAdjacentHTML('afterbegin', warnHtml()); }
 
