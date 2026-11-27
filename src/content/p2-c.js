@@ -128,7 +128,7 @@ pcProb({ id: 'p2.triangle-hauteur', ch: 'ge', lvl: 2, pts: 4,
           'Остальные варианты — определения других прямых. Через вершину и середину противоположной стороны проходит медиана («médiane»). Перпендикуляр к стороне через её середину — серединный перпендикуляр («médiatrice»; слово похоже на «медиану», но это другая прямая). Прямая, которая делит угол пополам, — биссектриса («bissectrice»).',
           'В этом треугольнике все четыре прямые совпадут (это пригодится в следующем вопросе). Но определение высоты — только первое: оно говорит, что именно делает прямую высотой.'],
         redac: ['Dans le triangle ' + tEFK + ', la hauteur issue de ' + nE + ' est la droite qui passe par le sommet ' + nE + ' et qui est perpendiculaire à la droite (' + sFK + ').'] },
-      { q: L('On appelle ' + nH + ' le pied de la hauteur issue de ' + nE + ' dans le triangle ' + tEFK + '. Déterminer la longueur ' + sHF + ', puis la longueur ' + sGH + '.',
+      { q: L('Soit ' + nH + ' le pied de la hauteur issue de ' + nE + ' dans le triangle ' + tEFK + '. Calculer la longueur ' + sHF + ', puis la longueur ' + sGH + '.',
           'Пусть ' + nH + ' — основание высоты, проведённой из ' + nE + ' в треугольнике ' + tEFK + '. Найди длину ' + sHF + ', затем длину ' + sGH + '.'), fig: pcTriFig(a, nm, mir, 1),
         ans: multi([sHF + ' =', pcNE(HF, 'cm')], [sGH + ' =', pcNE(GH, 'cm')]),
         sol: [
@@ -138,8 +138,8 @@ pcProb({ id: 'p2.triangle-hauteur', ch: 'ge', lvl: 2, pts: 4,
           ['Точка ' + nH + ' лежит на отрезке [' + sFG + '], поэтому [' + sGH + '] — это весь отрезок [' + sFG + '] без куска [' + sHF + ']:', sGH + '=' + sFG + '-' + sHF + '=' + (2 * a) + '-' + fx(HF) + '=' + fx(GH), 'см']],
         redac: ['D\'après le codage, ' + sEF + ' = ' + sEK + ' : le point ' + nE + ' est équidistant de ' + nF + ' et de ' + nK + ', donc il appartient à la médiatrice du segment [' + sFK + '].',
           'Cette médiatrice passe par ' + nE + ' et elle est perpendiculaire à (' + sFK + ') : c\'est la hauteur issue de ' + nE + '. Elle coupe [' + sFK + '] en son milieu, donc ' + nH + ' est le milieu de [' + sFK + '].',
-          '$' + sHF + '=' + sFK + '÷2=' + a + '÷2=' + fx(HF) + '$',
-          nH + ' appartient au segment [' + sFG + '], donc $' + sGH + '=' + sFG + '-' + sHF + '=' + (2 * a) + '-' + fx(HF) + '=' + fx(GH) + '$.',
+          '$' + sHF + '=' + a + '÷2=' + fx(HF) + '$',
+          nH + ' appartient au segment [' + sFG + '], donc $' + sGH + '=' + sFG + '-' + sHF + '$, soit $' + sGH + '=' + (2 * a) + '-' + fx(HF) + '=' + fx(GH) + '$.',
           'Donc ' + sHF + ' = ' + nf(HF) + ' cm et ' + sGH + ' = ' + nf(GH) + ' cm.'] },
       { q: L('Calculer la longueur ' + sEH + '. Arrondir au centième.', 'Вычисли длину ' + sEH + '. Округли до сотых.'), ans: pcNR(EHv, 2, 'cm'),
         sol: [
@@ -242,7 +242,7 @@ pcProb({ id: 'p2.jetons-sac', ch: 'st', lvl: 2, pts: 4,
           'Пусть добавили $x$ ' + c4[3] + ' жетонов. Тогда всего в мешке стало $' + n + '+x$ жетонов, и ' + c4[3] + ' среди них ровно $x$ (раньше таких не было).',
           ['Вероятность вынуть ' + c4[2] + ' жетон — это доля таких жетонов среди всех:', 'x/(' + n + '+x)=1/' + k],
           ['Умножаем обе части на $' + k + '(' + n + '+x)$, чтобы избавиться от знаменателей, и собираем $x$ в одной части:', k + 'x=' + n + '+x;' + (k - 1) + 'x=' + n + ';x=' + x],
-          'Можно рассуждать и без уравнения: новые жетоны составляют $1/' + k + '$ всех, значит, прежние ' + n + ' ' + jet(n) + ' — это $' + (k - 1) + '/' + k + '$ всех. Одна такая доля — $' + n + '÷' + (k - 1) + '=' + x + '$ ' + jet(x) + '.',
+          'Можно рассуждать и без уравнения: новые жетоны составляют $1/' + k + '$ всех, значит, прежние ' + n + ' ' + jet(n) + ' — это $' + (k - 1) + '/' + k + '$ всех. Тогда $1/' + k + '$ всех — это $' + n + '÷' + (k - 1) + '=' + x + '$ ' + jet(x) + '.',
           ['Проверка: в мешке стало ' + (n + x) + ' ' + jet(n + x) + ', из них новых — ' + x + ':', x + '/' + (n + x) + '=1/' + k]],
         redac: ['Soit $x$ le nombre de jetons ' + c4[1] + ' ajoutés. Le sac contient alors $' + n + '+x$ jetons, dont $x$ jetons ' + c4[1] + '.',
           'La probabilité de tirer un jeton ' + c4[0] + ' est donc $x/(' + n + '+x)$. On résout l\'équation $x/(' + n + '+x)=1/' + k + '$.',
@@ -442,9 +442,9 @@ pcProb({ id: 'p2.prog-produit', ch: 'cl', lvl: 2, pts: 4,
           'On soustrait ' + c + ' : le résultat du programme est $' + prog + '$, c\'est-à-dire $' + dev + '$.'] },
       { q: L('On veut montrer que le résultat du programme peut s\'écrire $' + fac + '$. Remettre dans l\'ordre les étapes de la démonstration.', 'Нужно показать, что результат программы можно записать в виде $' + fac + '$. Расставь шаги доказательства по порядку.'), red: true,
         ans: ORD(r, [
-          L('D\'une part, le résultat du programme est $' + prog + '=' + dev + '$.', 'С одной стороны, результат программы равен $' + prog + '=' + dev + '$.'),
-          L('D\'autre part, on développe : $' + fac + '=' + brut + '$.', 'С другой стороны, раскрываем скобки: $' + fac + '=' + brut + '$.'),
-          L('On réduit : $' + fac + '=' + dev + '$.', 'Приводим подобные слагаемые: $' + fac + '=' + dev + '$.'),
+          L('D\'une part, le résultat du programme est $' + prog + '$, c\'est-à-dire $' + dev + '$.', 'С одной стороны, результат программы равен $' + prog + '$, то есть $' + dev + '$.'),
+          L('D\'autre part, on développe le produit $' + fac + '$ : on obtient $' + brut + '$.', 'С другой стороны, раскрываем скобки в произведении $' + fac + '$: получаем $' + brut + '$.'),
+          L('En réduisant, on trouve $' + fac + '=' + dev + '$.', 'Приводим подобные слагаемые: $' + fac + '=' + dev + '$.'),
           L('Les deux expressions sont égales, donc le résultat du programme peut s\'écrire $' + fac + '$.', 'Оба выражения равны, значит, результат программы можно записать в виде $' + fac + '$.')]),
         sol: [
           'Чтобы показать, что два выражения равны при любом $x$, оба приводят к одному и тому же виду — здесь к раскрытому.',
@@ -536,9 +536,10 @@ pcProb({ id: 'p2.prog-carre', ch: 'cl', lvl: 2, pts: 3,
           ['Результат программы — $' + prog + '$. Раскроем скобки в произведении: каждое слагаемое первой скобки умножаем на каждое слагаемое второй:', fac + '=' + dev],
           'Слагаемые $-' + (a * b) + 'x$ и $+' + (a * b) + 'x$ взаимно уничтожаются, остаётся $' + dev + '$ — ровно результат программы.',
           'В квадратах суммы и разности удвоенное произведение не исчезает: $' + fP + '^2=' + (a * a) + 'x^2+' + (2 * a * b) + 'x+' + b2 + '$, $' + fM + '^2=' + (a * a) + 'x^2-' + (2 * a * b) + 'x+' + b2 + '$. А число ' + nf(R1) + ' получается только при $x=' + t + '$ (и при $x=-' + t + '$), а не при любом $x$.'],
-        redac: ['Le résultat du programme est $' + prog + '=' + dev + '$.',
-          'On développe : $' + fac + '=' + (a * a) + 'x^2+' + (a * b) + 'x-' + (a * b) + 'x-' + b2 + '$, donc $' + fac + '=' + dev + '$.',
-          'L\'expression égale au résultat du programme pour tout nombre $x$ est $' + fac + '$.'] },
+        redac: ['Le résultat du programme est $' + prog + '$, c\'est-à-dire $' + dev + '$.',
+          'On développe le produit $' + fac + '$ :',
+          '$' + (a * a) + 'x^2+' + (a * b) + 'x-' + (a * b) + 'x-' + b2 + '=' + dev + '$',
+          'L\'expression égale au résultat du programme pour tout nombre $x$ est donc $' + fac + '$.'] },
       { q: L('On veut retrouver ce résultat à l\'aide d\'une identité remarquable. Remettre dans l\'ordre les étapes du raisonnement.', 'Нужно получить этот результат с помощью формулы сокращённого умножения («identité remarquable»). Расставь шаги рассуждения по порядку.'), red: true,
         ans: ORD(r, [
           L('Le programme affiche $' + prog + '$.', 'Программа выводит $' + prog + '$.'),
@@ -549,6 +550,458 @@ pcProb({ id: 'p2.prog-carre', ch: 'cl', lvl: 2, pts: 3,
           'Сначала записываем, что именно выводит программа. Затем замечаем, что вычитаемое ' + b2 + ' — это квадрат числа ' + b + ': перед нами разность двух квадратов.',
           'После этого называем формулу $a^2-b^2=(a-b)(a+b)$ и говорим, что в ней играет роль $a$ и $b$: без этого нельзя понять, как формула применена.',
           'Результат — произведение разности и суммы — записываем в конце.'] }] };
+  } });
+
+/* =====================================================================================================
+   p2.deux-fonctions : fonction linéaire et fonction affine, image, antécédent, droites, point d'intersection
+   ===================================================================================================== */
+/* f : x ↦ ax + b, g : x ↦ cx ; the lines meet at (x0 ; y0) on the grid (x0 a multiple of 0,5, y0 a whole number); z is the antecedent of 0 by f.
+   The window is tall enough for the two lines to leave it through the top at least 1,3 units apart: their names are written there. */
+const PC_FNS = (() => {
+  const out = [];
+  [[2, 3], [2, 4], [2, 5], [2, 6], [3, 6]].forEach(([lo, hi]) => [[lo, hi], [hi, lo]].forEach(([a, c]) => {
+    for (let b = -6; b <= 6; b++) {
+      if (!b) continue;
+      const x0 = b / (c - a), y0 = Math.round(c * x0), z = -b / a;
+      if (x0 < 1.5 || x0 > 4 || x0 === b || !pcIsD(2 * x0, 0) || !pcIsD(c * x0, 0) || y0 > 10 || !pcIsD(z, 2) || Math.abs(z) > 3) continue;   /* x0 = 1 would give y0 = c, a number of the statement */
+      let Y1 = y0 + Math.max(4, Math.ceil(1.3 * lo * hi / (hi - lo))); Y1 += Y1 % 2;
+      const Y0 = Math.min(-2, 2 * Math.floor((b - 1) / 2)), X0 = Math.min(-1, Math.ceil(z) - 1), X1 = Math.ceil(x0 + (Y1 - y0) / lo + 0.3);
+      if (Y1 - Y0 <= 24 && X1 - X0 <= 10) out.push({ a, b, c, x0, y0, z, X0, X1, Y0, Y1 });
+    }
+  }));
+  return out;
+})();
+pcProb({ id: 'p2.deux-fonctions', ch: 'fn', lvl: 2, pts: 3,
+  ru: 'Две функции и две прямые', fr: 'Deux fonctions et deux droites',
+  src: 'Sujet zéro 2026 · exercice 3',
+  gen(r) {
+    const d = r.pick(PC_FNS), { a, b, c, x0, y0, z } = d, fS = lin(a, b), bS = b > 0 ? '+' + b : String(b), dg = r.pick(['d₁', 'd₂']), df = dg === 'd₁' ? 'd₂' : 'd₁', dgP = '(' + dg + ')', dfP = '(' + df + ')';
+    const t = r.sh([1, 2, 3]).concat([4, 5]).find(v => { const w = b - a * v; return w !== 0 && ![x0, y0, z, b, -b].includes(w); }), im = b - a * t;   /* the image of −t by f is a new number */
+    const fF = x => a * x + b, fG = x => c * x, zS = Number.isInteger(z) ? String(z) : fstr(-b, a) + '=' + fx(z), xS = fx(x0);
+    const graph = pcPlot({ x0: d.X0, x1: d.X1, y0: d.Y0, y1: d.Y1, xs: 0.5, xb: 1, xm: 1, ys: 1, yb: 2, ym: 2, ph: 240, top: 26,
+      curves: [{ f: dg === 'd₁' ? fG : fF, cls: 'fcurve', n: 200 }, { f: dg === 'd₁' ? fF : fG, cls: 'fhl', n: 200 }],
+      extra: (X, Y, T0) => pcTx([X(d.Y1 / c), T0 - 8], dgP) + pcTx([X((d.Y1 - b) / a), T0 - 8], dfP), label: 'Droites (d₁) et (d₂) dans un repère' });
+    const ctx = L('On considère les fonctions $f$ et $g$ définies par $$f : x \\mapsto ' + a + 'x' + bS + '$$ et $$g : x \\mapsto ' + c + 'x$$.',
+      'Даны функции $f$ и $g$: $$f : x \\mapsto ' + a + 'x' + bS + '$$ и $$g : x \\mapsto ' + c + 'x$$.');
+    const vz = '$' + a + '*' + (z < 0 ? '(' + fx(z) + ')' : fx(z)) + bS + '=0$';
+    return { ctx, qs: [
+      { q: L('Laquelle de ces deux fonctions représente une situation de proportionnalité ? Choisir la réponse correctement justifiée.', 'Какая из этих двух функций описывает прямую пропорциональность? Выбери ответ с верным обоснованием.'), red: true,
+        ans: MQ(r, [
+          L('La fonction $g$, car elle est linéaire : $g(x)$ s\'obtient en multipliant $x$ par ' + c + '.', 'Функция $g$: это «fonction linéaire» — $g(x)$ получается умножением $x$ на ' + c + '.'),
+          L('La fonction $f$, car elle est affine : sa représentation graphique est une droite.', 'Функция $f$: это «fonction affine», её график — прямая.'),
+          L('Les deux fonctions, car leurs représentations graphiques sont des droites.', 'Обе функции: их графики — прямые.'),
+          L('La fonction $f$, car ses images augmentent régulièrement : de ' + a + ' chaque fois que $x$ augmente de 1.', 'Функция $f$: её значения растут равномерно — на ' + a + ' каждый раз, когда $x$ увеличивается на 1.')], 0),
+        sol: [
+          'Прямая пропорциональность — это когда результат получается умножением на одно и то же число: $$x \\mapsto ax$$. По-французски такая функция называется «fonction linéaire». Функция $g$ именно такая: $g(x)=' + c + 'x$.',
+          'У функции $f$ есть ещё слагаемое ' + nf(b) + ', поэтому $f(0)=' + b + '$, а при пропорциональности нулю соответствует ноль. Другая проверка: $f(1)=' + (a + b) + '$, а $f(2)=' + (2 * a + b) + '$ — аргумент удвоился, а значение нет.',
+          'Осторожно со словами: по-русски «линейной» называют и функцию $ax+b$, а по-французски это «fonction affine». График у обеих — прямая, поэтому «график — прямая» ещё не означает пропорциональность: нужна прямая, проходящая через начало координат. Равномерный рост тоже есть у любой функции $ax+b$.'],
+        redac: ['La fonction $g$ est de la forme $$x \\mapsto ax$$ avec $a=' + c + '$ : c\'est une fonction linéaire.',
+          'Or une fonction linéaire représente une situation de proportionnalité.',
+          'C\'est donc la fonction $g$ qui représente une situation de proportionnalité.'] },
+      { q: L('Calculer l\'image de $-' + t + '$ par la fonction $f$.', 'Вычисли образ числа $-' + t + '$ при функции $f$.'), ans: N(im),
+        sol: [
+          ['Образ («image») числа — это результат, который даёт функция. Подставляем $-' + t + '$ вместо $x$; отрицательное число при подстановке берём в скобки:', 'f(-' + t + ')=' + a + '*(-' + t + ')' + bS + '=' + (-a * t) + bS + '=' + im],
+          'Сначала умножение, потом сложение: $' + a + '*(-' + t + ')=' + (-a * t) + '$, и только затем ' + (b > 0 ? 'прибавляем ' + b : 'вычитаем ' + (-b)) + '.'],
+        redac: ['$f(-' + t + ')=' + a + '*(-' + t + ')' + bS + '=' + (-a * t) + bS + '=' + im + '$',
+          'L\'image de $-' + t + '$ par la fonction $f$ est $' + im + '$.'] },
+      { q: L('Quel est l\'antécédent de 0 par la fonction $f$ ?', 'Каков прообраз числа 0 при функции $f$?'), ans: N(fx(z)),
+        sol: [
+          ['Прообраз («antécédent») нуля — это такое число $x$, для которого $f(x)=0$. Решаем уравнение:', fS + '=0;' + a + 'x=' + (-b) + ';x=' + zS],
+          'Проверка: ' + vz + '.',
+          'Не перепутай с образом нуля: образ нуля — это $f(0)=' + b + '$ (ноль подставляют), а прообраз нуля — число, которое нужно подставить, чтобы получить ноль.'],
+        redac: ['On cherche le nombre $x$ tel que $f(x)=0$.',
+          '$' + fS + '=0$, donc $' + a + 'x=' + (-b) + '$ et $x=' + zS + '$.',
+          'L\'antécédent de 0 par la fonction $f$ est $' + fx(z) + '$.'] },
+      { q: L('Les droites (d₁) et (d₂) tracées ci-dessous représentent les fonctions $f$ et $g$. Quelle fonction chaque droite représente-t-elle ? Choisir la réponse correctement justifiée.',
+          'Прямые (d₁) и (d₂) на рисунке — графики функций $f$ и $g$. Определи, какая прямая — график какой функции. Выбери ответ с верным обоснованием.'), red: true, fig: graph,
+        ans: MQ(r, [
+          L('La droite ' + dgP + ' représente $g$ et la droite ' + dfP + ' représente $f$ : $g$ est linéaire, donc sa représentation graphique passe par l\'origine du repère, et seule ' + dgP + ' passe par l\'origine.',
+            'Прямая ' + dgP + ' — график $g$, а прямая ' + dfP + ' — график $f$: функция $g$ — «fonction linéaire», её график проходит через начало координат, а через него проходит только ' + dgP + '.'),
+          L('La droite ' + dfP + ' représente $g$ et la droite ' + dgP + ' représente $f$ : $f$ est affine, donc sa représentation graphique passe par l\'origine du repère.',
+            'Прямая ' + dfP + ' — график $g$, а прямая ' + dgP + ' — график $f$: функция $f$ — «fonction affine», поэтому её график проходит через начало координат.'),
+          L('La droite ' + dfP + ' représente $g$ et la droite ' + dgP + ' représente $f$ : $g(0)=' + b + '$, donc la droite qui représente $g$ coupe l\'axe des ordonnées au point d\'ordonnée $' + b + '$.',
+            'Прямая ' + dfP + ' — график $g$, а прямая ' + dgP + ' — график $f$: $g(0)=' + b + '$, значит, график $g$ пересекает ось ординат в точке с ординатой $' + b + '$.'),
+          L('On ne peut pas le savoir : les deux représentations graphiques sont des droites.', 'Узнать это нельзя: оба графика — прямые.')], 0),
+        sol: [
+          'У функции $g$ («fonction linéaire») $g(0)=0$, поэтому её график проходит через начало координат. Через начало координат проходит прямая ' + dgP + ' — это график $g$.',
+          'У функции $f$: $f(0)=' + b + '$, значит, её график пересекает ось ординат в точке (0 ; ' + nf(b) + '). Это прямая ' + dfP + '.',
+          'Проверка по наклону: когда $x$ увеличивается на 1, значение $g$ растёт на ' + c + ', а значение $f$ — на ' + a + '. На рисунке так и есть: за один шаг вправо прямая ' + dgP + ' поднимается на ' + c + ', а прямая ' + dfP + ' — на ' + a + '.',
+          'То, что оба графика — прямые, различить их не мешает: достаточно одной точки, которая есть у одного графика и которой нет у другого.'],
+        redac: ['$g$ est une fonction linéaire : sa représentation graphique est une droite qui passe par l\'origine du repère. C\'est donc la droite ' + dgP + '.',
+          '$f(0)=' + b + '$ : la droite qui représente $f$ passe par le point de coordonnées (0 ; ' + nf(b) + '). C\'est donc la droite ' + dfP + '.'] },
+      { q: L('Lire sur le graphique les coordonnées du point d\'intersection des droites (d₁) et (d₂).', 'Найди по графику координаты точки пересечения прямых (d₁) и (d₂).'), fig: graph,
+        ans: multi([L('abscisse :', 'абсцисса:'), N(xS)], [L('ordonnée :', 'ордината:'), N(y0)]),
+        sol: [
+          'Точка пересечения принадлежит обеим прямым. Читаем её координаты по сетке: вертикальные линии идут через 0,5, горизонтальные — через 1. Абсцисса точки равна ' + nf(x0) + ', ордината равна ' + y0 + '.',
+          ['Проверка: в этой точке значения обеих функций совпадают:', 'f(' + xS + ')=' + a + '*' + xS + bS + '=' + y0 + ';g(' + xS + ')=' + c + '*' + xS + '=' + y0],
+          'Сначала называют абсциссу (её читают на горизонтальной оси), потом ординату: (' + nf(x0) + ' ; ' + y0 + ').'],
+        redac: ['Par lecture graphique, les droites (d₁) et (d₂) se coupent au point de coordonnées (' + nf(x0) + ' ; ' + y0 + ').',
+          'Vérification : $f(' + xS + ')=' + a + '*' + xS + bS + '=' + y0 + '$ et $g(' + xS + ')=' + c + '*' + xS + '=' + y0 + '$.'] }] };
+  } });
+
+/* =====================================================================================================
+   p2.boules-3d : lecture graphique (volume en fonction du rayon), volume d'une boule, quotient à interpréter, masse volumique
+   ===================================================================================================== */
+const pcVol = (R, pi) => 4 / 3 * (pi || Math.PI) * R * R * R;
+/* rayon R, bobine de B cm³, masse volumique rho : the same answers with the π key and with 3,14, with the rounded volume and with the exact one;
+   B ÷ volume has a decimal part ≥ 0,5: rounding to the nearest whole number would give one ball too many */
+const PC_BOU = (() => {
+  const out = [];
+  [1.5, 1.8, 2, 2.2, 2.4, 2.6, 2.8, 3, 3.2, 3.5, 4, 4.5].forEach(R => {
+    const V = pcVol(R), Vr = pcRd(V), V3 = pcVol(R, 3.14);
+    if (pcTie(V, 0, 0.12) || pcTie(V3, 0, 0.12) || pcRd(V3) !== Vr) return;
+    [250, 500, 750, 1000, 1500, 2000].forEach(B => {
+      const q = B / Vr, n = Math.floor(q), q2 = B / V;
+      if (n < 3 || n > 40 || Math.floor(q2) !== n || q - n < 0.5 || q - n > 0.93 || q2 - n < 0.05 || q2 - n > 0.95 || pcTie(q, 2, 0.1)) return;
+      [0.95, 1.05, 1.2, 1.25, 1.3].forEach(rho => {
+        const m = V * rho, m2 = Vr * rho;
+        if (pcTie(m, 0, 0.12) || pcTie(m2, 0, 0.12) || pcRd(m) !== pcRd(m2) || [Vr, n, B].includes(pcRd(m))) return;
+        out.push({ R, B, rho, V, Vr, n, q, m });
+      });
+    });
+  });
+  return out;
+})();
+const PC_BOU_R1 = [3.2, 3.4, 3.8, 4, 4.2, 4.4, 4.6, 4.8, 5, 5.2];          /* radii whose image is read on the curve */
+const PC_BOU_V2 = [150, 200, 250, 350, 400, 500, 550, 650, 700];          /* volumes on a grid line whose radius is within 0,03 of a tenth */
+pcProb({ id: 'p2.boules-3d', ch: 'gm', lvl: 2, pts: 3,
+  ru: 'Объём шара: график и 3D-печать', fr: 'Volume d\'une boule : graphique et impression 3D',
+  src: 'Métropole 2026 · exercice 3',
+  gen(r) {
+    let d, r1, V2, r2, k1;
+    for (let i = 0; i < 200; i++) {
+      d = r.pick(PC_BOU); r1 = r.pick(PC_BOU_R1); V2 = r.pick(PC_BOU_V2); r2 = pcRd(Math.cbrt(3 * V2 / (4 * Math.PI)), 1); k1 = Math.round(pcVol(r1) / 10) * 10;
+      if (Math.abs(r1 - r2) >= 0.35 && Math.abs(k1 - V2) > 0.15 * V2 && ![r1, r2].includes(d.R) && ![k1, V2].includes(d.Vr) && ![k1, V2].includes(d.B)) break;
+    }
+    const { R, B, rho, V, Vr, n, q, m } = d, tol1 = 0.08, tol2 = 0.105 / r2, bal = v => pcRu(v, 'шар', 'шара', 'шаров'), qK = String(+pcK(q, 2)), qS = nf(+qK);
+    const graph = pcPlot({ x0: 0, x1: 6, y0: 0, y1: 800, xs: 0.2, xb: 1, xm: 1, ys: 50, yb: 100, ym: 100, ph: 240, xn: 'Rayon (cm)', yn: 'Volume (cm³)',
+      curves: [{ f: x => pcVol(x), n: 150 }], label: 'Volume d\'une boule en fonction de son rayon' });
+    const ctx = L('La courbe ci-dessous représente la fonction qui, au rayon d\'une boule (en cm), associe le volume de cette boule (en cm³).',
+      'На рисунке — график функции, которая радиусу шара (в см) ставит в соответствие объём этого шара (в см³). Подписи осей: «Rayon» — радиус, «Volume» — объём.');
+    return { ctx, fig: graph, qs: [
+      { q: L('Déterminer graphiquement l\'image de ' + nf(r1) + ' par cette fonction.', 'Найди по графику образ числа ' + nf(r1) + ' при этой функции.'), ans: N(k1, { forms: ['approx'], tol: tol1, unit: 'cm³' }),
+        sol: [
+          'Образ числа ' + nf(r1) + ' — это объём шара радиуса ' + nf(r1) + ' см. На горизонтальной оси находим ' + nf(r1) + ' (тонкие вертикальные линии идут через 0,2), поднимаемся до кривой и читаем высоту на вертикальной оси (тонкие горизонтальные линии идут через 50): примерно ' + k1 + '.',
+          'По графику значение читается приблизительно: засчитывается ответ от ' + Math.ceil(k1 * (1 - tol1)) + ' до ' + Math.floor(k1 * (1 + tol1)) + '. Для сравнения: по формуле объёма получается ' + pcS(pcVol(r1), 1) + ' см³.'],
+        redac: ['Par lecture graphique, l\'image de ' + nf(r1) + ' par cette fonction est environ ' + k1 + '.',
+          'Une boule de rayon ' + nf(r1) + ' cm a donc un volume d\'environ ' + k1 + ' cm³.'] },
+      { q: L('Une boule a un volume de ' + V2 + ' cm³. Déterminer graphiquement son rayon.', 'Объём шара равен ' + V2 + ' см³. Найди по графику его радиус.'), ans: N(fx(r2), { forms: ['approx'], tol: tol2, unit: 'cm' }),
+        sol: [
+          'Теперь известен объём, а нужен радиус — то есть прообраз числа ' + V2 + '. Находим ' + V2 + ' на вертикальной оси, идём по горизонтали до кривой и опускаемся на горизонтальную ось: примерно ' + nf(r2) + '.',
+          'Засчитывается ответ от ' + nf(pcRd(r2 - 0.1, 1)) + ' до ' + nf(pcRd(r2 + 0.1, 1)) + '. Для сравнения: вычисление даёт радиус около ' + pcS(Math.cbrt(3 * V2 / (4 * Math.PI)), 2) + ' см.',
+          'Не перепутай направления: объём читают на вертикальной оси, радиус — на горизонтальной.'],
+        redac: ['Par lecture graphique, l\'antécédent de ' + V2 + ' par cette fonction est environ ' + nf(r2) + '.',
+          'Une boule de volume ' + V2 + ' cm³ a donc un rayon d\'environ ' + nf(r2) + ' cm.'] },
+      { q: L('Une imprimante 3D fabrique des boules pleines en plastique de rayon ' + nf(R) + ' cm. Calculer le volume d\'une boule. Arrondir à l\'unité. Rappel : le volume $V$ d\'une boule de rayon $r$ est donné par la formule $$V=\\dfrac{4}{3}\\times\\pi\\times r^3$$.',
+          'На 3D-принтере печатают сплошные пластиковые шары радиуса ' + nf(R) + ' см. Вычисли объём одного шара. Округли до целых. Напоминание: объём $V$ шара радиуса $r$ находят по формуле $$V=\\dfrac{4}{3}\\times\\pi\\times r^3$$.'), ans: pcNR(V, 0, 'cm³'),
+        sol: [
+          { t: 'Подставляем радиус в формулу. В ней стоит куб радиуса: ' + nf(R) + ' × ' + nf(R) + ' × ' + nf(R) + ' = ' + nf(+(R * R * R).toFixed(3)) + '.', tex: 'V=\\dfrac{4}{3}\\times\\pi\\times ' + pcT(R) + '^3\\approx ' + pcTk(V, 1) },
+          'Округляем до целых: ' + Vr + ' см³. Число π берут с калькулятора; с приближением 3,14 здесь получается то же самое.',
+          'Типичные ошибки: возвести радиус в квадрат вместо куба или забыть множитель $4/3$. Ответ можно прикинуть по графику: над отметкой ' + nf(R) + ' кривая проходит на высоте около ' + Vr + '.'],
+        redac: ['$$V=\\dfrac{4}{3}\\times\\pi\\times ' + pcT(R) + '^3$$',
+          '$$V\\approx ' + pcTk(V, 1) + '$$',
+          'Le volume d\'une boule est d\'environ ' + Vr + ' cm³.'] },
+      { q: L('La bobine de l\'imprimante contient ' + nf(B) + ' cm³ de plastique. Quel est le nombre maximal de boules que l\'on peut fabriquer avec cette bobine ? Choisir la réponse correctement justifiée.',
+          'В катушке принтера ' + nf(B) + ' см³ пластика. Какое наибольшее число шаров можно напечатать из этой катушки? Выбери ответ с верным обоснованием.'), red: true,
+        ans: MQ(r, [
+          L(n + ' boules : $' + B + '÷' + Vr + '≈' + qK + '$ ; il y a assez de plastique pour ' + n + ' boules, mais pas pour ' + (n + 1) + '.', n + ' ' + bal(n) + ': $' + B + '÷' + Vr + '≈' + qK + '$; пластика хватает на ' + n + ' ' + bal(n) + ', но не на ' + (n + 1) + '.'),
+          L((n + 1) + ' boules : $' + B + '÷' + Vr + '≈' + qK + '$ et ' + qS + ' arrondi à l\'unité donne ' + (n + 1) + '.', (n + 1) + ' ' + bal(n + 1) + ': $' + B + '÷' + Vr + '≈' + qK + '$, а ' + qS + ' после округления до целых даёт ' + (n + 1) + '.'),
+          L((n + 1) + ' boules : on arrondit toujours à l\'entier supérieur pour utiliser tout le plastique.', (n + 1) + ' ' + bal(n + 1) + ': всегда округляют вверх до целого, чтобы использовать весь пластик.'),
+          L(qS + ' boules : $' + B + '÷' + Vr + '≈' + qK + '$.', qS + ' шара: $' + B + '÷' + Vr + '≈' + qK + '$.')], 0),
+        sol: [
+          ['Узнаём, сколько раз объём одного шара помещается в объёме катушки:', B + '÷' + Vr + '≈' + qK],
+          'Шары нужны целые: ' + qS + ' шара напечатать нельзя. На ' + (n + 1) + ' ' + bal(n + 1) + ' нужно ' + (n + 1) + ' × ' + Vr + ' = ' + nf((n + 1) * Vr) + ' см³ — больше, чем есть. На ' + n + ' ' + bal(n) + ' нужно ' + nf(n * Vr) + ' см³ — хватает.',
+          'Поэтому здесь берут целую часть, хотя по правилу округления ' + qS + ' ближе к ' + (n + 1) + ': решает смысл задачи, а не правило. «Использовать весь пластик» тоже не получится: остатка не хватает на целый шар.'],
+        redac: ['$' + B + '÷' + Vr + '≈' + qK + '$',
+          'Pour ' + (n + 1) + ' boules, il faudrait environ $' + (n + 1) + '*' + Vr + '=' + ((n + 1) * Vr) + '$ cm³ de plastique : c\'est plus que ' + nf(B) + ' cm³.',
+          'On peut donc fabriquer ' + n + ' boules au maximum.'] },
+      { q: L('La masse volumique de ce plastique est égale à ' + nf(rho) + ' g/cm³. Calculer la masse d\'une boule. Arrondir à l\'unité.', 'Плотность этого пластика равна ' + nf(rho) + ' г/см³. Вычисли массу одного шара. Округли до целых.'), ans: pcNR(m, 0, 'g'),
+        sol: [
+          'Плотность («masse volumique») ' + nf(rho) + ' г/см³ означает: каждый кубический сантиметр этого пластика весит ' + nf(rho) + ' г. Объём шара — около ' + Vr + ' см³, поэтому массу находим умножением.',
+          ['', Vr + '*' + rho + '=' + fx(Vr * rho), 'г'],
+          'Округляем до целых: ' + pcK(m, 0) + ' г. С неокруглённым объёмом получается ' + nf(pcRd(m, 2)) + ' г — после округления до целых то же самое.'],
+        redac: ['Un centimètre cube de ce plastique a une masse de ' + nf(rho) + ' g.',
+          '$' + Vr + '*' + rho + '=' + fx(Vr * rho) + '$',
+          'La masse d\'une boule est d\'environ ' + pcK(m, 0) + ' g.'] }] };
+  } });
+
+/* =====================================================================================================
+   p2.enquetes-college : moyenne et objectif, diagramme en bâtons, effectif total, « au moins », pourcentage
+   ===================================================================================================== */
+const pcList = (a, et) => (a.length < 2 ? a.join('') : a.slice(0, -1).join(', ') + ' ' + et + ' ' + a[a.length - 1]);
+/* a bar chart: one bar per distance 0 … K km; the heights are even numbers, read on a grid with a line every 2 */
+function pcBars(e) {
+  const L0 = 36, T0 = 26, PW = 290, PH = 226, ymax = 2 * Math.ceil((Math.max(...e) + 1) / 2), pitch = PW / e.length, bw = pitch * 0.5, Y = v => T0 + PH - v / ymax * PH;
+  let s = '';
+  for (let v = 0; v <= ymax; v += 2) s += '<line class="' + (v % 4 ? 'fgrid' : 'fl2') + '" x1="' + L0 + '" y1="' + pcC(Y(v)) + '" x2="' + (L0 + PW) + '" y2="' + pcC(Y(v)) + '"/>' + (v % 4 ? '' : '<text class="ftm" x="' + (L0 - 5) + '" y="' + pcC(Y(v) + 4.5) + '" text-anchor="end">' + v + '</text>');
+  e.forEach((v, i) => { const x = L0 + pitch * (i + 0.5); s += '<rect class="fbar" x="' + pcC(x - bw / 2) + '" y="' + pcC(Y(v)) + '" width="' + pcC(bw) + '" height="' + pcC(Y(0) - Y(v)) + '"/><text class="ftm" x="' + pcC(x) + '" y="' + (T0 + PH + 16) + '" text-anchor="middle">' + i + '</text>'; });
+  s += '<line class="fax" x1="' + L0 + '" y1="' + (T0 + PH) + '" x2="' + (L0 + PW) + '" y2="' + (T0 + PH) + '"/><line class="fax" x1="' + L0 + '" y1="' + (T0 + PH) + '" x2="' + L0 + '" y2="' + (T0 - 6) + '"/>';
+  s += '<text class="ftx" x="2" y="15">Effectif</text><text class="ftx" x="' + (L0 + PW) + '" y="' + (T0 + PH + 37) + '" text-anchor="end">Distance parcourue à vélo (km)</text>';
+  return svgFig(340, T0 + PH + 44, s, 'Diagramme en bâtons : nombre d\'élèves selon la distance parcourue à vélo');
+}
+pcProb({ id: 'p2.enquetes-college', ch: 'st', lvl: 2, pts: 3,
+  ru: 'Два опроса в коллеже', fr: 'Deux enquêtes au collège',
+  src: 'Sujet zéro 2026 · exercice 1',
+  gen(r) {
+    /* first survey: nW weekly masses, the target M is 1 kg above or below the rounded mean */
+    let w = [62, 58, 71, 66, 51, 60, 74], reached = true, M = 64;
+    for (let t = 0; t < 400; t++) {
+      const n1 = r.pick([6, 7]), w1 = r.distinct(n1, 48, 79),      /* 8 columns would not fit a 360 px screen */ mean1 = w1.reduce((p, q) => p + q, 0) / n1, re1 = r() < 0.6, M1 = Math.round(mean1) + (re1 ? 1 : -1);
+      const so1 = w1.slice().sort((p, q) => p - q), med1 = n1 % 2 ? so1[(n1 - 1) / 2] : (so1[n1 / 2 - 1] + so1[n1 / 2]) / 2, mr1 = (so1[0] + so1[n1 - 1]) / 2;
+      if (w1.length < n1 || pcBad(mean1, 1) || pcIsD(mean1, 1) || w1.includes(M1) || w1.filter(v => v > M1).length < 2 || w1.filter(v => v < M1).length < 2) continue;
+      if (Math.abs(med1 - M1) < 1 || Math.abs(mr1 - M1) < 1 || Math.abs(mr1 - mean1) < 0.4) continue;     /* the wrong justifications never rest on a tie or on the right mean */
+      w = w1; reached = re1; M = M1; break;
+    }
+    const nW = w.length, sum = w.reduce((p, q) => p + q, 0), mean = sum / nW, so = w.slice().sort((p, q) => p - q), med = nW % 2 ? so[(nW - 1) / 2] : (so[nW / 2 - 1] + so[nW / 2]) / 2, mn = so[0], mx = so[nW - 1], mr = (mn + mx) / 2;
+    const kUp = w.filter(v => v > M).length, kDn = w.filter(v => v < M).length, mS = pcS(mean, 1), mK = pcK(mean, 1);
+    /* second survey: e[i] pupils ride i km; cnt pupils ride at least dmin km, that is q % of the T pupils; the statement says «plus de p %» */
+    let e = [24, 22, 26, 18, 16, 14, 10, 8], dmin = 4, p = 30;
+    for (let t = 0; t < 400; t++) {
+      const K1 = r.pick([6, 7, 8]), e1 = []; for (let i = 0; i <= K1; i++) e1.push(2 * r.ri(Math.max(3, 9 - i), 14 - i));
+      const T1 = e1.reduce((u, v) => u + v, 0), d1 = r.ri(3, K1 - 2), c1 = e1.slice(d1).reduce((u, v) => u + v, 0), q1 = c1 / T1 * 100, ps = [10, 15, 20, 25, 30, 35, 40, 45, 50].filter(v => Math.abs(q1 - v) >= 1.2 && Math.abs(q1 - v) <= 6 && v !== c1);
+      if (!ps.length || pcBad(q1, 1) || pcK(q1, 1) === mK) continue;
+      e = e1; dmin = d1; p = r.pick(ps); break;
+    }
+    const K = e.length - 1, T = e.reduce((u, v) => u + v, 0), part = e.slice(dmin), cnt = part.reduce((u, v) => u + v, 0), q = cnt / T * 100, truth = q > p, qS = pcS(q, 1), rK = pcK(cnt / T, 3);
+    const ds = []; for (let i = dmin; i <= K; i++) ds.push(i);
+    const weeks = []; for (let i = 1; i <= nW; i++) weeks.push(i);
+    const fig = tbl([['Semaine'].concat(weeks), ['Masse (kg)'].concat(w)], 'side');
+    const ctx = L('Les éco-délégués d\'un collège réalisent deux enquêtes. Première enquête : pendant ' + nW + ' semaines, ils relèvent la masse, en kilogrammes, des aliments jetés à la cantine chaque semaine (tableau ci-dessous). Le collège s\'est fixé un objectif : la masse moyenne d\'aliments jetés par semaine ne doit pas dépasser ' + M + ' kg. Seconde enquête : ils demandent à chaque élève quelle distance il parcourt à vélo pour venir au collège (diagramme de la question 3).',
+      'Экологические делегаты («éco-délégués») коллежа проводят два опроса. Первый: в течение ' + nW + ' недель они каждую неделю записывают массу (в килограммах) продуктов, выброшенных в столовой, — см. таблицу («Semaine» — неделя, «Masse (kg)» — масса в кг). Коллеж поставил цель: средняя масса выброшенных продуктов за неделю не должна превышать ' + M + ' кг. Второй: каждого ученика спрашивают, какое расстояние он проезжает на велосипеде по дороге в коллеж (диаграмма в вопросе 3).');
+    return { ctx, fig, qs: [
+      { q: L('Calculer la masse moyenne d\'aliments jetés par semaine. Arrondir au dixième.', 'Вычисли среднюю массу продуктов, выбрасываемых за неделю. Округли до десятых.'), ans: pcNR(mean, 1, 'kg'),
+        sol: [
+          ['Среднее («moyenne») — это сумма всех значений, делённая на их количество. Складываем массы за ' + nW + ' недель:', w.join('+') + '=' + sum],
+          ['Делим на число недель:', sum + '÷' + nW + '≈' + mK, 'кг'],
+          'Точнее получается ' + pcS(mean, 3) + '; до десятых округляем по следующей цифре — цифре сотых.'],
+        redac: ['On additionne les masses des ' + nW + ' semaines :',
+          '$' + w.join('+') + '=' + sum + '$',
+          'On divise par le nombre de semaines : $' + sum + '÷' + nW + '≈' + mK + '$.',
+          'La masse moyenne d\'aliments jetés par semaine est d\'environ ' + mS + ' kg.'] },
+      { q: L('Le collège a-t-il atteint son objectif ? Choisir la réponse correctement justifiée.', 'Достиг ли коллеж своей цели? Выбери ответ с верным обоснованием.'), red: true,
+        ans: MQ(r, [
+          L((reached ? 'Oui' : 'Non') + ', car la masse moyenne, environ ' + mS + ' kg, ' + (reached ? 'ne dépasse pas ' : 'dépasse ') + M + ' kg.', (reached ? 'Да' : 'Нет') + ': средняя масса, примерно ' + mS + ' кг, ' + (reached ? 'не превышает ' : 'превышает ') + M + ' кг.'),
+          reached ? L('Non, car la masse d\'aliments jetés dépasse ' + M + ' kg pendant ' + kUp + ' semaines.', 'Нет: в течение ' + kUp + ' недель масса выброшенных продуктов превышает ' + M + ' кг.')
+            : L('Oui, car la masse d\'aliments jetés est inférieure à ' + M + ' kg pendant ' + kDn + ' semaines.', 'Да: в течение ' + kDn + ' недель масса выброшенных продуктов меньше ' + M + ' кг.'),
+          L((med < M ? 'Oui' : 'Non') + ', car la médiane de la série, ' + nf(med) + ' kg, est ' + (med < M ? 'inférieure' : 'supérieure') + ' à ' + M + ' kg.', (med < M ? 'Да' : 'Нет') + ': медиана ряда, ' + nf(med) + ' кг, ' + (med < M ? 'меньше' : 'больше') + ' ' + M + ' кг.'),
+          L((mr < M ? 'Oui' : 'Non') + ', car la moyenne est $(' + mn + '+' + mx + ')÷2=' + fx(mr) + '$, soit ' + nf(mr) + ' kg.', (mr < M ? 'Да' : 'Нет') + ': среднее равно $(' + mn + '+' + mx + ')÷2=' + fx(mr) + '$, то есть ' + nf(mr) + ' кг.')], 0),
+        sol: [
+          'Цель сформулирована про среднее («moyenne») за все недели, поэтому с ' + M + ' кг сравниваем именно среднее: ' + mS + (reached ? ' < ' : ' > ') + M + ' — цель ' + (reached ? 'достигнута' : 'не достигнута') + '.',
+          'Отдельные недели могут быть и выше, и ниже ' + M + ' кг: среднее «уравнивает» их между собой, поэтому по отдельным неделям судить о цели нельзя.',
+          'Медиана — другая характеристика: это значение посередине упорядоченного ряда. А полусумма наименьшего и наибольшего значений — не среднее: среднее учитывает все значения, а не только два крайних.'],
+        redac: ['La masse moyenne d\'aliments jetés par semaine est d\'environ ' + mS + ' kg.',
+          'Or $' + mK + (reached ? '<' : '>') + M + '$ : la moyenne ' + (reached ? 'ne dépasse pas ' : 'dépasse ') + M + ' kg.',
+          'Le collège ' + (reached ? 'a donc atteint' : 'n\'a donc pas atteint') + ' son objectif.'] },
+      { q: L('Le diagramme ci-dessous présente les résultats de la seconde enquête : pour chaque distance, il indique le nombre d\'élèves qui parcourent cette distance à vélo pour venir au collège (0 km pour les élèves qui ne viennent pas à vélo). Combien d\'élèves ce collège compte-t-il au total ?',
+          'Диаграмма показывает результаты второго опроса: для каждого расстояния — число учеников («effectif»), которые проезжают это расстояние на велосипеде по дороге в коллеж (0 км — для тех, кто приезжает не на велосипеде). Сколько всего учеников в этом коллеже?'), fig: pcBars(e), ans: N(T),
+        sol: [
+          ['Каждый ученик учтён ровно в одном столбике, поэтому общее число учеников («effectif total») — это сумма высот всех столбиков. Высоты читаем по горизонтальным линиям: они проведены через 2.', e.join('+') + '=' + T],
+          'Столбик над нулём тоже считается: это ученики, которые приезжают не на велосипеде.'],
+        redac: ['L\'effectif total est la somme des effectifs de toutes les distances.',
+          '$' + e.join('+') + '=' + T + '$',
+          'Le collège compte ' + T + ' élèves.'] },
+      { q: L('Combien d\'élèves parcourent au moins ' + dmin + ' km à vélo pour venir au collège ?', 'Сколько учеников проезжают на велосипеде по дороге в коллеж не меньше ' + dmin + ' км?'), ans: N(cnt),
+        sol: [
+          '«Au moins ' + dmin + ' km» значит «' + dmin + ' км или больше»: подходят расстояния ' + pcList(ds, 'и') + ' км. Столбик «' + dmin + '» тоже входит.',
+          ['', part.join('+') + '=' + cnt],
+          'Типичные ошибки: взять только столбик «' + dmin + '» (это «ровно ' + dmin + ' км») или пропустить его (так было бы при «plus de ' + dmin + ' km» — строго больше).'],
+        redac: ['« Au moins ' + dmin + ' km » signifie ' + dmin + ' km ou plus : on additionne les effectifs des distances ' + pcList(ds, 'et') + ' km.',
+          '$' + part.join('+') + '=' + cnt + '$',
+          cnt + ' élèves parcourent au moins ' + dmin + ' km à vélo.'] },
+      { q: L('Calculer le pourcentage des élèves du collège qui parcourent au moins ' + dmin + ' km à vélo. Arrondir au dixième.', 'Вычисли, сколько процентов учеников коллежа проезжают на велосипеде не меньше ' + dmin + ' км. Округли до десятых.'), ans: pcNR(q, 1, '%'),
+        sol: [
+          ['Процент — это доля от целого, выраженная в сотых. Делим число таких учеников на общее число учеников:', cnt + '÷' + T + '≈' + rK],
+          'Переводим в проценты (умножаем на 100): примерно ' + qS + ' %.',
+          'Делят часть на целое, а не наоборот; и целое здесь — все ученики коллежа (' + T + '), а не число столбиков.'],
+        redac: ['$' + cnt + '÷' + T + '≈' + rK + '$',
+          'Environ ' + qS + ' % des élèves du collège parcourent au moins ' + dmin + ' km à vélo.'] },
+      { q: L('On veut savoir si l\'affirmation « Plus de ' + p + ' % des élèves du collège parcourent au moins ' + dmin + ' km à vélo » est vraie. Remettre dans l\'ordre les étapes de la justification.',
+          'Нужно выяснить, верно ли утверждение «Больше ' + p + ' % учеников коллежа проезжают на велосипеде не меньше ' + dmin + ' км». Расставь шаги обоснования по порядку.'), red: true,
+        ans: ORD(r, [
+          L('Les élèves qui parcourent au moins ' + dmin + ' km sont ceux qui parcourent ' + pcList(ds, 'ou') + ' km : il y en a ' + cnt + '.', 'Ученики, которые проезжают не меньше ' + dmin + ' км, — это те, кто проезжает ' + pcList(ds, 'или') + ' км: их ' + cnt + '.'),
+          L('Sur les ' + T + ' élèves du collège, cela représente $' + cnt + '÷' + T + '≈' + rK + '$.', 'Среди ' + T + ' учеников коллежа это составляет $' + cnt + '÷' + T + '≈' + rK + '$.'),
+          L('Environ ' + qS + ' % des élèves parcourent donc au moins ' + dmin + ' km à vélo.', 'Значит, примерно ' + qS + ' % учеников проезжают не меньше ' + dmin + ' км.'),
+          L('Or ' + qS + ' % ' + (truth ? '>' : '<') + ' ' + p + ' % : l\'affirmation est ' + (truth ? 'vraie' : 'fausse') + '.', 'А ' + qS + ' % ' + (truth ? '>' : '<') + ' ' + p + ' %: утверждение ' + (truth ? 'верно' : 'неверно') + '.')]),
+        sol: [
+          'Порядок рассуждения: сначала считаем, сколько учеников подходит под условие; потом находим их долю среди всех учеников; переводим её в проценты; и только в конце сравниваем с ' + p + ' % и делаем вывод.',
+          'С числом ' + p + ' сравнивают процент, а не количество учеников: ' + cnt + ' — это число учеников, а не проценты.'] }] };
+  } });
+
+/* =====================================================================================================
+   p2.octogone-disque : Pythagore, côtés d'un octogone, aire par soustraction, aire d'un disque, pourcentage
+   ===================================================================================================== */
+/* carré de côté s, coins coupés à c cm des sommets : EF = s − 2c, FG = c√2, aire de l'octogone s² − 2c², aire du disque πs²/4 */
+const PC_OCT = (() => {
+  const out = [];
+  for (let s = 6; s <= 20; s++) for (let c = 2; 2 * c < s - 1; c++) {
+    if (3 * c === s || 4 * c === s || c / s < 0.2) continue;             /* the proportions of the original exercise; EF = 2c would spoil a wrong option; corners too small to draw */
+    const FG = c * Math.SQRT2, EF = s - 2 * c, aO = s * s - 2 * c * c, D = Math.PI * s * s / 4, Dr = pcRd(D, 2), pct = Math.abs(aO - D) / D * 100, pct2 = Math.abs(aO - Dr) / Dr * 100;
+    if (pcBad(FG, 1) || Math.abs(pcRd(FG, 1) - EF) < 0.15 || pcBad(D, 2) || pcBad(pct, 1) || pcTie(pct2, 1, 0.03) || pcK(pct2, 1) !== pcK(pct, 1) || pct < 1.5 || pct > 15) continue;
+    const vals = [s, c, EF, pcRd(FG, 1), aO, Dr, pcRd(pct, 1), 2 * c];
+    if (new Set(vals).size === vals.length) out.push({ s, c });
+  }
+  return out;
+})();
+/* stage 0: the octagon in the square, with the equal-length marks; 1: + the diagonals and the circle */
+function pcOctFig(d, stage) {
+  const S = 190, x0 = 75, y0 = 28, cc = d.c * S / d.s, x1 = x0 + S, y1 = y0 + S;
+  const A = [x0, y0], B = [x1, y0], C = [x1, y1], D = [x0, y1], E = [x0 + cc, y0], F = [x1 - cc, y0], G = [x1, y0 + cc], H = [x1, y1 - cc], I = [x1 - cc, y1], J = [x0 + cc, y1], K = [x0, y1 - cc], Lp = [x0, y0 + cc], O = [x0 + S / 2, y0 + S / 2];
+  const oct = [E, F, G, H, I, J, K, Lp];
+  let s = pcPl(oct, 'ffill', true) + pcPl([A, B, C, D], 'fl', true) + pcPl(oct, 'fl', true);
+  if (stage) s += pcLn(A, C, 'fdash') + pcLn(B, D, 'fdash') + '<circle cx="' + pcC(O[0]) + '" cy="' + pcC(O[1]) + '" r="' + pcC(S / 2) + '" class="fcurve" fill="none"/>' + pcDot(O) + pcTx([O[0] + 17, O[1] + 5], 'O');
+  else s += [[A, E], [F, B], [B, G], [H, C], [C, I], [J, D], [D, K], [Lp, A]].map(p => pcTick(p[0], p[1])).join('') + pcTx([x0 + S / 2, y1 + 38], nf(d.s) + ' cm', 'ftm');
+  s += pcTx([x0 - 11, y0 - 5], 'A') + pcTx([x1 + 11, y0 - 5], 'B') + pcTx([x1 + 11, y1 + 17], 'C') + pcTx([x0 - 11, y1 + 17], 'D');
+  s += pcTx([E[0], y0 - 9], 'E') + pcTx([F[0], y0 - 9], 'F') + pcTx([x1 + 13, G[1] + 5], 'G') + pcTx([x1 + 13, H[1] + 5], 'H') + pcTx([I[0], y1 + 19], 'I') + pcTx([J[0], y1 + 19], 'J') + pcTx([x0 - 13, K[1] + 5], 'K') + pcTx([x0 - 13, Lp[1] + 5], 'L');
+  return svgFig(340, y1 + (stage ? 28 : 46), s, stage ? 'Octogone EFGHIJKL, carré ABCD et cercle de centre O' : 'Octogone EFGHIJKL dans le carré ABCD');
+}
+pcProb({ id: 'p2.octogone-disque', ch: 'gm', lvl: 2, pts: 3,
+  ru: 'Восьмиугольник в квадрате и круг', fr: 'Un octogone, un carré et un disque',
+  src: 'Sujet zéro 2026 · exercice 4',
+  gen(r) {
+    const d = r.pick(PC_OCT), { s, c } = d, FG = c * Math.SQRT2, EF = s - 2 * c, tri = c * c / 2, aO = s * s - 2 * c * c, D = Math.PI * s * s / 4, Dr = pcRd(D, 2), pct = Math.abs(aO - D) / D * 100;
+    const big = Math.max(aO, Dr), small = Math.min(aO, Dr), diff = +(big - small).toFixed(2), quo = diff / Dr, fgS = pcS(FG, 1), fgK = pcK(FG, 1);
+    const ctx = L('Sur la figure ci-dessous, ABCD est un carré de côté ' + s + ' cm. Les points E et F appartiennent au côté [AB], G et H au côté [BC], I et J au côté [CD], K et L au côté [DA]. Les huit segments codés ont la même longueur : ' + c + ' cm.',
+      'На рисунке ABCD — квадрат со стороной ' + s + ' см. Точки E и F лежат на стороне [AB], G и H — на стороне [BC], I и J — на стороне [CD], K и L — на стороне [DA]. Восемь отрезков, отмеченных штрихами, имеют одну и ту же длину: ' + c + ' см.');
+    return { ctx, fig: pcOctFig(d, 0), qs: [
+      { q: L('Calculer la longueur FG. Arrondir au dixième.', 'Вычисли длину FG. Округли до десятых.'), ans: pcNR(FG, 1, 'cm'),
+        sol: [
+          'ABCD — квадрат, поэтому угол B прямой: треугольник FBG прямоугольный с прямым углом B. Его катеты — отмеченные отрезки FB = BG = ' + c + ' см, а [FG] — гипотенуза.',
+          ['По теореме Пифагора («théorème de Pythagore»):', 'FG^2=FB^2+BG^2=' + c + '^2+' + c + '^2=' + (2 * c * c)],
+          ['', 'FG=√' + (2 * c * c) + '≈' + fgK, 'см'],
+          'Проверка на здравый смысл: гипотенуза длиннее каждого катета, но короче их суммы — ' + c + ' < ' + fgS + ' < ' + (2 * c) + '.'],
+        redac: ['ABCD est un carré, donc le triangle FBG est rectangle en B.',
+          'D\'après le théorème de Pythagore : $FG^2=FB^2+BG^2$.',
+          '$FG^2=' + c + '^2+' + c + '^2=' + (2 * c * c) + '$',
+          '$FG=√' + (2 * c * c) + '≈' + fgK + '$',
+          'La longueur FG est d\'environ ' + fgS + ' cm.'] },
+      { q: L('L\'octogone EFGHIJKL a-t-il tous ses côtés de même longueur ? Choisir la réponse correctement justifiée.', 'Все ли стороны восьмиугольника EFGHIJKL имеют одну и ту же длину? Выбери ответ с верным обоснованием.'), red: true,
+        ans: MQ(r, [
+          L('Non : EF = ' + s + ' − 2 × ' + c + ' = ' + EF + ' cm, alors que FG ≈ ' + fgS + ' cm.', 'Нет: EF = ' + s + ' − 2 × ' + c + ' = ' + EF + ' см, а FG ≈ ' + fgS + ' см.'),
+          L('Oui : les quatre triangles des coins sont superposables, donc les huit côtés de l\'octogone ont la même longueur.', 'Да: четыре угловых треугольника равны, поэтому все восемь сторон восьмиугольника одинаковой длины.'),
+          L('Oui : chaque sommet de l\'octogone est situé à ' + c + ' cm d\'un sommet du carré.', 'Да: каждая вершина восьмиугольника находится на расстоянии ' + c + ' см от вершины квадрата.'),
+          L('Non : EF = ' + EF + ' cm, alors que FG = FB + BG = ' + (2 * c) + ' cm.', 'Нет: EF = ' + EF + ' см, а FG = FB + BG = ' + (2 * c) + ' см.')], 0),
+        sol: [
+          'У восьмиугольника стороны двух видов. Четыре лежат на сторонах квадрата (EF, GH, IJ и KL): каждая из них — сторона квадрата без двух отмеченных отрезков, ' + s + ' − 2 × ' + c + ' = ' + EF + ' см.',
+          'Четыре другие (FG, HI, JK и LE) срезают углы: это гипотенузы угловых треугольников, каждая примерно ' + fgS + ' см (предыдущий вопрос).',
+          EF + ' ≠ ' + fgS + ', значит, не все стороны равны. Равенство угловых треугольников гарантирует только то, что четыре «срезающие» стороны равны между собой. А гипотенуза не равна сумме катетов: путь из F в G через вершину B длиннее отрезка [FG].'],
+        redac: ['E et F appartiennent au côté [AB], donc $EF=AB-AE-FB$, soit $EF=' + s + '-' + c + '-' + c + '=' + EF + '$.',
+          'Or $FG≈' + fgK + '$ et $' + EF + '≠' + fgK + '$.',
+          'Les côtés [EF] et [FG] n\'ont pas la même longueur : l\'octogone EFGHIJKL n\'a pas tous ses côtés de même longueur.'] },
+      { q: L('Calculer l\'aire de l\'octogone EFGHIJKL.', 'Вычисли площадь восьмиугольника EFGHIJKL.'), ans: N(aO, { unit: 'cm²' }),
+        sol: [
+          'Восьмиугольник — это квадрат, у которого срезаны четыре угла. Поэтому его площадь равна площади квадрата без площадей четырёх угловых треугольников.',
+          ['Площадь квадрата:', s + '^2=' + (s * s)],
+          ['Каждый угол — прямоугольный треугольник с катетами ' + c + ' и ' + c + '; его площадь равна половине произведения катетов:', c + '*' + c + '÷2=' + fx(tri)],
+          ['Вычитаем четыре таких треугольника:', (s * s) + '-4*' + fx(tri) + '=' + aO, 'см²']],
+        redac: ['L\'aire du carré ABCD est $' + s + '^2=' + (s * s) + '$.',
+          'Chaque coin est un triangle rectangle d\'aire $' + c + '*' + c + '÷2=' + fx(tri) + '$.',
+          '$' + (s * s) + '-4*' + fx(tri) + '=' + aO + '$',
+          'L\'aire de l\'octogone EFGHIJKL est de ' + aO + ' cm².'] },
+      { q: L('On note O le point d\'intersection des diagonales du carré ABCD et on trace le cercle de centre O et de diamètre ' + s + ' cm. Calculer l\'aire du disque délimité par ce cercle. Arrondir au centième.',
+          'Обозначим O точку пересечения диагоналей квадрата ABCD и проведём окружность с центром O и диаметром ' + s + ' см. Вычисли площадь круга, ограниченного этой окружностью. Округли до сотых.'), fig: pcOctFig(d, 1), ans: pcNR(D, 2, 'cm²'),
+        sol: [
+          'Диаметр равен ' + s + ' см, значит, радиус — ' + nf(s / 2) + ' см. В формуле площади круга стоит именно радиус: π × r².',
+          { t: 'Площадь в квадратных сантиметрах:', tex: '\\pi\\times ' + pcT(s / 2) + '^2=' + pcT(s * s / 4) + '\\pi\\approx ' + pcTk(D, 2) },
+          'Число π берём с калькулятора: с приближением 3,14 сотые получились бы другими. Типичная ошибка — подставить в формулу диаметр вместо радиуса: площадь вышла бы в 4 раза больше.'],
+        redac: ['Le rayon du disque est $' + s + '÷2=' + fx(s / 2) + '$.',
+          '$$\\mathcal{A}=\\pi\\times ' + pcT(s / 2) + '^2\\approx ' + pcTk(D, 2) + '$$',
+          'L\'aire du disque est d\'environ ' + pcS(D, 2) + ' cm².'] },
+      { q: L('Quel pourcentage de l\'aire du disque la différence entre l\'aire de l\'octogone et l\'aire du disque représente-t-elle ? Arrondir au dixième.',
+          'Сколько процентов от площади круга составляет разность между площадью восьмиугольника и площадью круга? Округли до десятых.'), ans: pcNR(pct, 1, '%'),
+        sol: [
+          ['Разность площадей — из большей вычитаем меньшую:', fx(big) + '-' + fx(small) + '=' + fx(diff)],
+          ['Спрашивают, какую часть площади круга составляет эта разность, поэтому делим её на площадь круга:', fx(diff) + '÷' + fx(Dr) + '≈' + pcK(quo, 3)],
+          'В процентах это примерно ' + pcS(pct, 1) + ' %. Делить нужно именно на площадь круга: проценты считают от той величины, которая названа после слов «pourcentage de…».'],
+        redac: ['$' + fx(big) + '-' + fx(small) + '=' + fx(diff) + '$',
+          '$' + fx(diff) + '÷' + fx(Dr) + '≈' + pcK(quo, 3) + '$',
+          'La différence représente environ ' + pcS(pct, 1) + ' % de l\'aire du disque.'] }] };
+  } });
+
+/* =====================================================================================================
+   p2.medailles-clubs : lecture d'un tableau, donnée manquante, proportion en pourcentage, médiane et son sens, pourcentage d'augmentation
+   ===================================================================================================== */
+const PC_VIL = ['Nantes', 'Lille', 'Brest', 'Dijon', 'Tours', 'Nice', 'Rennes', 'Metz', 'Lyon', 'Bordeaux', 'Toulouse', 'Caen', 'Reims', 'Pau', 'Nancy', 'Limoges'];
+const PC_AUG = [[10, 40], [10, 60], [12, 25], [12, 50], [12, 75], [15, 20], [15, 40], [15, 60], [16, 25], [16, 50], [16, 75], [20, 10], [20, 35], [20, 40], [20, 60], [24, 25], [25, 20], [25, 12], [25, 8], [30, 10]];   /* [médailles d'argent avant, augmentation en %] */
+pcProb({ id: 'p2.medailles-clubs', ch: 'st', lvl: 2, pts: 3,
+  ru: 'Медали клубов на чемпионате', fr: 'Les médailles d\'un championnat',
+  src: 'Métropole 2026 · exercice 1',
+  gen(r) {
+    const vil = r.sh(PC_VIL).slice(0, 9), sumOf = a => a.reduce((u, v) => u + v, 0);
+    /* 9 clubs ranked by gold medals; row qi hides its gold; row i1 is read, row iy gives the bronze share q (statement «plus de p %»), row iz the increase of silver */
+    let g = [40, 33, 29, 24, 20, 17, 13, 9, 6], s = [22, 30, 18, 27, 15, 24, 12, 20, 10], b = [16, 21, 35, 12, 30, 9, 28, 14, 19], qi = 7, i1 = 1, iy = 2, iz = 5, k1 = 1, m0 = 16, pc = 50, p = 30;
+    for (let t = 0; t < 600; t++) {
+      const g1 = r.distinct(9, 5, 42).sort((x, y) => y - x), s1 = g1.map(() => r.ri(6, 36)), b1 = g1.map(() => r.ri(6, 36)), [mm, pp] = r.pick(PC_AUG), q1 = r.pick([5, 6, 7, 8]);
+      const [a1, a2, a3] = r.sh([0, 1, 2, 3, 4, 5, 6, 7, 8].filter(v => v !== q1)), kk = r.pick([1, 2]);
+      if (g1.length < 9) continue;
+      s1[a3] = mm * (100 + pp) / 100;
+      const t1 = g1.map((v, i) => v + s1[i] + b1[i]), so1 = t1.slice().sort((x, y) => x - y), md = so1[4], qq = b1[a2] / t1[a2] * 100, ps = [20, 25, 30, 40].filter(v => Math.abs(qq - v) >= 2.5 && Math.abs(qq - v) <= 12 && v !== pp);
+      if (new Set(t1).size < 9 || md === t1[4] || Math.abs(sumOf(t1) / 9 - md) < 1 || so1[8] - so1[0] === md || !ps.length || (!pcIsD(qq, 1) && pcBad(qq, 1))) continue;
+      const pk = r.pick(ps), v1 = (kk === 1 ? s1 : b1)[a1];
+      if (b1[a2] === pk || new Set([v1, g1[q1], md, pp]).size < 4) continue;
+      g = g1; s = s1; b = b1; qi = q1; i1 = a1; iy = a2; iz = a3; k1 = kk; m0 = mm; pc = pp; p = pk; break;
+    }
+    const tot = g.map((v, i) => v + s[i] + b[i]), so = tot.slice().sort((x, y) => x - y), med = so[4], sumT = sumOf(tot), v1 = (k1 === 1 ? s : b)[i1];
+    const mF = ['d\'or', 'd\'argent', 'de bronze'], mR = ['золотых', 'серебряных', 'бронзовых'], head = ['Or', 'Argent', 'Bronze'], mN = ['золото', 'серебро', 'бронза'], mdl = v => pcRu(v, 'медаль', 'медали', 'медалей');
+    const by = b[iy], ty = tot[iy], q = by / ty * 100, truth = q > p, ex = pcIsD(by / ty, 3), rK = ex ? fx(by / ty) : pcK(by / ty, 3), eq = ex ? '=' : '≈', qS = ex ? nf(+q.toFixed(1)) : pcS(q, 1);
+    const inv = ty / by, invE = pcIsD(inv, 1), invK = invE ? fx(inv) : String(+pcK(inv, 1)), bAll = sumOf(b), q3 = by / bAll * 100, r3 = String(+pcK(by / bAll, 3)), q3S = nf(pcRd(q3, 1)), m1 = s[iz], dm = m1 - m0;
+    const fig = tbl([['Club', 'Or', 'Argent', 'Bronze', 'Total']].concat(vil.map((v, i) => [v, i === qi ? '?' : g[i], s[i], b[i], tot[i]])));
+    const ctx = L('Neuf clubs ont participé à un championnat régional de natation. Le tableau ci-dessous indique le nombre de médailles d\'or, d\'argent et de bronze que chaque club a obtenues, ainsi que le total. Les clubs sont rangés selon leur nombre de médailles d\'or.',
+      'В региональном чемпионате по плаванию участвовали девять клубов. В таблице указано, сколько золотых («Or»), серебряных («Argent») и бронзовых («Bronze») медалей получил каждый клуб, а также их общее число («Total»). Клубы расположены по числу золотых медалей.');
+    return { ctx, fig, qs: [
+      { q: L('Lire dans le tableau le nombre de médailles ' + mF[k1] + ' du club de ' + vil[i1] + '.', 'Найди в таблице число ' + mR[k1] + ' медалей клуба «' + vil[i1] + '».'), ans: N(v1),
+        sol: ['Находим в таблице строку клуба «' + vil[i1] + '» и столбец «' + head[k1] + '» (' + mN[k1] + '): на их пересечении стоит число ' + v1 + '.'],
+        redac: ['D\'après le tableau, le club de ' + vil[i1] + ' a obtenu ' + v1 + ' médailles ' + mF[k1] + '.'] },
+      { q: L('Le nombre de médailles d\'or du club de ' + vil[qi] + ' a été effacé. Calculer ce nombre.', 'Число золотых медалей клуба «' + vil[qi] + '» в таблице стёрто. Вычисли это число.'), ans: N(g[qi]),
+        sol: [
+          'В столбце «Total» стоит сумма медалей трёх видов. Для клуба «' + vil[qi] + '» известны итог (' + tot[qi] + '), серебро (' + s[qi] + ') и бронза (' + b[qi] + '); неизвестное слагаемое находим вычитанием.',
+          ['', tot[qi] + '-' + s[qi] + '-' + b[qi] + '=' + g[qi]],
+          ['Проверка:', g[qi] + '+' + s[qi] + '+' + b[qi] + '=' + tot[qi]]],
+        redac: ['Le total est la somme des nombres de médailles d\'or, d\'argent et de bronze.',
+          '$' + tot[qi] + '-' + s[qi] + '-' + b[qi] + '=' + g[qi] + '$',
+          'Le club de ' + vil[qi] + ' a obtenu ' + g[qi] + ' médailles d\'or.'] },
+      { q: L('L\'affirmation suivante est-elle vraie ? « Les médailles de bronze représentent plus de ' + p + ' % des médailles du club de ' + vil[iy] + '. » Choisir la réponse correctement justifiée.',
+          'Верно ли утверждение: «Бронзовые медали составляют больше ' + p + ' % медалей клуба ' + vil[iy] + '»? Выбери ответ с верным обоснованием.'), red: true,
+        ans: MQ(r, [
+          L((truth ? 'Oui' : 'Non') + ' : $' + by + '÷' + ty + eq + rK + '$, soit ' + (ex ? '' : 'environ ') + qS + ' % des médailles de ce club, et ' + qS + ' % ' + (truth ? '>' : '<') + ' ' + p + ' %.',
+            (truth ? 'Да' : 'Нет') + ': $' + by + '÷' + ty + eq + rK + '$, то есть ' + (ex ? '' : 'примерно ') + qS + ' % медалей этого клуба, а ' + qS + ' % ' + (truth ? '>' : '<') + ' ' + p + ' %.'),
+          L((by > p ? 'Oui' : 'Non') + ' : ce club a obtenu ' + by + ' médailles de bronze et ' + by + (by > p ? ' > ' : ' < ') + p + '.', (by > p ? 'Да' : 'Нет') + ': бронзовых медалей у этого клуба ' + by + ', а ' + by + (by > p ? ' > ' : ' < ') + p + '.'),
+          L('Non : $' + ty + '÷' + by + (invE ? '=' : '≈') + invK + '$, soit ' + (invE ? '' : 'environ ') + nf(+invK) + ' % seulement.', 'Нет: $' + ty + '÷' + by + (invE ? '=' : '≈') + invK + '$, то есть всего ' + (invE ? '' : 'около ') + nf(+invK) + ' %.'),
+          L((q3 > p ? 'Oui' : 'Non') + ' : $' + by + '÷' + bAll + '≈' + r3 + '$, soit environ ' + q3S + ' % des médailles de bronze du championnat.', (q3 > p ? 'Да' : 'Нет') + ': $' + by + '÷' + bAll + '≈' + r3 + '$, то есть примерно ' + q3S + ' % бронзовых медалей чемпионата.')], 0),
+        sol: [
+          'Спрашивают о доле бронзовых медалей среди всех медалей одного клуба — «' + vil[iy] + '». Поэтому число его бронзовых медалей (' + by + ') делим на общее число его медалей (' + ty + '): получается ' + (ex ? '' : 'примерно ') + qS + ' %.',
+          qS + ' % ' + (truth ? '>' : '<') + ' ' + p + ' % — утверждение ' + (truth ? 'верно' : 'неверно') + '.',
+          'Откуда ошибки. С числом ' + p + ' сравнивают процент, а не количество медалей. Делят часть на целое, а не наоборот. И целое здесь — все медали этого клуба (столбец «Total»), а не все бронзовые медали чемпионата.'],
+        redac: ['Le club de ' + vil[iy] + ' a obtenu ' + by + ' médailles de bronze sur un total de ' + ty + ' médailles.',
+          '$' + by + '÷' + ty + eq + rK + '$, soit ' + (ex ? '' : 'environ ') + qS + ' %.',
+          'Or ' + qS + ' % ' + (truth ? '>' : '<') + ' ' + p + ' % : l\'affirmation est ' + (truth ? 'vraie' : 'fausse') + '.'] },
+      { q: L('On s\'intéresse à la série des nombres de médailles de la colonne « Total ». Déterminer la médiane de cette série.', 'Рассмотрим ряд чисел из столбца «Total» (общее число медалей каждого клуба). Найди медиану этого ряда.'), ans: N(med),
+        sol: [
+          'Сначала расставляем 9 значений по возрастанию: ' + so.join(' ; ') + '.',
+          'Значений 9 — нечётное число, поэтому медиана («médiane») — значение, стоящее ровно посередине: пятое (4 значения до него и 4 после).',
+          'В таблице клубы расположены по числу золотых медалей, а не по общему числу, поэтому брать пятую строку таблицы (' + tot[4] + ') нельзя: сначала нужно упорядочить сами значения.'],
+        redac: ['On range les 9 valeurs dans l\'ordre croissant : ' + so.join(' ; ') + '.',
+          'La série compte 9 valeurs : la médiane est la $$5^{\\text{e}}$$ valeur, car il y a 4 valeurs avant elle et 4 valeurs après elle.',
+          'La médiane de cette série est ' + med + '.'] },
+      { q: L('Parmi les phrases suivantes, laquelle interprète correctement cette médiane ?', 'Какая из фраз правильно объясняет смысл этой медианы?'), red: true,
+        ans: MQ(r, [
+          L('Au moins la moitié des clubs ont obtenu ' + med + ' médailles ou moins, et au moins la moitié des clubs en ont obtenu ' + med + ' ou plus.', 'По крайней мере половина клубов получила ' + med + ' ' + mdl(med) + ' или меньше, и по крайней мере половина клубов — ' + med + ' или больше.'),
+          L('En moyenne, chaque club a obtenu ' + med + ' médailles.', 'В среднем каждый клуб получил ' + med + ' ' + mdl(med) + '.'),
+          L('Le club classé cinquième dans le tableau a obtenu ' + med + ' médailles au total.', 'Клуб, стоящий в таблице пятым, получил всего ' + med + ' ' + mdl(med) + '.'),
+          L('L\'écart entre le plus grand total et le plus petit total est de ' + med + ' médailles.', 'Разница между наибольшим и наименьшим общим числом медалей равна ' + med + '.')], 0),
+        sol: [
+          'Медиана делит упорядоченный ряд пополам: не меньше половины значений не превосходят её и не меньше половины значений не меньше её. Здесь 5 клубов из 9 получили ' + med + ' или меньше и 5 клубов — ' + med + ' или больше.',
+          'Среднее («moyenne») — другая характеристика: сумма всех девяти итогов, делённая на 9, то есть ' + sumT + ' ÷ 9 ≈ ' + pcS(sumT / 9, 1) + '.',
+          'Пятым в таблице стоит клуб «' + vil[4] + '», у него ' + tot[4] + ': таблица упорядочена по золотым медалям, а не по общему числу. А разница между наибольшим и наименьшим значением — это размах («étendue»): ' + so[8] + ' − ' + so[0] + ' = ' + (so[8] - so[0]) + '.'] },
+      { q: L('Au championnat précédent, le club de ' + vil[iz] + ' n\'avait obtenu que ' + m0 + ' médailles d\'argent. De quel pourcentage son nombre de médailles d\'argent a-t-il augmenté d\'un championnat à l\'autre ?',
+          'На прошлом чемпионате клуб «' + vil[iz] + '» получил только ' + m0 + ' серебряных медалей. На сколько процентов выросло число его серебряных медалей от прошлого чемпионата к нынешнему?'), ans: N(pc, { unit: '%' }),
+        sol: [
+          ['На этом чемпионате серебряных медалей у клуба ' + m1 + ' (таблица). Сначала находим, на сколько их стало больше:', m1 + '-' + m0 + '=' + dm],
+          ['Рост в процентах считают от исходного значения — от того, что было до изменения. Поэтому делим на ' + m0 + ':', dm + '÷' + m0 + '=' + fx(dm / m0)],
+          nf(dm / m0) + ' — это ' + pc + ' сотых, то есть ' + pc + ' %.',
+          'Проверка: ' + m0 + ' × ' + nf(1 + pc / 100) + ' = ' + m1 + '. Если разделить на новое значение (' + m1 + '), получится другая величина — доля прироста в новом результате, а не рост.'],
+        redac: ['Le nombre de médailles d\'argent est passé de ' + m0 + ' à ' + m1 + ' : il a augmenté de $' + m1 + '-' + m0 + '=' + dm + '$.',
+          '$' + dm + '÷' + m0 + '=' + fx(dm / m0) + '$, soit $' + pc + '/100$.',
+          'Le nombre de médailles d\'argent de ce club a augmenté de ' + pc + ' %.'] }] };
   } });
 
 /* ===== fin p2-c ===== */
