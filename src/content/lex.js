@@ -330,6 +330,7 @@ lex('réponse|réponses', 'ответ; в Scratch — то, что ввёл по
 lex('résultat|résultats', 'результат');
 lex('schéma', 'схема, рисунок');
 lex('situation|situations', 'ситуация');
+lex('sujet|sujet de référence|sujet zéro', 'вариант экзамена; sujet de référence, sujet zéro — образцы от министерства');
 lex('tableau|tableaux', 'таблица');
 lex('technicité', 'техническая сложность');
 lex('type', 'вид, тип: équations du type ax = c — уравнения вида ax = c');
@@ -340,10 +341,12 @@ lex('vrai|vraie', 'верный, истинный: vrai ou faux — верно �
 lex('addition', 'сложение');
 lex('additionner|additionne|additionnant', 'сложить');
 lex('ajouter|ajoute|ajouté|ajoutées|ajoutant', 'прибавить, добавить');
+lex('arithmétique', 'арифметика: делители, кратные, простые числа');
 lex('au carré', 'в квадрате: во второй степени');
 lex('calcul|calculs', 'вычисление');
 lex('calcul mental', 'устный счёт');
 lex('carré|carrés|carrée', 'квадрат (фигура; вторая степень: le carré de 5 — 25); квадратный');
+lex('carré parfait', 'полный квадрат: квадрат целого числа (1, 4, 9, 16…)');
 lex('centaine|à la centaine', 'сотня; arrondir à la centaine — округлить до сотен');
 lex('centième|au centième', 'сотая часть (0,01); arrondir au centième — до сотых (2 знака после запятой)');
 lex('cinquième', 'пятая часть (1/5); пятый');
@@ -372,6 +375,7 @@ lex('élever', 'возвести (в степень): élever au carré — во
 lex('enchaîner', 'выполнять подряд (несколько действий)');
 lex('entier|entiers|entière', 'целый; un entier — целое число');
 lex('exact|exacte', 'точный (без округления)');
+lex('exposant', 'показатель степени');
 lex('facteur|facteurs', 'множитель');
 lex('facteur premier|facteurs premiers', 'простой множитель');
 lex('forme|formes|sous forme|sous forme de|sous la forme|sous la forme d\'|en forme de', 'форма, вид; sous forme de…, sous la forme… — в виде…; en forme de — в форме');
@@ -384,6 +388,7 @@ lex('inférieur ou égal', 'меньше или равен (≤)');
 lex('inverse', 'обратный: l\'inverse de 2 — 1/2');
 lex('irréductible', 'несократимый: числитель и знаменатель не имеют общих делителей, кроме 1');
 lex('mentalement', 'в уме, устно');
+lex('millième', 'тысячная часть (0,001)');
 lex('millier|milliers|au millier', 'тысяча; en milliers — в тысячах; arrondir au millier — округлить до тысяч');
 lex('moitié', 'половина');
 lex('multiple|multiples', 'кратное: un multiple de 4 — число, которое делится на 4');
@@ -433,13 +438,14 @@ lex('équation|équations', 'уравнение');
 lex('équation produit', 'уравнение «произведение равно нулю»: (…)(…) = 0');
 lex('expression|expressions', 'выражение');
 lex('expression littérale|expressions littérales', 'буквенное выражение');
+lex('factorisation', 'разложение на множители');
 lex('factoriser|factorisée', 'разложить на множители: превратить сумму в произведение');
 lex('forme développée', 'развёрнутый вид: сумма без скобок');
 lex('forme factorisée', 'вид произведения: выражение разложено на множители');
 lex('forme réduite', 'упрощённый вид: подобные слагаемые приведены');
 lex('gauche', 'левый: le membre de gauche — левая часть уравнения');
 lex('identité|identités', 'тождество: равенство, верное при любых значениях букв');
-lex('identité remarquable', 'формула сокращённого умножения');
+lex('identité remarquable|identités remarquables', 'формула сокращённого умножения');
 lex('inégalité', 'неравенство; inégalité triangulaire — неравенство треугольника');
 lex('infinité', 'бесконечно много: une infinité de solutions');
 lex('littéral|littérale|littérales', 'буквенный: с буквами вместо чисел');
@@ -456,7 +462,7 @@ lex('traduire|traduit', 'перевести; записать на языке м
 
 /* ---------- функции и графики ---------- */
 lex('abscisse|abscisses', 'абсцисса: координата x; на числовой прямой — координата точки');
-lex('affine', 'вида y = ax + b — то, что по-русски называют линейной функцией');
+lex('affine|affines', 'вида y = ax + b — то, что по-русски называют линейной функцией');
 lex('antécédent|antécédents', 'прообраз: число x, при котором f(x) равно данному числу');
 lex('appartenir|appartient', 'принадлежать: appartient à la droite — лежит на прямой');
 lex('axe des abscisses', 'ось абсцисс: горизонтальная ось x');
@@ -470,13 +476,13 @@ lex('défini|définie', 'заданный: définie par f(x) = … — зада�
 lex('dépendance', 'зависимость (одной величины от другой)');
 lex('fonction|fonctions', 'функция');
 lex('fonction affine', 'функция y = ax + b (по-русски — «линейная функция»)');
-lex('fonction linéaire', 'прямая пропорциональность y = ax (не русская «линейная функция»!)');
+lex('fonction linéaire|fonctions linéaires', 'прямая пропорциональность y = ax (не русская «линейная функция»!)');
 lex('graphique|graphiques', 'график, диаграмма; графический');
 lex('graphiquement', 'по графику: прочитать ответ на рисунке');
 lex('image|images', 'образ: значение функции f(x) для данного x; в геометрии — образ точки');
 lex('intervalle', 'промежуток (от … до …)');
 lex('lecture|par lecture graphique', 'чтение; par lecture graphique — по графику');
-lex('linéaire', 'вида y = ax: прямая пропорциональность (уже, чем русское «линейная»)');
+lex('linéaire|linéaires', 'вида y = ax: прямая пропорциональность (уже, чем русское «линейная»)');
 lex('modéliser', 'описать моделью: записать ситуацию функцией');
 lex('ordonnée|ordonnées', 'ордината: координата y');
 lex('ordonnée à l\'origine', 'начальная ордината: число b в y = ax + b, значение при x = 0');
@@ -493,6 +499,7 @@ lex('augmentation', 'увеличение, рост (цены)');
 lex('augmenter|augmente|augmenté|augmentent', 'увеличиться, вырасти; увеличить');
 lex('baisser|baisse|baissé', 'снизиться; снизить; une baisse — снижение');
 lex('capacité', 'вместимость, ёмкость; объём памяти');
+lex('coefficient multiplicateur', 'множитель: рост на 20 % — умножение на 1,2; скидка 20 % — на 0,8');
 lex('composé|composées', 'составной: figure composée — фигура из нескольких частей');
 lex('consommation|consommations', 'потребление, расход (энергии, топлива)');
 lex('constant|constante', 'постоянный: à vitesse constante — с постоянной скоростью');
@@ -507,6 +514,7 @@ lex('distance', 'расстояние');
 lex('durée|durées', 'продолжительность: сколько времени что-то длится');
 lex('échelle|échelles', 'масштаб (карты, плана); приставная лестница');
 lex('énergie', 'энергия');
+lex('forfait', 'фиксированная плата: не зависит от количества');
 lex('grandeur|grandeurs', 'величина; en vraie grandeur — в натуральную величину');
 lex('hausse', 'повышение, рост');
 lex('horaire|horaires', 'время по часам, расписание');
@@ -516,7 +524,9 @@ lex('masse volumique', 'плотность вещества: масса един
 lex('part', 'доля, часть (кому сколько досталось); il part — он отправляется (от partir)');
 lex('partager|partage|partages|partagé|partagée|partagent', 'делить (на части, между кем-то); un partage — делёж');
 lex('se partager|se partagent', 'делить между собой');
+lex('passage par l\'unité', 'приведение к единице: сначала находят, сколько приходится на 1');
 lex('pourcentage|pourcentages', 'процент: доля, выраженная в процентах');
+lex('produit en croix', 'произведение «крест-накрест»: так находят неизвестное в пропорции');
 lex('proportion|proportions', 'доля, пропорция');
 lex('proportionnalité', 'пропорциональность: одна величина получается из другой умножением на число');
 lex('proportionnel|proportionnelle|proportionnelles', 'пропорциональный');
@@ -651,6 +661,7 @@ lex('rectangle|rectangles', 'прямоугольник; (о треугольн�
 lex('rectangulaire', 'прямоугольный: в форме прямоугольника');
 lex('rectiligne', 'прямолинейный');
 lex('régulier', 'правильный: все стороны и все углы равны');
+lex('repérage', 'определение положения по координатам');
 lex('se repérer', 'определять положение (по координатам)');
 lex('rotation|rotations', 'поворот');
 lex('sécant|sécante|sécantes', 'пересекающийся; une sécante — секущая; sécantes en A — пересекаются в точке A');
@@ -676,7 +687,7 @@ lex('Thalès', 'Фалес');
 lex('théorème', 'теорема');
 lex('théorème de Pythagore', 'теорема Пифагора: в прямоугольном треугольнике a² + b² = c² (c — гипотенуза)');
 lex('théorème de Thalès', 'теорема Фалеса: параллельные прямые отсекают пропорциональные отрезки');
-lex('transformation', 'преобразование: симметрия, перенос, поворот или гомотетия');
+lex('transformation|transformations', 'преобразование: симметрия, перенос, поворот или гомотетия');
 lex('transformer|transforme', 'преобразовать: qui transforme A en B — который переводит A в B');
 lex('translation|translations', 'параллельный перенос');
 lex('trapèze', 'трапеция');
@@ -717,6 +728,7 @@ lex('répartir|répartissent', 'распределить, разделить н�
 lex('répartition', 'распределение: сколько приходится на каждую группу');
 lex('secteur|secteurs', 'сектор (круга, диаграммы)');
 lex('série', 'ряд данных: список значений');
+lex('série statistique', 'статистический ряд: набор собранных данных');
 lex('statistiques', 'статистика');
 
 /* ---------- вероятности, игры и случай ---------- */
@@ -793,13 +805,14 @@ lex('feuille de calcul', 'лист электронной таблицы');
 lex('formule|formules', 'формула');
 lex('insérer|insère', 'вставить');
 lex('instruction|instructions', 'команда, инструкция');
-lex('instructions conditionnelles', 'условные команды: si … alors … sinon … — если …, то …, иначе …');
+lex('instruction conditionnelle|instructions conditionnelles', 'условные команды: si … alors … sinon … — если …, то …, иначе …');
 lex('lutin', 'спрайт: персонаж Scratch, который выполняет программу');
 lex('mettre|met|mettent|mis', 'положить, поставить; потратить (время); в Scratch: mettre x à 5 — присвоить x = 5');
 lex('modulo', 'остаток от деления: 7 modulo 2 = 1');
 lex('orienter|oriente', 'направить, повернуть');
 lex('s\'orienter', 'повернуться в направлении: s\'orienter à 90 — вправо');
 lex('programmation', 'программирование');
+lex('programmer', 'программировать');
 lex('répéter|répète', 'повторить: répéter 5 fois — повторить 5 раз');
 lex('saisir|saisit|saisi|saisie', 'ввести (с клавиатуры, в ячейку)');
 lexn('Scratch');
@@ -1342,15 +1355,19 @@ lex('vis', 'винт, шуруп');
 
 /* ---------- природа, наука, места ---------- */
 lex('bactérie', 'бактерия');
+lex('centres étrangers', 'зарубежные центры: экзамен во французских школах за границей');
 lex('cheveu', 'волос');
 lex('guépard', 'гепард');
 lex('intelligence artificielle', 'искусственный интеллект (ИИ, по-французски IA)');
 lex('longueur d\'onde', 'длина волны');
 lex('lumière', 'свет');
 lex('méridien de Greenwich', 'Гринвичский (нулевой) меридиан: от него отсчитывают долготу');
+lex('Métropole', 'материковая Франция: основная сессия экзамена');
+lex('nord', 'север');
 lex('pays', 'страна');
 lex('poisson|poissons', 'рыба');
 lex('poisson combattant|poissons combattants', 'петушок: аквариумная бойцовая рыбка');
+lex('sud', 'юг');
 lex('température|températures', 'температура');
 lex('village|villages', 'деревня, посёлок');
 lex('virus', 'вирус');
@@ -1387,6 +1404,7 @@ lex('vérification', 'проверка');
 
 /* ---------- имена собственные: города, названия, обозначения тел ---------- */
 lexn('ABCDEFGH|SABCD');   /* имена тел длиннее четырёх букв (короткие имена точек словарь пропускает сам) */
+lexn('Amérique|Antilles-Guyane|Asie|Nouvelle-Calédonie|Polynésie');
 lexn('ax|cx');            /* куски формул в названиях тем: «Résoudre ax + b = cx + d» */
 lexn('Besançon|Grenoble|Lille|Limoges|Metz|Nancy|Reims|Strasbourg');
 lexn('France');

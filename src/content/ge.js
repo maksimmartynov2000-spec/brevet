@@ -360,7 +360,7 @@ const geoAngKind = v => v === 0 ? 'nul' : v < 90 ? 'aigu' : v === 90 ? 'droit' :
 function geoRays(nm, dirs, marks, label) {
   const S = geoScene(), O = geoV(0, 0), R = 96, P = dirs.map(d => geoV(R * Math.cos(geoRad(d)), -R * Math.sin(geoRad(d))));
   P.forEach(p => S.seg(O, geoMul(p, 1.2)));
-  marks.forEach(([i, j, txt, hl]) => geoArc(S, O, P[i], P[j], { r: 26, txt, cls: hl ? 'fhl' : 'fang' }));
+  marks.forEach(([i, j, txt, hl], k) => geoArc(S, O, P[i], P[j], { r: 24 + 9 * k, txt, cls: hl ? 'fhl' : 'fang' }));   /* two angles side by side: different radii, so that they do not read as one arc */
   S.dot(O, 2.5); P.forEach(p => S.dot(p, 2.5));
   P.forEach((p, i) => geoPtLab(S, p, geoPerp(p), nm[i], { gap: 5, near: true }));
   /* O is named in the widest sector that carries no mark */
@@ -943,11 +943,11 @@ geoTopic({ id: 'ge.thales-reciproque', ch: 'ge', lvl: 2, calc: true, variants: 4
       const data = [O + P1 + ' = ' + nf(D.sm[0]) + ' cm', O + P3 + ' = ' + nf(D.big[0]) + ' cm', O + P2 + ' = ' + nf(D.sm[1]) + ' cm', O + P4 + ' = ' + nf(D.big[1]) + ' cm'];
       const intro = L('Le point ' + P1 + ' appartient au segment [' + O + P3 + '] et le point ' + P2 + ' appartient au segment [' + O + P4 + ']. On donne ' + geoList(data) + '.', 'Точка ' + P1 + ' лежит на отрезке [' + O + P3 + '], точка ' + P2 + ' — на отрезке [' + O + P4 + ']. Известно: ' + geoList(data.map(x => x.replace('cm', 'см')), true) + '.');
       if (vi === 2) {
-        const st = [L('D’une part, $$' + T1 + '$$ ; d’autre part, $$' + T2 + '$$.', 'С одной стороны, $$' + T1 + '$$; с другой стороны, $$' + T2 + '$$.'),
+        const st = [L('D’une part, $$' + T1 + '$$.', 'С одной стороны, $$' + T1 + '$$.'), L('D’autre part, $$' + T2 + '$$.', 'С другой стороны, $$' + T2 + '$$.'),
           L('Donc $$' + Q1 + '=' + Q2 + '$$.', 'Значит, $$' + Q1 + '=' + Q2 + '$$.'),
           L('De plus, les points ' + O + ', ' + P1 + ', ' + P3 + ' et les points ' + O + ', ' + P2 + ', ' + P4 + ' sont alignés dans le même ordre, donc, d’après la réciproque du théorème de Thalès, les droites (' + P1 + P2 + ') et (' + P3 + P4 + ') sont parallèles.', 'Кроме того, точки ' + O + ', ' + P1 + ', ' + P3 + ' и точки ' + O + ', ' + P2 + ', ' + P4 + ' лежат на прямых в одном и том же порядке, поэтому по обратной теореме Фалеса прямые (' + P1 + P2 + ') и (' + P3 + P4 + ') параллельны.')];
         return { q: L(intro.fr + ' Remettre dans l’ordre les étapes de la démonstration : les droites (' + P1 + P2 + ') et (' + P3 + P4 + ') sont parallèles.', intro.ru + ' Расставь по порядку шаги доказательства того, что прямые (' + P1 + P2 + ') и (' + P3 + P4 + ') параллельны.'), fig, ans: ORD(r, st),
-          sol: ['Сначала вычисления (оба отношения), потом вывод из них (отношения равны), и в конце — ссылка на обратную теорему Фалеса вместе с её вторым условием: порядок точек одинаковый.', 'Без условия о порядке точек вывод неполный: равных отношений мало, если одна из точек лежит «с другой стороны».'] };
+          sol: ['Сначала вычисления: «D’une part…» — первое отношение, «D’autre part…» — второе. Потом вывод из них (отношения равны), и в конце — ссылка на обратную теорему Фалеса вместе с её вторым условием: порядок точек одинаковый.', 'Без условия о порядке точек вывод неполный: равных отношений мало, если одна из точек лежит «с другой стороны».'] };
       }
       const opts = [L('Oui, car $$' + Q1 + '=' + Q2 + '$$ et les points sont alignés dans le même ordre', 'Да, потому что $$' + Q1 + '=' + Q2 + '$$ и точки идут в одном порядке'), L('Non, car $$' + Q1 + '\\neq ' + Q2 + '$$', 'Нет, потому что $$' + Q1 + '\\neq ' + Q2 + '$$'),
         L('Oui, car sur la figure les droites (' + P1 + P2 + ') et (' + P3 + P4 + ') ne se coupent pas', 'Да, потому что на рисунке прямые (' + P1 + P2 + ') и (' + P3 + P4 + ') не пересекаются'), L('On ne peut pas savoir sans connaître ' + P1 + P2 + ' et ' + P3 + P4, 'Нельзя узнать, не зная ' + P1 + P2 + ' и ' + P3 + P4)];
