@@ -163,6 +163,12 @@ A.LEXI.forEach((e, i) => {
     lexForms.set(k2, i);
   });
 });
+/* French texts outside the tasks that can be tapped too: names, the French lines of the fiches, the official list */
+A.TOPICS.forEach((t) => lexOk(t.id + ' (название)', [t.fr]));
+A.PROBLEMS.forEach((p) => lexOk(p.id + ' (название)', [p.fr]));
+A.FICHES.forEach((f) => lexOk('fiche ' + (f.id || f.ch), f.frs || []));
+A.CHAPTERS.forEach((c) => lexOk('chapter ' + c.id, [c.fr]));
+A.AUTOS.forEach((a) => lexOk('automatisme ' + a.n, [a.fr]));
 /* the ministry's list of automatismes: every item is linked to topics that exist */
 const autoN = new Set();
 A.AUTOS.forEach((a) => {

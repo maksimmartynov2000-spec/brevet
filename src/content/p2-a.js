@@ -54,19 +54,20 @@ function paTy(s) {
    so that they never start the next line alone. On a line of pure calculation (no sentence) fractions are written in full size,
    as on paper; in a sentence they stay small. 360000 becomes 360 000. */
 const paTex = f => mi(f, true).replace(/\d{5,}/g, d => d.replace(/\B(?=(\d{3})+(?!\d))/g, '\\,'));
-function paNb(s) {
+function paNb(s, max = 22) {
   const calc = String(s).replace(/\$\$[^$]*\$\$|\$[^$]*\$/g, '').replace(/[^A-Za-zÀ-ÿ]/g, '').length < 4;
   return String(s).replace(/\$\$[^$]*\$\$|\$([^$]*)\$(\u00a0[^\s.,;:!?$]+)?([.,]?)/g, (m, f, u, pt) => {
     if (f == null) return m;
-    const big = calc && f.includes('/'); if (f.length > 22 && !big) return m;
+    const big = calc && f.includes('/'); if (f.length > max && !big) return m;
     const t = big ? paTex(f) : paTex(f).replace(/\\dfrac/g, '\\frac');
-    if (f.length > 22) return '$$' + t + '$$' + (u || '') + (pt || '');   /* a long line of fractions may still break at «=» */
+    if (f.length > max) return '$$' + t + '$$' + (u || '') + (pt || '');   /* a long line of fractions may still break at «=» */
     /* the formula is a group of its own, so no extra space appears between «)» and the unit or the full stop */
     return '$${{' + t + '}' + (u ? '\\text{ ' + u.slice(1).replace(/%/g, '\\%').replace(/²/g, '}^2\\text{').replace(/³/g, '}^3\\text{') + '}' : '') + (pt ? '\\text{' + pt + '}' : '') + '}$$';
   });
 }
 const paTyT = o => (o && typeof o === 'object' && 'fr' in o ? { fr: paTy(o.fr), ru: paTy(o.ru) } : typeof o === 'string' ? paTy(o) : o);
-function paTyA(a) { if (!a) return a; if (a.k === 'mcq') a.opts = a.opts.map(paTyT); if (a.k === 'order') a.items = a.items.map(paTyT); if (a.k === 'multi') a.parts.forEach(p => { if (p.lab) p.lab = paTyT(p.lab); paTyA(p.spec); }); return a; }
+const paTyO = o => { const t = paTyT(o); return typeof t === 'string' ? paNb(t, 16) : t && t.fr != null ? { fr: paNb(t.fr, 16), ru: paNb(t.ru, 16) } : t; };   /* options and steps: short formulas stay whole, with their full stop */
+function paTyA(a) { if (!a) return a; if (a.k === 'mcq') a.opts = a.opts.map(paTyO); if (a.k === 'order') a.items = a.items.map(paTyO); if (a.k === 'multi') a.parts.forEach(p => { if (p.lab) p.lab = paTyT(p.lab); paTyA(p.spec); }); return a; }
 function paTyS(s) { if (typeof s === 'string') return paTy(s); if (Array.isArray(s)) return [paTy(s[0] || '')].concat(s.slice(1)); return s; }
 const paTbl = (rows, cls) => tbl(rows.map(r => r.map(c => paTy(c))), cls);
 /* probleme() with the typography applied to every text the generator returns */
@@ -343,7 +344,7 @@ paProb({ id: 'p2.ia-energie', ch: 'nc', lvl: 2, pts: 4,
           'La consommation annuelle d\'un collège est de $' + stdStr(co) + '$ Wh.'] },
       { q: L('Pour savoir combien de collèges on pourrait alimenter pendant un an avec la consommation de l\'IA, quel calcul faut-il faire ? Choisir la proposition correctement justifiée.', 'Чтобы узнать, сколько коллежей можно целый год снабжать электричеством за счёт потребления ИИ, какое вычисление нужно сделать? Выбери вариант с верным обоснованием.'), red: true,
         ans: MQ(r, [
-          L('Diviser la consommation de l\'IA par celle d\'un collège, toutes les deux en Wh : $' + stdStr(ia) + '÷(' + stdStr(co) + ')$.', 'Разделить потребление ИИ на потребление одного коллежа, оба в Вт·ч: $' + stdStr(ia) + '÷(' + stdStr(co) + ')$.'),
+          L('Calculer $' + stdStr(ia) + '÷(' + stdStr(co) + ')$ : on divise la consommation de l\'IA par celle d\'un collège, toutes les deux en Wh.', 'Вычислить $' + stdStr(ia) + '÷(' + stdStr(co) + ')$: делим потребление ИИ на потребление одного коллежа, оба в Вт·ч.'),
           L('Diviser ' + nf(X) + ' par ' + nf(Y) + ', car ce sont les deux consommations données dans l\'énoncé.', 'Разделить ' + nf(X) + ' на ' + nf(Y) + ', потому что это два потребления из условия.'),
           L('Multiplier la consommation de l\'IA par celle d\'un collège.', 'Умножить потребление ИИ на потребление коллежа.'),
           L('Diviser la consommation d\'un collège par celle de l\'IA.', 'Разделить потребление коллежа на потребление ИИ.')], 0), sol: [
@@ -761,7 +762,7 @@ paProb({ id: 'p2.tarifs-bateau', ch: 'fn', lvl: 2, pts: 4,
     return { ctx, fig, qs: [
       { q: L('La fonction $g$ définie par $g(x)=' + gx + '$ est représentée par l\'une des courbes. Laquelle ? Choisir la réponse correctement justifiée.', 'Функция $g$, заданная формулой $g(x)=' + gx + '$, изображена одной из кривых. Какой? Выбери ответ с верным обоснованием.'), red: true,
         ans: MQ(r, [
-          L('La courbe ' + nameOf('N') + ', car c\'est une droite qui coupe l\'axe des ordonnées au point de coordonnées (0 ; ' + cN + ') : $g(0)=' + cN + '$.', 'Кривая ' + nameOf('N') + ', потому что это прямая, которая пересекает ось ординат в точке (0; ' + cN + '): $g(0)=' + cN + '$.'),
+          L('La courbe ' + nameOf('N') + ', car $g(0)=' + cN + '$ : c\'est la droite qui coupe l\'axe des ordonnées au point de coordonnées (0 ; ' + cN + ').', 'Кривая ' + nameOf('N') + ', потому что $g(0)=' + cN + '$: это прямая, которая пересекает ось ординат в точке (0; ' + cN + ').'),
           L('La courbe ' + nameOf('M') + ', car une fonction affine est représentée par une droite qui passe par l\'origine.', 'Кривая ' + nameOf('M') + ', потому что график «fonction affine» — прямая, проходящая через начало координат.'),
           L('La courbe ' + nameOf('P') + ', car elle part de l\'origine et monte.', 'Кривая ' + nameOf('P') + ', потому что она выходит из начала координат и идёт вверх.'),
           L('La courbe ' + nameOf('M') + ', car c\'est la droite qui monte le plus vite.', 'Кривая ' + nameOf('M') + ', потому что эта прямая растёт быстрее всех.')], 0), sol: [
@@ -979,7 +980,7 @@ paProb({ id: 'p2.photos', ch: 'al', lvl: 2, pts: 5,
           '$' + nMax + '*' + fx(u1) + '=' + fx(nMax * u1c / 100) + '$ et $' + (nMax + 1) + '*' + fx(u1) + '=' + fx((nMax + 1) * u1c / 100) + '$, ce qui dépasse ' + Bg + ' €.',
           'On peut commander au maximum ' + nMax + ' photos.'] },
       { q: L('On a écrit le programme ci-dessous pour calculer le prix à payer. Il utilise trois variables : n (nombre de photos commandées), s (nombre de photos commandées au-delà des 100 premières) et prix (prix à payer, en euros). Par quels nombres faut-il remplacer A, B et C ?',
-          'Ниже — программа, которая считает цену заказа. В ней три переменные: n (число заказанных фото), s (число фото сверх первых 100) и prix (цена в евро). Какими числами нужно заменить A, B и C? Блоки программы: «quand … est cliqué» — когда нажат флажок; «demander … et attendre» — спросить и ждать ответа («réponse» — этот ответ); «mettre … à …» — присвоить переменной значение; «si … alors … sinon …» — если … то … иначе …; «dire» — сказать (показать).'),
+          'Ниже — программа, которая считает цену заказа. В ней три переменные: n (число заказанных фото), s (число фото сверх первых 100) и prix (цена в евро). Какими числами нужно заменить A, B и C? В блоках: «demander … et attendre» — спросить и ждать ответа; «mettre … à …» — присвоить; «si … alors … sinon» — если … то … иначе; «dire» — показать.'),
         fig: prog, ans: multi(['A =', N(100)], ['B =', N(F)], ['C =', N(fx(u1))]), sol: [
           'Строка 5: s — число фото сверх первых 100, поэтому s = n − 100: A = 100.',
           'Строка 6: цена = ' + eur(F) + ' за первые 100 фото плюс по ' + eur(u2) + ' за каждое из s остальных: B = ' + F + '.',

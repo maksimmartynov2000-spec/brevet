@@ -67,7 +67,7 @@ function geoHit(a, b, x0, y0, x1, y1) {
 }
 const GEO_SOLID = /^(fl|fl2|fhl|fdash|fang|fax|fcurve)$/;   /* lines that labels must not cross */
 function geoScene() {
-  const S = { el: [], x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity, lines: [], boxes: [] };
+  const S = { el: [], x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity, lines: [], boxes: [], tb: [] };
   S.box = (x0, y0, x1, y1) => { S.x0 = Math.min(S.x0, x0, x1); S.y0 = Math.min(S.y0, y0, y1); S.x1 = Math.max(S.x1, x0, x1); S.y1 = Math.max(S.y1, y0, y1); };
   S.pts = ps => ps.forEach(p => S.box(p.x, p.y, p.x, p.y));
   S.raw = s => S.el.push(s);
@@ -89,11 +89,12 @@ function geoScene() {
   S.text = (c, s, o) => {
     o = o || {}; const fs = geoFs(o), w = geoTW(s, fs);
     const anc = o.anchor || 'middle', x0 = anc === 'start' ? c.x : anc === 'end' ? c.x - w : c.x - w / 2;
-    S.box(x0, c.y - fs * 0.5, x0 + w, c.y + fs * 0.5); S.boxes.push([x0, c.y - fs * 0.42, x0 + w, c.y + fs * 0.42]);
+    S.box(x0, c.y - fs * 0.5, x0 + w, c.y + fs * 0.5); S.boxes.push([x0, c.y - fs * 0.42, x0 + w, c.y + fs * 0.42]); S.tb.push([x0, c.y - fs * 0.4, x0 + w, c.y + fs * 0.4]);
     S.el.push('<text x="' + geoC(c.x) + '" y="' + geoC(c.y + fs * 0.36) + '" class="' + (o.cls || 'ftx') + '" font-size="' + fs + '" text-anchor="' + anc + '"' + (o.it ? ' font-style="italic"' : '') + '>' + geoEsc(s) + '</text>');
   };
   /* final svg: at least minW wide, the drawing centred */
   S.svg = (label, minW) => {
+    if (S.tb.some(b => S.lines.some(([p, q]) => geoHit(p, q, b[0], b[1], b[2], b[3])))) GEO_BAD++;
     const m = 5; let x0 = S.x0 - m, w = S.x1 - S.x0 + 2 * m; const y0 = S.y0 - m, h = S.y1 - S.y0 + 2 * m;
     const W = minW || 340; if (w < W) { x0 -= (W - w) / 2; w = W; }
     return svgFig(geoC(w), geoC(h), '<g transform="translate(' + geoC(-x0) + ' ' + geoC(-y0) + ')">' + S.el.join('') + '</g>', label);
@@ -124,7 +125,7 @@ function geoPtLab(S, p, dir, txt, o) {
   const fs = geoFs(o), hw = geoTW(txt, fs) / 2, hh = fs * 0.42, u0 = geoUnit(dir), gap = o.gap == null ? 4 : o.gap;
   const at = (u, e) => { const d = Math.abs(u.x) * hw + Math.abs(u.y) * hh + gap + e; return geoAdd(p, geoMul(u, d)); };
   /* o.near: the label stays close to its point (crowded figures) — otherwise it may move away a little */
-  for (const e of (o.near ? [0, 3] : [0, 5, 10])) for (const ang of [0, 22, -22, 45, -45, 70, -70, 100, -100, 135, -135, 180]) { const c = at(geoRot(u0, ang), e); if (S.free(c, hw, hh)) { S.text(c, txt, o); return true; } }
+  for (const e of (o.near ? [0, 3] : [0, 5, 10, 16])) for (const ang of [0, 22, -22, 45, -45, 70, -70, 100, -100, 135, -135, 180]) { const c = at(geoRot(u0, ang), e); if (S.free(c, hw, hh)) { S.text(c, txt, o); return true; } }
   GEO_BAD++; S.text(at(u0, 0), txt, o); return false;
 }
 /* outward direction at vertex v of a convex polygon (neighbours a and b) */
@@ -1208,13 +1209,25 @@ function geoImgQ(r, G, K, pts4, extra) {
   geoGridPts(G, [[K[0], K[1], nK]].concat(r.sh(named), extra || []));
   return { nK, names: letters.slice(0, 4), opts: letters.slice(0, 4).map(l => L('Le point ' + l, 'Точка ' + l)) };
 }
-geoTopic({ id: 'ge.symetries', ch: 'ge', lvl: 1, calc: false, variants: 3,
+geoTopic({ id: 'ge.symetries', ch: 'ge', lvl: 1, calc: false, variants: 4,
   ru: 'Осевая и центральная симметрия', fr: 'Symétrie axiale et symétrie centrale',
   hints: [
     'Осевая симметрия («symétrie axiale») — это перегиб листа по прямой (d): точка и её образ лежат на одном перпендикуляре к (d), на равных расстояниях по разные стороны от неё.',
     'Центральная симметрия («symétrie centrale») с центром O — пол-оборота вокруг O: O — середина отрезка между точкой и её образом. На клетках: сколько клеток от K до O вправо и вверх — столько же от O дальше, тоже вправо и вверх.',
     'Ось симметрии фигуры — прямая, при перегибе по которой фигура совпадает сама с собой. Проверяй каждую возможную ось: через вершины, через середины сторон.'],
   gen(r, vi) {
+    if (vi === 3) {   /* a symmetry or a translation only moves the figure: lengths, angles, perimeters and areas are kept */
+      const tr = r.pick([['la symétrie axiale d’axe (d)', 'осевой симметрии относительно прямой (d)'], ['la symétrie centrale de centre O', 'центральной симметрии с центром O'], ['la translation qui transforme M en N', 'параллельном переносе, который переводит M в N']]);
+      const nm = r.pick(GEO_TRI.filter(t => !t.some(x => 'MNO'.includes(x)))), [A, B, C] = nm, tri = nm.join(''), im = nm.map(x => x + '′').join('');
+      const what = r.pick(['len', 'ang', 'per', 'aire']), v = what === 'ang' ? 5 * r.ri(5, 25) : what === 'len' ? r.ri(3, 12) : r.ri(12, 40);
+      const D = { len: [A + B + ' = ' + v + ' cm', 'Quelle est la longueur ' + A + '′' + B + '′ ?', A + B + ' = ' + v + ' см', 'Чему равна длина ' + A + '′' + B + '′?', 'cm', 'см'],
+        ang: [geoHat(A + B + C) + ' = ' + v + '°', 'Quelle est la mesure de l’angle ' + geoHat(A + "'" + B + "'" + C + "'") + ' ?', geoHat(A + B + C) + ' = ' + v + '°', 'Чему равен угол ' + geoHat(A + "'" + B + "'" + C + "'") + '?', '°', '°'],
+        per: ['le périmètre du triangle ' + tri + ' est égal à ' + v + ' cm', 'Quel est le périmètre du triangle ' + im + ' ?', 'периметр треугольника ' + tri + ' равен ' + v + ' см', 'Чему равен периметр треугольника ' + im + '?', 'cm', 'см'],
+        aire: ['l’aire du triangle ' + tri + ' est égale à ' + v + ' cm²', 'Quelle est l’aire du triangle ' + im + ' ?', 'площадь треугольника ' + tri + ' равна ' + v + ' см²', 'Чему равна площадь треугольника ' + im + '?', 'cm²', 'см²'] }[what];
+      return { q: L('Le triangle ' + im + ' est l’image du triangle ' + tri + ' par ' + tr[0] + '. On sait que ' + D[0] + '. ' + D[1], 'Треугольник ' + im + ' — образ треугольника ' + tri + ' при ' + tr[1] + '. Известно: ' + D[2] + '. ' + D[3]), ans: N(v, { unit: D[4] }),
+        sol: ['Осевая симметрия, центральная симметрия и параллельный перенос только перемещают фигуру (перегиб листа, пол-оборота, сдвиг): она не растягивается и не сжимается.',
+          'Поэтому образ — такой же треугольник: длины сторон, углы, периметр и площадь сохраняются. Ответ тот же: ' + v + ' ' + D[5] + '.', 'Размеры меняет только гомотетия («homothétie») — и то если её коэффициент не равен 1 или −1.'] };
+    }
     if (vi === 2) {   /* number of axes of symmetry of a figure */
       const sh = r.pick(['carre', 'rect', 'los', 'equi', 'iso', 'para', 'trap', 'hexa', 'penta', 'cerf', 'quel']);
       const D = { carre: [4, 'ce carré', 'этого квадрата'], rect: [2, 'ce rectangle (qui n’est pas un carré)', 'этого прямоугольника (не квадрата)'], los: [2, 'ce losange (qui n’est pas un carré)', 'этого ромба (не квадрата)'],
@@ -1537,7 +1550,7 @@ geoTopic({ id: 'ge.reperage', ch: 'ge', lvl: 1, calc: false, variants: 3,
     /* the question shows the point alone; the solution adds the dashed lines to the axes (the numbers of an axis move to its other side
        when a dashed line arrives there: a dash in front of «1» would read «−1») */
     const draw = sol => {
-      const A = geoAxes(-5, 5, -4, 4, 26, step, sol ? { above: a[1] < 0, right: a[0] < 0 } : null), q0 = A.P(a[0], a[1]);
+      const A = geoAxes(-5, 5, -4, 4, 26, step, { above: a[1] < 0, right: a[0] < 0 }), q0 = A.P(a[0], a[1]);
       if (sol) { A.S.seg(q0, A.P(a[0], 0), 'fdash'); A.S.seg(q0, A.P(0, a[1]), 'fdash'); }
       A.S.dot(q0, 3.5); A.S.boxes.push([q0.x - 4, q0.y - 4, q0.x + 4, q0.y + 4]); geoPtLab(A.S, q0, geoV(a[0] > 0 ? 1 : -1, a[1] > 0 ? -1 : 1), nm, { gap: 5 });
       return A.S.svg('repère');
@@ -2067,43 +2080,110 @@ geoTopic({ id: 'ge.semblables', ch: 'ge', lvl: 2, calc: false, variants: 5,
 
 /* ===================== FICHES ===================== */
 fiche({ ch: 'ge', id: 'ge.f-angles', ru: 'Углы, треугольники, четырёхугольники', fr: 'Angles, triangles et quadrilatères', body: [
+  'Виды углов: нулевой («nul») — 0°, острый («aigu») — меньше 90°, прямой («droit») — 90°, тупой («obtus») — между 90° и 180°, развёрнутый («plat») — 180°.',
+  'Пары углов: «opposés par le sommet» — вертикальные (они равны); «adjacents» — с общей вершиной и общей стороной, по разные стороны от неё; «supplémentaires» — в сумме 180°. Русские «смежные углы» — это «adjacents et supplémentaires» сразу.',
+  'Отметки на чертеже («codage»): одинаковые чёрточки — равные длины, квадратик — прямой угол; утверждать можно только то, что отмечено. Серединный перпендикуляр к отрезку («médiatrice») — прямая через его середину, перпендикулярная ему (нужны обе отметки); каждая её точка одинаково удалена от концов отрезка.',
   'Сумма углов треугольника — 180°. Почему: проведём через вершину прямую, параллельную противоположной стороне; три угла треугольника лягут рядом и составят развёрнутый угол.',
   'Прямоугольный треугольник: два острых угла вместе — 90°. Равнобедренный («isocèle»): углы при основании равны. Равносторонний («équilatéral»): все углы по 60°.',
   'Две параллельные прямые и секущая («sécante»): накрест лежащие («alternes-internes») и соответственные («correspondants») углы равны; и наоборот, если они равны, прямые параллельны. Вертикальные углы («opposés par le sommet») равны всегда, смежные дают в сумме 180°.',
   'Неравенство треугольника («inégalité triangulaire»): каждая сторона меньше суммы двух других. Достаточно проверить самую длинную; если она равна сумме двух других — точки на одной прямой, треугольник «сплющенный» («aplati»).',
   'Четырёхугольники: параллелограмм — диагонали делятся пополам; ромб («losange») — 4 равные стороны, диагонали перпендикулярны; прямоугольник — прямые углы, диагонали равны; квадрат — и ромб, и прямоугольник. На рисунке «à main levée» верь только отметкам («codages»).'],
-  ex: [['Третий угол треугольника', '180-48-67=65'], ['Равнобедренный, угол при вершине 40°', '(180-40)/2=70']] });
+  ex: [['Третий угол треугольника', '180-48-67=65'], ['Равнобедренный, угол при вершине 40°', '(180-40)/2=70']],
+  frs: [
+    'Dans un triangle, la somme des mesures des angles est égale à 180°.',
+    'Si un triangle est isocèle, alors ses angles à la base ont la même mesure. Si un triangle est équilatéral, alors chacun de ses angles mesure 60°.',
+    'Un angle droit mesure 90° ; un angle plat mesure 180°. Un angle aigu mesure moins de 90° ; un angle obtus mesure entre 90° et 180°.',
+    'Deux angles opposés par le sommet ont la même mesure.',
+    'Deux angles supplémentaires sont deux angles dont la somme des mesures est égale à 180°.',
+    'Si deux droites parallèles sont coupées par une sécante, alors les angles alternes-internes ont la même mesure et les angles correspondants ont la même mesure.',
+    'Si deux droites coupées par une sécante forment des angles alternes-internes (ou correspondants) de même mesure, alors ces deux droites sont parallèles.',
+    'Dans un triangle, la longueur de chaque côté est inférieure à la somme des longueurs des deux autres côtés.',
+    'La médiatrice d’un segment est la droite perpendiculaire à ce segment qui passe par son milieu.',
+    'Si un point appartient à la médiatrice d’un segment, alors il est équidistant des extrémités de ce segment.',
+    'Un parallélogramme qui a un angle droit est un rectangle. Un parallélogramme qui a deux côtés consécutifs de même longueur est un losange.',
+    'Si les diagonales d’un quadrilatère se coupent en leur milieu, alors ce quadrilatère est un parallélogramme.'] });
 fiche({ ch: 'ge', id: 'ge.f-pythagore', ru: 'Теорема Пифагора и обратная', fr: 'Théorème de Pythagore et sa réciproque', body: [
   'Если треугольник ABC прямоугольный в A, то $BC^2=AB^2+AC^2$: квадрат гипотенузы («hypoténuse» — сторона напротив прямого угла, самая длинная) равен сумме квадратов катетов. Только для прямоугольного треугольника: при тупом угле $BC^2$ больше суммы, при остром — меньше.',
   'Гипотенуза: сложить квадраты катетов и извлечь корень. Катет: из квадрата гипотенузы вычесть квадрат другого катета и извлечь корень. Точное значение пишут с корнем ($√13$), приближённое — с калькулятором, округляя в самом конце.',
   'Обратная теорема («réciproque»): если квадрат самой длинной стороны равен сумме квадратов двух других, треугольник прямоугольный, и прямой угол — напротив самой длинной стороны. Если не равен — треугольник не прямоугольный (иначе по самой теореме было бы равенство).',
   'На экзамене пишут: «Le triangle ABC est rectangle en A. D’après le théorème de Pythagore, BC² = AB² + AC².» или «… d’après la réciproque du théorème de Pythagore, le triangle est rectangle en A.»'],
-  ex: [['Гипотенуза', 'BC^2=6^2+8^2=100;BC=10'], ['Катет', 'AC^2=13^2-5^2=144;AC=12'], ['Проверка прямого угла', '5^2+12^2=169=13^2']] });
+  ex: [['Гипотенуза', 'BC^2=6^2+8^2=100;BC=10'], ['Катет', 'AC^2=13^2-5^2=144;AC=12'], ['Проверка прямого угла', '5^2+12^2=169=13^2']],
+  frs: [
+    'Théorème de Pythagore : si un triangle est rectangle, alors le carré de la longueur de l’hypoténuse est égal à la somme des carrés des longueurs des deux autres côtés.',
+    'Le triangle ABC est rectangle en A. D’après le théorème de Pythagore, on a : $BC^2=AB^2+AC^2$.',
+    'Réciproque du théorème de Pythagore : si, dans un triangle, le carré de la longueur du plus grand côté est égal à la somme des carrés des longueurs des deux autres côtés, alors ce triangle est rectangle.',
+    'Dans le triangle ABC, le plus grand côté est [BC]. D’une part, $BC^2=13^2=169$. D’autre part, $AB^2+AC^2=5^2+12^2=169$. Donc $BC^2=AB^2+AC^2$ : d’après la réciproque du théorème de Pythagore, le triangle ABC est rectangle en A.',
+    'Si le triangle ABC était rectangle, d’après le théorème de Pythagore, on aurait $BC^2=AB^2+AC^2$. Or $BC^2≠AB^2+AC^2$, donc le triangle ABC n’est pas rectangle.'] });
 fiche({ ch: 'ge', id: 'ge.f-thales', ru: 'Теорема Фалеса и обратная', fr: 'Théorème de Thalès et sa réciproque', body: [
   'Конфигурация: прямые (BM) и (CN) пересекаются в точке A, и (MN) ∥ (BC). Бывает «треугольник» (M на [AB], N на [AC]) и «бабочка» (M и N по другую сторону от A).',
   'Тогда $AM/AB=AN/AC=MN/BC$: треугольник AMN — копия треугольника ABC в другом масштабе. Все длины в отношениях — от точки пересечения A, а третья дробь — параллельные стороны.',
   'Неизвестное находим перекрёстным умножением («produit en croix»): из $AM/AB=AN/AC$ получаем $AN=AM*AC/AB$.',
   'Обратная теорема («réciproque»): если точки A, M, B и A, N, C идут в одном порядке и $AM/AB=AN/AC$, то (MN) ∥ (BC). Если отношения разные — прямые не параллельны (иначе по самой теореме отношения были бы равны).'],
-  ex: [['Пропорция', '4/6=5/x'], ['Перекрёстное умножение', 'x=6*5/4=7.5']] });
+  ex: [['Пропорция', '4/6=5/x'], ['Перекрёстное умножение', 'x=6*5/4=7.5']],
+  frs: [
+    'Théorème de Thalès : si les points A, M, B sont alignés, si les points A, N, C sont alignés et si les droites (MN) et (BC) sont parallèles, alors $$\\dfrac{AM}{AB}$$ = $$\\dfrac{AN}{AC}$$ = $$\\dfrac{MN}{BC}$$.',
+    'Les droites (BM) et (CN) sont sécantes en A et les droites (MN) et (BC) sont parallèles. D’après le théorème de Thalès, on a : $$\\dfrac{AM}{AB}$$ = $$\\dfrac{AN}{AC}$$ = $$\\dfrac{MN}{BC}$$.',
+    'Réciproque du théorème de Thalès : si les points A, M, B et les points A, N, C sont alignés dans le même ordre et si $$\\dfrac{AM}{AB}$$ = $$\\dfrac{AN}{AC}$$, alors les droites (MN) et (BC) sont parallèles.',
+    'D’une part, $$\\dfrac{AM}{AB}$$ = $$\\dfrac{2}{5}$$ = 0,4. D’autre part, $$\\dfrac{AN}{AC}$$ = $$\\dfrac{3}{7{,}5}$$ = 0,4. Donc $$\\dfrac{AM}{AB}$$ = $$\\dfrac{AN}{AC}$$. De plus, les points A, M, B et les points A, N, C sont alignés dans le même ordre. Donc, d’après la réciproque du théorème de Thalès, les droites (MN) et (BC) sont parallèles.',
+    'Si les droites (MN) et (BC) étaient parallèles, d’après le théorème de Thalès, les rapports $$\\dfrac{AM}{AB}$$ et $$\\dfrac{AN}{AC}$$ seraient égaux. Or ils ne le sont pas, donc les droites (MN) et (BC) ne sont pas parallèles.'] });
+fiche({ ch: 'ge', id: 'ge.f-semblables', ru: 'Подобные и равные треугольники', fr: 'Triangles semblables et triangles égaux', body: [
+  'Подобные треугольники («triangles semblables») — одной формы: их углы попарно равны. Достаточно двух пар равных углов — третьи углы тогда тоже равны, потому что сумма углов треугольника всегда 180°.',
+  'У подобных треугольников стороны пропорциональны: все длины одного получаются из длин другого умножением на одно и то же число — коэффициент увеличения («agrandissement», больше 1) или уменьшения («réduction», меньше 1). Соответственные стороны («côtés homologues») лежат напротив равных углов.',
+  'Коэффициент перехода от первого треугольника ко второму — длина стороны второго, делённая на длину соответственной стороны первого. Площади при этом умножаются на квадрат коэффициента.',
+  'Равные треугольники («triangles égaux», «superposables») можно наложить друг на друга: три стороны одного равны трём сторонам другого. Это подобные треугольники с коэффициентом 1.',
+  'Откуда берутся равные углы: вертикальные углы («opposés par le sommet»), накрест лежащие или соответственные углы при параллельных прямых, общий угол двух треугольников. Конфигурация Фалеса всегда даёт пару подобных треугольников.'],
+  ex: [['Коэффициент', '7.5/5=1.5'], ['Соответственная сторона', '4*1.5=6']],
+  frs: [
+    'Deux triangles sont semblables lorsque leurs angles sont deux à deux de même mesure.',
+    'Si deux triangles ont deux angles deux à deux de même mesure, alors ils sont semblables.',
+    'Si deux triangles sont semblables, alors les longueurs de leurs côtés homologues sont proportionnelles.',
+    'Si les longueurs des côtés de deux triangles sont proportionnelles, alors ces triangles sont semblables.',
+    'Deux triangles sont égaux lorsqu’ils sont superposables : leurs côtés sont deux à deux de même longueur.',
+    'Les angles $$\\widehat{ABC}$$ et $$\\widehat{ADE}$$ sont alternes-internes et les droites (BC) et (DE) sont parallèles, donc ils ont la même mesure.'] });
 fiche({ ch: 'ge', id: 'ge.f-trigo', ru: 'Тригонометрия в прямоугольном треугольнике', fr: 'Trigonométrie dans le triangle rectangle', body: [
   'Для острого угла прямоугольного треугольника: гипотенуза — напротив прямого угла; прилежащий катет («côté adjacent») — сторона угла, которая не гипотенуза; противолежащий катет («côté opposé») — напротив угла.',
   '$$\\cos\\widehat{B}=\\dfrac{\\text{adjacent}}{\\text{hypoténuse}}\\qquad \\sin\\widehat{B}=\\dfrac{\\text{opposé}}{\\text{hypoténuse}}\\qquad \\tan\\widehat{B}=\\dfrac{\\text{opposé}}{\\text{adjacent}}$$ Запоминалка: «CAH SOH TOA» (звучит как «casse-toi»).',
   'Почему отношения не зависят от размера треугольника: все прямоугольные треугольники с одним и тем же острым углом — копии друг друга в разном масштабе (как в теореме Фалеса). Все стороны растягиваются в одно и то же число раз, а их отношение не меняется. Поэтому, например, $$\\cos 60^\\circ=0{,}5$$ в любом таком треугольнике.',
   'Найти длину: запиши отношение с известной и искомой сторонами; неизвестное в числителе — умножаем, в знаменателе — делим. Найти угол: обратные функции $$\\cos^{-1}$$, $$\\sin^{-1}$$, $$\\tan^{-1}$$. Калькулятор — в режиме градусов.',
-  'Косинус и синус острого угла всегда меньше 1, потому что гипотенуза — самая длинная сторона и стоит в знаменателе. Тангенс может быть и больше 1.'] });
+  'Косинус и синус острого угла всегда меньше 1, потому что гипотенуза — самая длинная сторона и стоит в знаменателе. Тангенс может быть и больше 1.',
+  'В Partie 1 (без калькулятора) по официальному списку спрашивают только косинус: назвать стороны, выбрать отношение или формулу. Синус и тангенс нужны в задачах Partie 2, с калькулятором.'],
+  frs: [
+    'Dans un triangle rectangle, le cosinus d’un angle aigu est le quotient de la longueur du côté adjacent à cet angle par la longueur de l’hypoténuse.',
+    'Dans un triangle rectangle, le sinus d’un angle aigu est le quotient de la longueur du côté opposé à cet angle par la longueur de l’hypoténuse.',
+    'Dans un triangle rectangle, la tangente d’un angle aigu est le quotient de la longueur du côté opposé à cet angle par la longueur du côté adjacent à cet angle.',
+    'Dans le triangle ABC rectangle en A : $$\\cos\\widehat{ABC}=\\dfrac{AB}{BC}$$ ; $$\\sin\\widehat{ABC}=\\dfrac{AC}{BC}$$ ; $$\\tan\\widehat{ABC}=\\dfrac{AC}{AB}$$.',
+    'Le triangle ABC est rectangle en A, donc $$\\cos\\widehat{ABC}=\\dfrac{AB}{BC}$$, d’où $$AB=BC\\times\\cos\\widehat{ABC}$$.',
+    'Le triangle ABC est rectangle en A, donc $$\\tan\\widehat{ABC}=\\dfrac{AC}{AB}$$. À la calculatrice, on obtient la mesure de l’angle $$\\widehat{ABC}$$, arrondie au degré près.'] });
 fiche({ ch: 'ge', id: 'ge.f-transformations', ru: 'Преобразования фигур', fr: 'Les transformations', body: [
   'Осевая симметрия («symétrie axiale») — перегиб по прямой (d): точка и её образ на одном перпендикуляре к (d), на равных расстояниях от неё. Фигура переворачивается, как в зеркале.',
   'Центральная симметрия («symétrie centrale») с центром O — пол-оборота вокруг O: O — середина отрезка между точкой и её образом.',
   'Параллельный перенос («translation»), переводящий A в B: каждая точка сдвигается так же, как A в B. Фигура не поворачивается и не переворачивается.',
   'Поворот («rotation»): центр, угол и направление — против часовой стрелки («dans le sens inverse des aiguilles d’une montre») или по часовой. Расстояние до центра не меняется.',
-  'Эти четыре преобразования сохраняют длины, углы и площади. Гомотетия («homothétie») с центром O и коэффициентом k умножает длины на |k|, площади на k², объёмы на |k|³; при k < 0 образ по другую сторону от O, при k = −1 это центральная симметрия.'] });
+  'Эти четыре преобразования сохраняют длины, углы и площади. Гомотетия («homothétie») с центром O и коэффициентом k умножает длины на |k|, площади на k², объёмы на |k|³; при k < 0 образ по другую сторону от O, при k = −1 это центральная симметрия.'],
+  frs: [
+    'Le symétrique d’un point M par rapport à une droite (d) est le point M′ tel que (d) est la médiatrice du segment [MM′].',
+    'Le symétrique d’un point M par rapport à un point O est le point M′ tel que O est le milieu du segment [MM′].',
+    'La translation qui transforme A en B fait glisser chaque point dans la direction de la droite (AB), dans le sens de A vers B et d’une longueur égale à AB.',
+    'L’image d’un point M par la rotation de centre O et d’angle 90° est le point M′ tel que OM′ = OM et $$\\widehat{MOM\'}=90^\\circ$$, en tournant dans le sens indiqué.',
+    'L’image d’un point M par l’homothétie de centre O et de rapport k positif est le point M′ de la demi-droite [OM) tel que OM′ = k × OM.',
+    'Si le rapport k est négatif, les points M et M′ sont de part et d’autre du centre O.',
+    'Les symétries, les translations et les rotations conservent les longueurs, les mesures des angles, l’alignement et les aires.',
+    'Une homothétie de rapport k positif multiplie les longueurs par k et les aires par k² ; elle conserve les mesures des angles.'] });
 fiche({ ch: 'ge', id: 'ge.f-solides', ru: 'Тела, развёртки, сечения, координаты', fr: 'Solides, patrons, sections et repérage', body: [
   'Призма («prisme droit»): два одинаковых основания и боковые грани-прямоугольники (куб и «pavé droit» — тоже призмы). Пирамида: основание и треугольные грани с общей вершиной. Цилиндр, конус, шар («boule»); поверхность шара — сфера («sphère»).',
   'Развёртка («patron») цилиндра — два круга и прямоугольник: его длина — длина окружности основания $$2\\pi r$$, ширина — высота цилиндра.',
   'Сечения («sections»): параллелепипед плоскостью, параллельной грани, — прямоугольник, равный этой грани; цилиндр перпендикулярно оси — круг, параллельно оси — прямоугольник; конус и пирамида параллельно основанию — уменьшенная копия основания (коэффициент = расстояние от вершины ÷ высота); шар — круг, сфера — окружность.',
   'Шар радиуса R, плоскость на расстоянии d от центра: в сечении круг радиуса r, где $r^2+d^2=R^2$ (по Пифагору).',
-  'Координаты в параллелепипеде с началом в вершине A: (абсцисса ; ордината ; высота — «altitude»). На глобусе: (широта ; долгота), например (30° N ; 60° E); N/S — от экватора, E/O — от гринвичского меридиана.'],
-  ex: [['Сечение шара: R = 5, d = 3', 'r^2=5^2-3^2=16;r=4']] });
+  'Координаты в параллелепипеде с началом в вершине A: (абсцисса ; ордината ; высота — «altitude»). На глобусе: широта («latitude», N или S — от экватора) и долгота («longitude», E или O — от гринвичского меридиана), например (30° N ; 60° E). Порядок записи бывает разным — смотри на буквы.'],
+  ex: [['Сечение шара: R = 5, d = 3', 'r^2=5^2-3^2=16;r=4']],
+  frs: [
+    'Un prisme droit a deux bases superposables et parallèles ; ses faces latérales sont des rectangles.',
+    'Une pyramide a pour base un polygone ; ses faces latérales sont des triangles qui ont un sommet commun.',
+    'Le patron d’un cylindre est formé de deux disques et d’un rectangle dont la longueur est égale au périmètre de la base : $2*π*r$.',
+    'La section d’un pavé droit par un plan parallèle à une face est un rectangle de mêmes dimensions que cette face.',
+    'La section d’un cylindre par un plan perpendiculaire à son axe est un disque de même rayon que la base.',
+    'La section d’une pyramide ou d’un cône par un plan parallèle à la base est une réduction de la base.',
+    'La section d’une sphère par un plan est un cercle ; la section d’une boule par un plan est un disque.'] });
 
 /* ===================== DICTIONARY ===================== */
 gloss('l\'hypoténuse', 'гипотенуза', 'сторона напротив прямого угла, самая длинная');
@@ -2131,3 +2211,14 @@ gloss('le pavé droit', 'прямоугольный параллелепипед
 gloss('la sphère, la boule', 'сфера, шар', 'сфера — поверхность, шар — тело внутри неё');
 gloss('le losange', 'ромб', 'четырёхугольник с четырьмя равными сторонами');
 gloss('l\'altitude', 'высота (третья координата)', 'в пространстве: (abscisse ; ordonnée ; altitude)');
+gloss('la médiatrice', 'серединный перпендикуляр', 'прямая через середину отрезка, перпендикулярная ему');
+gloss('le codage', 'отметки на чертеже', 'чёрточки на равных отрезках, квадратик прямого угла');
+gloss('à main levée', 'от руки', 'рисунок без инструментов: верить можно только отметкам');
+gloss('les angles opposés par le sommet', 'вертикальные углы', 'они равны');
+gloss('les angles adjacents', 'прилежащие углы', 'общая вершина и общая сторона; по-русски «смежные» — это adjacents et supplémentaires');
+gloss('les angles supplémentaires', 'углы, дающие в сумме 180°');
+gloss('un angle aigu', 'острый угол', 'меньше 90°');
+gloss('un angle obtus', 'тупой угол', 'между 90° и 180°');
+gloss('des triangles semblables', 'подобные треугольники', 'углы попарно равны, стороны пропорциональны');
+gloss('des triangles égaux', 'равные треугольники', 'их можно наложить друг на друга («superposables»)');
+gloss('les côtés homologues', 'соответственные стороны', 'стороны двух подобных треугольников, лежащие напротив равных углов');

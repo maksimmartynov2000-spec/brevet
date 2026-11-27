@@ -236,9 +236,9 @@ const autosDone = () => AUTOS.filter(a => autoState(a) === 2).length + ' из ' 
 function viewOfficiel() {
   chrome({ title: 'Автоматизмы', back: '#/prog', tab: 1, words: true });
   let h = '<section class="card"><p class="muted" style="margin:0">Partie 1 бревета — 9 коротких вопросов без калькулятора, 20 минут, 6 баллов. Министерство опубликовало ориентировочный список того, что там спрашивают: ' + AUTOS.length + ' умений. Ниже — каждое из них и темы приложения, которые его тренируют. Освоено: <b>' + autosDone() + '</b>.</p></section>';
-  const doms = []; AUTOS.forEach(a => { if (!doms.includes(a.dom)) doms.push(a.dom); });
+  const sec = a => a.sec || CH(a.dom).fr, doms = []; AUTOS.forEach(a => { if (!doms.includes(sec(a))) doms.push(sec(a)); });
   doms.forEach(dm => {
-    h += '<div class="sechead" lang="fr">' + esc(dm) + '</div><div class="lst">' + AUTOS.filter(a => a.dom === dm).map(a => {
+    h += '<div class="sechead" lang="fr">' + esc(dm) + '</div><div class="lst">' + AUTOS.filter(a => sec(a) === dm).map(a => {
       const st = autoState(a), ts = (a.topics || []).map(TP).filter(Boolean);
       return '<div class="card auto' + (st === 2 ? ' ok' : '') + '"><div class="autoh"><span class="lic num">' + a.n + '</span><div class="instr">' + bt({ fr: a.fr, ru: a.ru }) + '</div>' + (st === 2 ? '<span class="pill g">освоено</span>' : st === 1 ? '<span class="pill y">в работе</span>' : '') + '</div><div class="autot">' + ts.map(t => '<a class="tlink" href="#/t/' + t.id + '">' + esc(t.ru) + dotsHtml(skOf(t.id)) + '</a>').join('') + '</div></div>';
     }).join('') + '</div>';

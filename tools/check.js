@@ -302,7 +302,8 @@ const textSizes = (page) => page.evaluate(() => {
     await tu.screenshot({ path: path.join(WORK, 'eleves.png'), fullPage: true });
     await tu.evaluate(() => { const b = [...document.querySelectorAll('[data-sum]')].find((x) => /Мила/.test(x.closest('.stud').textContent)); b.click(); }); await tu.waitForTimeout(200);
     const sum = await tu.inputValue('#psText');
-    ok(/Мила/.test(sum) && /Решено заданий: 20/.test(sum) && /Домашние задания: 1, выполнено полностью: 1/.test(sum), 'сводка для родителей: имя, задания за неделю, домашнее задание');
+    const nMila = await tu.evaluate(() => dbTasks(peekDb(profiles().find((p) => p.name === 'Мила').id)));
+    ok(/Мила/.test(sum) && sum.includes('Решено заданий: ' + nMila + ',') && /Домашние задания: 1, выполнено полностью: 1/.test(sum), 'сводка для родителей: имя, задания за неделю (' + nMila + '), домашнее задание');
     await tu.evaluate(() => { closeSheet(); [...document.querySelectorAll('[data-open]')].find((x) => /Мила/.test(x.closest('.stud').textContent) && x.dataset.to === '#/').click(); }); await tu.waitForTimeout(300);
     ok(await tu.evaluate(() => DB && DB.name === 'Мила' && location.hash === '#/'), 'из обзора открывается профиль ученика');
     await nav(tu, '#/tutor'); await tu.click('#tLesson'); await tu.waitForTimeout(150);

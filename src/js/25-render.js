@@ -18,9 +18,13 @@ function mi(s, strict) {
   }).join('');
 }
 const unEsc = x => x.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
-/* text with formulas: $$…$$ is TeX, $…$ is input syntax */
+/* text with formulas: $$…$$ is TeX, $…$ is input syntax.
+   A bracket before a formula and the punctuation right after it stay on its line: a full stop must not start a new line alone. */
 function rt(s) {
-  return esc(s).replace(/\$\$([^$]+)\$\$|\$([^$]+)\$/g, (m, t, x) => t != null ? K(unEsc(t)) : K(mi(unEsc(x)).replace(/\\dfrac/g, '\\frac')));
+  return esc(s).replace(/(\(?)(?:\$\$([^$]+)\$\$|\$([^$]+)\$)((?:[.,;:!?)]|&#39;)*)/g, (m, pre, t, x, post) => {
+    const f = t != null ? K(unEsc(t)) : K(mi(unEsc(x)).replace(/\\dfrac/g, '\\frac'));
+    return pre || post ? '<span class="nw">' + pre + f + post + '</span>' : f;
+  });
 }
 /* every formula of a text, as TeX — used by the automatic tests */
 function texOfText(s) {

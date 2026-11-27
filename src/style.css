@@ -829,3 +829,4 @@ html.lesson .sol,html.lesson .redtx{font-size:18.5px}
   .sticky{bottom:calc(12px + var(--kb-h))}
 }
 @media (min-width:1100px){.page{max-width:1040px}html.lesson .page{max-width:1320px}html.isroot .page{max-width:760px}}
+.nw{white-space:nowrap}

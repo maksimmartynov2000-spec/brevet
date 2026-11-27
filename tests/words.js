@@ -43,6 +43,7 @@ for (const pb of A.PROBLEMS) {
 }
 A.FICHES.forEach((f) => (f.frs || []).forEach((t) => scan(t, 'fiche ' + (f.id || f.ch))));
 A.CHAPTERS.forEach((c) => scan(c.fr, 'chapter ' + c.id));
+A.AUTOS.forEach((a) => scan(a.fr, 'automatisme ' + a.n));
 
 const list = [...seen.entries()].sort((a, b) => b[1].n - a[1].n || a[0].localeCompare(b[0]));
 const unknown = list.filter(([, e]) => !e.known);
