@@ -79,12 +79,13 @@ function boot() {
   applyTheme();
   if (window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
   $('#abBack').onclick = goBack;
-  $('#tTr').onclick = () => { setTr(!(DB && DB.ru)); vib(8); };
-  $('#tKb').onclick = () => { if (!DB) return; DB.kbd = !DB.kbd; save(); chrome(VIEW); $$('input.inp[data-field]').forEach(i => { i.inputMode = DB.kbd ? 'text' : 'none'; }); hideKb(); toast(DB.kbd ? 'Обычная клавиатура' : 'Математическая клавиатура'); };
+  $('#tTr').onclick = () => { setTr(!VIEW.trOn); vib(8); };
+  $('#tKb').onclick = () => { if (!DB) return; DB.kbd = !DB.kbd; save(); $('#tKb').setAttribute('aria-pressed', DB.kbd ? 'true' : 'false'); $$('input.inp[data-field]').forEach(i => { i.inputMode = ownKb() ? 'none' : 'text'; }); hideKb(); toast(DB.kbd ? 'Обычная клавиатура' : 'Математическая клавиатура'); };
+  LESSON = !!LS.get('lesson', false);
   $('#tabbar').innerHTML = TABS.map(([h, ic, t]) => '<button type="button" class="tab">' + ico(ic) + '<span>' + t + '</span></button>').join('');
   $$('.tab').forEach((t, i) => t.onclick = () => go(TABS[i][0]));
   addEventListener('scroll', () => $('#appbar').classList.toggle('sc', scrollY > 4), { passive: true });
-  if (autoSignIn()) setTr(DB.ru);
+  autoSignIn();
   route();
   const sp = $('#splash'); if (sp) { sp.classList.add('out'); setTimeout(() => sp.remove(), 400); }
   if (UPD_ON) {
@@ -105,4 +106,6 @@ boot();
 /* for the automatic checks (tools/check.js, tests/) */
 window.__upd = { get build() { return BUILD; }, get on() { return UPD_ON; }, get found() { return updNew; }, check: () => updCheck(true), busy: isBusy };
 window.__brevet = { TOPICS, PROBLEMS, CHAPTERS, get DB() { return DB; }, go, route, newExam, handIn, record, mkRng, grade, keyInput, gradeField,
-  quiet() { QUIET = true; CELE.length = 0; $$('.cele').forEach(e => e.remove()); } };
+  quiet() { QUIET = true; CELE.length = 0; $$('.cele').forEach(e => e.remove()); },
+  /* a given question on screen: topic id, type number, seed — for tools/preview.js and for finding a reported task */
+  show(id, vi, seed) { const t = TP(id); P = { mode: id, id, n: 0 }; startItem(t.gen(mkRng(seed), vi % t.variants), vi % t.variants, seed); } };

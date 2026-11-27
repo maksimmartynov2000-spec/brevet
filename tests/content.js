@@ -3,13 +3,18 @@
 // node tests/content.js geo stats       — only files whose name contains one of the words
 // node tests/content.js --seeds=200     — more random numbers per question type (default 40)
 // node tests/content.js --show=nc.frac  — print a few generated questions of one topic or problem (for reading them)
+// node tests/content.js --lex           — also: every French word of every statement has an entry in the lexicon (src/content/lex.js)
 const load = require('./load');
+const { frTexts, frTextsProblem } = require('./frtexts');
 
 const args = process.argv.slice(2);
 const SEEDS = +((args.find((a) => a.startsWith('--seeds=')) || '').split('=')[1] || 40);
 const SHOW = (args.find((a) => a.startsWith('--show=')) || '').split('=')[1];
+const LEX = args.includes('--lex');
 const only = args.filter((a) => !a.startsWith('--'));
 const A = load(only);
+const noLex = new Map();
+const lexOk = (where, texts) => { if (!LEX) return; texts.forEach((t) => A.lexUnknown(t).forEach((w) => { const k = w.toLowerCase(); if (!noLex.has(k)) noLex.set(k, where); })); };
 
 const errs = [];
 const err = (where, msg) => { errs.push(where + ': ' + msg); };
@@ -64,8 +69,9 @@ function specOk(where, sp) {
   if (sp.help && !sp.help.ru) err(where, 'help must be GM(\'\', \'…\') or {ru}');
   if (sp.unit && typeof sp.unit !== 'string') err(where, 'unit must be a string');
 }
-function itemOk(where, it, needSol = true) {
-  biOk(where + '.q', it.q, true);
+function itemOk(where, it, needSol = true, lang = false) {
+  /* in «Язык бревета» the question is about French itself: it may be written in Russian with French words inside */
+  if (lang) { textOk(where + '.q', it.q.fr, null); if (it.q.ru !== it.q.fr) textOk(where + '.q.ru', it.q.ru, null); } else biOk(where + '.q', it.q, true);
   if (it.m != null) formulaOk(where + '.m', it.m);
   if (it.tex != null) katexOk(where + '.tex', it.tex);
   if (it.fig != null) figOk(where + '.fig', it.fig);
@@ -91,7 +97,7 @@ for (const tp of A.TOPICS) {
   if (ids.has(tp.id)) err(W, 'duplicate id'); ids.add(tp.id);
   if (!chIds.has(tp.ch)) err(W, 'unknown chapter ' + tp.ch);
   if (!tp.ru || !tp.fr) err(W, 'needs ru and fr names');
-  if (![1, 2, 3].includes(tp.lvl)) err(W, 'lvl must be 1, 2 or 3');
+  if (![1, 2].includes(tp.lvl)) err(W, 'lvl must be 1 (база) or 2 (бревет): nothing harder than the exam is in the app');
   if (!(tp.variants >= 1)) err(W, 'variants ≥ 1');
   if (!tp.hints.length || tp.hints.length > 3) err(W, '1–3 hints');
   tp.hints.forEach((h, i) => textOk(W + '.hint' + i, h, 'ru'));
@@ -101,7 +107,8 @@ for (const tp of A.TOPICS) {
       let it; const tt = Date.now();
       try { it = tp.gen(A.mkRng(s * 7919 + vi), vi); } catch (e) { err(W + ' v' + vi + ' seed ' + s, 'generator crashed: ' + e.message); break; }
       slow = Math.max(slow, Date.now() - tt);
-      itemOk(W + ' v' + vi + ' s' + s, it); seen.add(sig(it)); nItems++;
+      itemOk(W + ' v' + vi + ' s' + s, it, true, tp.ch === 'lg'); seen.add(sig(it)); nItems++;
+      if (s <= 12) lexOk(tp.id, frTexts(it));
     }
     if (SEEDS >= 20 && seen.size < Math.min(6, SEEDS / 4)) err(W + ' v' + vi, 'too few different questions: ' + seen.size);
     if (slow > 50) err(W + ' v' + vi, 'generator is slow: ' + slow + ' ms');
@@ -119,7 +126,14 @@ for (const pb of A.PROBLEMS) {
     if (p.ctx) biOk(W + '.ctx', p.ctx, true);
     if (p.fig != null) figOk(W + '.fig', p.fig);
     if (!Array.isArray(p.qs) || p.qs.length < 2) err(W, 'a problem needs ≥ 2 questions');
-    p.qs.forEach((q, i) => { itemOk(W + ' s' + s + ' q' + (i + 1), q); nItems++; });
+    p.qs.forEach((q, i) => {
+      const Wq = W + ' s' + s + ' q' + (i + 1);
+      itemOk(Wq, q); nItems++;
+      /* how to write it on the exam, in French */
+      if (!Array.isArray(q.redac) || !q.redac.length) err(W + ' q' + (i + 1), 'no redac (the model write-up in French)');
+      else q.redac.forEach((l, j) => { textOk(Wq + '.redac' + j, l, 'fr'); if (typeof l === 'string' && l.length > 400) err(Wq + '.redac' + j, 'one line of the write-up is too long: split it'); });
+    });
+    lexOk(pb.id, frTextsProblem(p));
     seen.add(JSON.stringify(p.qs.map(sig)));
   }
   if (seen.size < 3) err(W, 'numbers do not change between variants');
@@ -130,6 +144,40 @@ A.FICHES.forEach((f, i) => {
   if (!f.ru || !f.fr) err(W, 'needs ru and fr titles');
   (f.body || []).forEach((b, j) => textOk(W + '.body' + j, b, null));
   (f.ex || []).forEach((e, j) => { textOk(W + '.ex' + j, e[0], null); if (e[1]) formulaOk(W + '.ex' + j + '.m', e[1]); });
+  (f.frs || []).forEach((t, j) => textOk(W + '.frs' + j, t, 'fr'));
+  lexOk(W, f.frs || []);
+});
+/* the lexicon: every form belongs to one entry; translations are Russian and short */
+const lexForms = new Map();
+A.LEXI.forEach((e, i) => {
+  const forms = String(e.f || '').split('|').map((x) => x.trim()).filter(Boolean);
+  const W = 'lex «' + (forms[0] || '?') + '»';
+  if (!forms.length) err('lex #' + i, 'no forms');
+  if (CYR.test(e.f)) err(W, 'Cyrillic letters among the French forms');
+  if (e.k !== 2) { if (!e.ru || !CYR.test(e.ru)) err(W, 'needs a Russian translation'); else if (e.ru.length > 90) err(W, 'translation too long (' + e.ru.length + '): keep it under 90 characters'); }
+  forms.forEach((f) => {
+    const key = A.lexTokens(f).map((t) => t.w).join(' ');
+    const k2 = key.includes(' ') ? key.toLowerCase() : key;
+    if (!key) { err(W, 'empty form'); return; }
+    if (lexForms.has(k2) && lexForms.get(k2) !== i) err(W, 'the form «' + f + '» is already in the entry «' + String(A.LEXI[lexForms.get(k2)].f).split('|')[0] + '»');
+    lexForms.set(k2, i);
+  });
+});
+/* French texts outside the tasks that can be tapped too: names, the French lines of the fiches, the official list */
+A.TOPICS.forEach((t) => lexOk(t.id + ' (название)', [t.fr]));
+A.PROBLEMS.forEach((p) => lexOk(p.id + ' (название)', [p.fr]));
+A.FICHES.forEach((f) => lexOk('fiche ' + (f.id || f.ch), f.frs || []));
+A.CHAPTERS.forEach((c) => lexOk('chapter ' + c.id, [c.fr]));
+A.AUTOS.forEach((a) => lexOk('automatisme ' + a.n, [a.fr]));
+/* the ministry's list of automatismes: every item is linked to topics that exist */
+const autoN = new Set();
+A.AUTOS.forEach((a) => {
+  const W = 'automatisme ' + a.n;
+  if (autoN.has(a.n)) err(W, 'duplicate number'); autoN.add(a.n);
+  if (!a.fr || !a.ru || !chIds.has(a.dom)) err(W, 'needs fr, ru and a chapter in dom');
+  if (CYR.test(a.fr || '')) err(W, 'fr has Cyrillic');
+  if (!Array.isArray(a.topics) || !a.topics.length) err(W, 'no topics: every item of the list must be trained by a topic');
+  (a.topics || []).forEach((id) => { if (!A.TOPICS.some((t) => t.id === id)) err(W, 'unknown topic ' + id); });
 });
 const gl = new Set();
 A.GLOSS.forEach((g) => { if (!g.fr || !g.ru) err('gloss', 'empty entry'); if (gl.has(g.fr.toLowerCase())) err('gloss', 'duplicate «' + g.fr + '»'); gl.add(g.fr.toLowerCase()); if (CYR.test(g.fr)) err('gloss «' + g.fr + '»', 'French part has Cyrillic'); });
@@ -148,6 +196,8 @@ console.log('Файлы: ' + A.files.join(', '));
 console.log('Тем: ' + A.TOPICS.length + ', типов заданий: ' + A.TOPICS.reduce((s, t) => s + t.variants, 0) + ', задач Partie 2: ' + A.PROBLEMS.length + ', шпаргалок: ' + A.FICHES.length + ', слов в словаре: ' + A.GLOSS.length);
 console.log('По главам (темы/задачи): ' + Object.entries(byCh).map(([k, v]) => k + ' ' + v[0] + '/' + v[1]).join(' · '));
 console.log('Проверено вопросов: ' + nItems + ' за ' + ((Date.now() - t0) / 1000).toFixed(1) + ' с');
+console.log('Словарь: ' + A.LEXI.length + ' статей' + (LEX ? ', слов без перевода: ' + noLex.size : ' (покрытие не проверялось: --lex)') + ' · пунктов официального списка: ' + A.AUTOS.length);
+if (LEX && noLex.size) { err('lexicon', noLex.size + ' French words have no entry, e.g. ' + [...noLex.entries()].slice(0, 12).map(([w, where]) => w + ' (' + where + ')').join(', ') + ' — run node tests/words.js'); }
 if (errs.length) {
   const uniq = [...new Set(errs)];
   console.log('\nОШИБКИ (' + uniq.length + '):'); uniq.slice(0, 60).forEach((e) => console.log('  ✗ ' + e));

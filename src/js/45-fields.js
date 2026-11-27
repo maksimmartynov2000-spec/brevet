@@ -31,15 +31,22 @@ function answerHtml(spec) {
   if (spec.k === 'order') return '<ol class="ordok">' + spec.items.map(s => '<li>' + bt(s) + '</li>').join('') + '</ol>';
   return K(keyTex(spec) + unitTex(spec.unit));
 }
-function solHtml(it) {
-  return '<div class="sol">' + (it.sol || []).map(s => {
+/* upto — how many steps are open (lesson mode shows them one by one); null — all of them */
+function solHtml(it, upto, qi) {
+  const all = it.sol || [], n = upto == null ? all.length : Math.min(all.length, Math.max(1, upto));
+  return '<div class="sol">' + all.slice(0, n).map(s => {
     let h = '<div class="stp">';
     if (s.ru) h += '<div>' + rt(s.ru) + '</div>';
     if (s.m) h += '<div class="mth">' + K(mi(s.m) + unitTex(s.u)) + '</div>';
     if (s.tex) h += '<div class="mth">' + K(s.tex) + '</div>';
     if (s.svg) h += '<div class="figw">' + s.svg + '</div>';
     return h + '</div>';
-  }).join('') + '</div>';
+  }).join('') + '</div>' + (n < all.length ? '<button type="button" class="btn small" ' + (qi == null ? 'id="bStep"' : 'data-stepq="' + qi + '"') + '>Следующий шаг · ' + n + ' из ' + all.length + '</button>' : redacHtml(it));
+}
+/* «Как записать на экзамене»: the model answer in French (Partie 2) */
+function redacHtml(it) {
+  if (!it.redac || !it.redac.length) return '';
+  return '<div class="redac"><div class="chl">Как записать на экзамене</div><div class="redtx frtx" lang="fr">' + it.redac.map(l => '<p>' + rt(frTypo(l)) + '</p>').join('') + '</div></div>';
 }
 /* Under a field there are no hints about the form of the answer: the statement says it (as on the exam),
    and a wrong form is explained after «Проверить». Only how to type several answers is said. */
@@ -89,7 +96,7 @@ function fieldHtml(f, id, val, st) {
   }
   const cls = st && st.mark ? (st.mark === 'ok' ? ' ok' : ' bad') : '';
   h += '<div class="unitrow">' + (sp.pre ? '<span class="unit pre">' + esc(sp.pre) + '</span>' : '') +
-    '<input class="inp' + cls + '" id="' + id + '" data-field="' + id + '" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="done" inputmode="' + (DB && DB.kbd ? 'text' : 'none') + '" value="' + esc(val || '') + '"' + (st && st.lock ? ' readonly' : '') + ' aria-label="ответ">' +
+    '<input class="inp' + cls + '" id="' + id + '" data-field="' + id + '" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="done" inputmode="' + (ownKb() ? 'none' : 'text') + '" value="' + esc(val || '') + '"' + (st && st.lock ? ' readonly' : '') + ' aria-label="ответ">' +
     (sp.unit ? '<span class="unit">' + esc(sp.unit) + '</span>' : '') + '</div>';
   h += '<div class="pv" id="pv-' + id + '"></div>';
   const fh = fmtHelp(sp); if (fh && !(st && st.lock)) h += '<div class="syn">' + fh + '</div>';
@@ -105,6 +112,7 @@ function updatePreview(inp) {
 const once = el => { if (el.dataset.w) return false; el.dataset.w = '1'; return true; };
 function wireFields(root, vals, lockAll) {
   VALS = vals;
+  if (VIEW.words) wrapWords(root);
   $$('input.inp', root).filter(once).forEach(inp => {
     updatePreview(inp);
     inp.addEventListener('input', () => { vals[inp.dataset.field] = inp.value; updatePreview(inp); if (ON_INPUT) ON_INPUT(inp.dataset.field); });
@@ -127,7 +135,10 @@ function wireFields(root, vals, lockAll) {
   }));
 }
 
-/* ---------- maths keypad (the phone keyboard stays closed: fields have inputmode=none) ---------- */
+/* ---------- maths keypad ----------
+   On a touch screen our keypad replaces the phone keyboard (fields have inputmode=none).
+   With a mouse, or when the student chose the usual keyboard, the fields are ordinary: nothing blocks typing. */
+const ownKb = () => !(DB && DB.kbd) && !!window.matchMedia && matchMedia('(pointer: coarse)').matches;
 let ACTIVE = null;
 const KEYS = [
   ['7'], ['8'], ['9'], ['+', 'op'], ['−', 'op', '-'], ['(', 'op'], [')', 'op'], ['^', 'op'], ['⌫', 'op', 'BK'],
@@ -135,8 +146,7 @@ const KEYS = [
   ['1'], ['2'], ['3'], ['0'], [',', 'op', ','], ['π', 'op', 'π'], ['%', 'op', '%'], ['←', 'op', 'L'], ['→', 'op', 'R']];
 function showKb(vars, spec) {
   const kb = $('#kb');
-  /* a computer has its own keyboard: the keypad is for touch screens (or when the student chose the phone keyboard — then none) */
-  if ((DB && DB.kbd) || (window.matchMedia && !matchMedia('(pointer: coarse)').matches)) { kb.hidden = true; document.documentElement.style.setProperty('--kb-h', '0px'); return; }
+  if (!ownKb()) { kb.hidden = true; document.documentElement.style.setProperty('--kb-h', '0px'); if (ACTIVE && ACTIVE.inputMode === 'none') ACTIVE.inputMode = 'text'; return; }
   const vs = (vars || []).slice(0, 4);
   let h = '<div class="in">' + KEYS.map(([l, c, v]) => '<button type="button" class="k ' + (c || '') + '" data-k="' + esc(v || l) + '" aria-label="' + esc(l) + '">' + l + '</button>').join('');
   vs.forEach(v => h += '<button type="button" class="k v" data-k="' + v + '">' + v + '</button>');
@@ -163,6 +173,15 @@ function keyPress(k) {
   vib(5);
 }
 function enterKey() { if (ON_ENTER) ON_ENTER(); else hideKb(); }
+/* a computer keyboard: Enter — check or go on; the letters A–D choose an answer when the screen has one question with options */
+document.addEventListener('keydown', e => {
+  if (e.metaKey || e.ctrlKey || e.altKey || $('#sheet') || $('.cele')) return;
+  const t = e.target, typing = t && t.matches && t.matches('input, textarea, select, [contenteditable]');
+  if (e.key === 'Enter' && !typing && !(t && t.closest && t.closest('button, a, summary'))) { if (ON_ENTER && $('#app .q')) { e.preventDefault(); ON_ENTER(); } return; }
+  if (typing || !/^[a-h]$/i.test(e.key)) return;
+  const groups = $$('#app .opts'); if (groups.length !== 1) return;
+  const b = $$('[data-opt]', groups[0])[e.key.toLowerCase().charCodeAt(0) - 97]; if (b && !b.disabled) { e.preventDefault(); b.click(); }
+});
 
 /* typed answer → what the checker reads: French decimal comma, π, % sign */
 function tidyIn(spec, v) {

@@ -8,6 +8,7 @@ chapter({ id: 'st', ru: 'Статистика и вероятности', fr: 'S
 chapter({ id: 'gm', ru: 'Величины и измерения', fr: 'Grandeurs et mesures' });
 chapter({ id: 'ge', ru: 'Геометрия', fr: 'Espace et géométrie' });
 chapter({ id: 'al', ru: 'Алгоритмы и таблицы', fr: 'Algorithmique et tableur' });
+chapter({ id: 'lg', ru: 'Язык бревета', fr: 'La langue du brevet' });   /* command words, connectors, how to write an answer in French */
 
 /* ===================== MODEL TOPIC (the other content files follow the same style) ===================== */
 topic({ id: 'nc.frac-addsub', ch: 'nc', lvl: 1, calc: false, variants: 3,
@@ -55,7 +56,8 @@ probleme({ id: 'p2.salaires', ch: 'st', lvl: 2, pts: 4,
       { q: L('Calculer le salaire moyen des femmes.', 'Вычисли среднюю зарплату женщин.'), ans: N(fx(meanW), { unit: '€' }), sol: [
         'Средняя зарплата («moyenne») — сумма всех зарплат, делённая на их количество.',
         ['Сумма десяти зарплат:', w.join('+') + '=' + sumW],
-        ['Делим на 10:', sumW + '/10=' + fx(meanW), '€']] },
+        ['Делим на 10:', sumW + '/10=' + fx(meanW), '€']],
+        redac: ['On additionne les 10 salaires des femmes : $' + w.join('+') + '=' + sumW + '$.', 'On divise par l\'effectif : $' + sumW + '÷10=' + fx(meanW) + '$.', 'Le salaire moyen des femmes est de ' + eur(meanW) + '.'] },
       { q: L('Le salaire moyen des hommes est-il supérieur à celui des femmes ?', 'Средняя зарплата мужчин больше, чем у женщин?'), red: true,
         ans: MQ(r, [L('Oui, car ' + eur(meanH) + ' > ' + eur(meanW) + '.', 'Да, потому что ' + eur(meanH) + ' > ' + eur(meanW) + '.'),
           L('Non, car la médiane des hommes est ' + eur(medH) + '.', 'Нет, потому что медиана у мужчин ' + eur(medH) + '.'),
@@ -63,10 +65,12 @@ probleme({ id: 'p2.salaires', ch: 'st', lvl: 2, pts: 4,
         sol: ['Средние сравнивают напрямую: среднее у мужчин дано в условии, у женщин мы его вычислили.', 'Медиана — другая характеристика, она не отвечает на вопрос о среднем. А все зарплаты знать не нужно: среднее уже посчитано.'] },
       { q: L('Le plus bas salaire des hommes est ' + eur(lowH) + '. Quel est le salaire le plus élevé des hommes ?', 'Самая низкая зарплата у мужчин — ' + eur(lowH) + '. Какая самая высокая зарплата у мужчин?'), ans: N(topH, { unit: '€' }), sol: [
         'Размах («étendue») — разница между самым большим и самым маленьким значением.',
-        ['Значит, самая большая зарплата = самая маленькая + размах:', lowH + '+' + etH + '=' + topH, '€']] },
+        ['Значит, самая большая зарплата = самая маленькая + размах:', lowH + '+' + etH + '=' + topH, '€']],
+        redac: ['L\'étendue est la différence entre la plus grande et la plus petite valeur de la série.', '$' + lowH + '+' + etH + '=' + topH + '$', 'Le salaire le plus élevé des hommes est de ' + eur(topH) + '.'] },
       { q: L('Combien d\'hommes gagnent plus de ' + eur(medH) + ' ?', 'Сколько мужчин получают больше ' + eur(medH) + '?'), ans: N(10), sol: [
         'Медиана («médiane») делит упорядоченный ряд пополам: половина значений не больше её, половина — не меньше.',
-        'Мужчин 20, все зарплаты разные, и медиана ' + eur(medH) + ' лежит между 10-й и 11-й зарплатой. Значит, ровно 10 мужчин получают больше.'] },
+        'Мужчин 20, все зарплаты разные, и медиана ' + eur(medH) + ' лежит между 10-й и 11-й зарплатой. Значит, ровно 10 мужчин получают больше.'],
+        redac: ['La médiane partage la série en deux groupes de même effectif : au moins la moitié des salaires sont supérieurs ou égaux à ' + eur(medH) + '.', 'Il y a 20 hommes et tous les salaires sont différents, donc 10 hommes gagnent plus de ' + eur(medH) + '.'] },
       { q: L('Remettre dans l\'ordre les étapes de la justification.', 'Расставь шаги обоснования по порядку.'), red: true,
         ans: ORD(r, [L('Il y a 20 hommes et tous les salaires sont différents.', 'Мужчин 20, и все зарплаты разные.'),
           L('La médiane partage la série rangée en deux groupes de même effectif.', 'Медиана делит упорядоченный ряд на две группы с одинаковым числом значений.'),
@@ -79,7 +83,12 @@ fiche({ ch: 'nc', id: 'nc.fractions', ru: 'Дроби', fr: 'Les fractions', bod
   'Дробь $a/b$ — это $a$ долей по $1/b$. Числитель — «numérateur», знаменатель — «dénominateur».',
   'Умножить или разделить числитель и знаменатель на одно и то же число — значение не меняется: $3/4=6/8$. Так сокращают дроби и приводят к общему знаменателю.',
   'Складывают и вычитают только дроби с одинаковым знаменателем. Умножают — числитель на числитель, знаменатель на знаменатель. Делят — умножают на обратную дробь.'],
-  ex: [['Сложение', '1/3+1/4=4/12+3/12=7/12'], ['Умножение', '2/3*9/4=18/12=3/2'], ['Деление', '3/5÷9/10=3/5*10/9=2/3']] });
+  ex: [['Сложение', '1/3+1/4=4/12+3/12=7/12'], ['Умножение', '2/3*9/4=18/12=3/2'], ['Деление', '3/5÷9/10=3/5*10/9=2/3']],
+  frs: [
+    'Pour additionner ou soustraire deux fractions, on les réduit au même dénominateur, puis on additionne ou on soustrait les numérateurs.',
+    'Pour multiplier deux fractions, on multiplie les numérateurs entre eux et les dénominateurs entre eux.',
+    'Diviser par une fraction revient à multiplier par son inverse.',
+    'Une fraction est irréductible lorsque son numérateur et son dénominateur n\'ont pas d\'autre diviseur commun que 1.'] });
 gloss('une fraction irréductible', 'несократимая дробь', 'числитель и знаменатель не имеют общих делителей, кроме 1');
 gloss('le numérateur', 'числитель');
 gloss('le dénominateur', 'знаменатель');

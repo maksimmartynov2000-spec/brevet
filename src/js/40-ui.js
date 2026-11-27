@@ -44,20 +44,6 @@ const IC = {
 };
 const ico = (k, cls) => '<svg class="ico' + (cls ? ' ' + cls : '') + '" viewBox="0 0 24 24" aria-hidden="true">' + (IC[k] || '') + '</svg>';
 
-/* ---------- dates (the student's own clock; the exam date is a calendar day) ---------- */
-const MON = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
-const WDAY = ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'];
-const ymd = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-const today0 = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
-const parseYmd = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
-function daysTo(s) { return Math.round((parseYmd(s) - today0()) / 864e5); }
-function dateRu(s) { const [, m, d] = String(s).split('-').map(Number); return d + ' ' + MON[m - 1]; }
-function plural(n, a, b, c) { n = Math.abs(n); const m10 = n % 10, m100 = n % 100; return m10 === 1 && m100 !== 11 ? a : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? b : c; }
-const dn = n => n + ' ' + plural(n, 'день', 'дня', 'дней');
-const pct = (a, b) => (b ? Math.round(100 * a / b) : 0);
-const mmss = s => { s = Math.max(0, Math.round(s)); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0'); };
-const n20 = v => String(Math.round(v * 10) / 10).replace('.', ',');   /* 13,5 */
-
 /* ---------- bilingual text: French on screen, Russian in the same place behind «Перевод» ----------
    Both copies are laid out in one grid cell, so the block is always as tall as the longer one:
    switching the language changes nothing on the page except the words. */
@@ -72,11 +58,16 @@ function bt(o, cls) {
   if (o.fr === o.ru) return '<span' + (cls ? ' class="' + cls + '"' : '') + '>' + rt(o.fr) + '</span>';
   return '<span class="bi' + (cls ? ' ' + cls : '') + '"><span class="l-fr" lang="fr">' + rt(o.fr) + '</span><span class="l-ru" lang="ru">' + rt(o.ru) + '</span></span>';
 }
+/* «Перевод» belongs to the task on screen: the next task is in French again (the screen keeps the state in onTr) */
 function setTr(on) {
-  if (DB) { DB.ru = !!on; if (on && !DB.tipTr) { DB.tipTr = 1; const t = $('.newtip'); if (t) t.style.visibility = 'hidden'; } save(); }
+  VIEW.trOn = !!on; closeWord();
   document.documentElement.classList.toggle('tr', !!on);
   const b = $('#tTr'); if (b) b.setAttribute('aria-pressed', on ? 'true' : 'false');
+  if (VIEW.onTr) VIEW.onTr(!!on);
 }
+/* lesson mode (for the tutor's screen in Zoom): French and Russian together, larger, solutions step by step. A setting of the device. */
+let LESSON = false;
+function setLesson(on) { LESSON = !!on; LS.set('lesson', LESSON); document.documentElement.classList.toggle('lesson', LESSON); }
 
 /* ---------- theme (one for the device) ---------- */
 const THEMES = ['auto', 'light', 'dark'], THEME_RU = { auto: 'как в телефоне', light: 'светлая', dark: 'тёмная' };
@@ -139,23 +130,27 @@ function confirmSheet(title, text, yes, onYes, danger) {
 
 /* ---------- app bar, tab bar ---------- */
 const TABS = [['#/', 'home', 'Сегодня'], ['#/prog', 'books', 'Программа'], ['#/exam', 'exam', 'Пробники'], ['#/me', 'user', 'Я']];
-let VIEW = { title: '', back: null, tab: 0, tr: false, kb: false };
+let VIEW = { title: '', back: null, tab: 0, tr: false, trOn: false, onTr: null, words: false, kb: false };
 function chrome(o) {
-  VIEW = Object.assign({ title: '', back: null, tab: -1, tr: false, kb: false }, o);
+  VIEW = Object.assign({ title: '', back: null, tab: -1, tr: false, trOn: false, onTr: null, words: false, kb: false }, o);
   const root = !VIEW.back;
   document.documentElement.classList.toggle('isroot', root);
   $('#abTitle').textContent = VIEW.title;
   $('#abBack').hidden = root;
-  $('#tTr').hidden = !VIEW.tr; $('#tKb').hidden = !VIEW.kb;
+  const kbOk = VIEW.kb && window.matchMedia && matchMedia('(pointer: coarse)').matches;      /* the keypad switch is for touch screens only */
+  $('#tTr').hidden = !VIEW.tr || LESSON; $('#tKb').hidden = !kbOk;
   /* screens without «Перевод» (the mock exams) always show the French text */
-  document.documentElement.classList.toggle('tr', !!(VIEW.tr && DB && DB.ru));
-  $('#tTr').setAttribute('aria-pressed', DB && DB.ru ? 'true' : 'false');
+  document.documentElement.classList.toggle('tr', !!(VIEW.tr && VIEW.trOn && !LESSON));
+  document.documentElement.classList.toggle('lesson', LESSON && !!VIEW.tr);
+  document.documentElement.classList.toggle('words', !!VIEW.words);
+  $('#tTr').setAttribute('aria-pressed', VIEW.trOn ? 'true' : 'false');
   $('#tKb').setAttribute('aria-pressed', DB && DB.kbd ? 'true' : 'false');
   $$('.tab').forEach((t, i) => t.classList.toggle('on', i === VIEW.tab));
   document.title = (VIEW.title && VIEW.title !== 'Сегодня' ? VIEW.title + ' · ' : '') + 'Brevet';
 }
 function shell(html, cls) {
   const a = $('#app'); a.className = 'vin' + (cls ? ' ' + cls : ''); a.innerHTML = html;
+  if (VIEW.words) wrapWords(a);
   hideKb(); window.scrollTo(0, 0);
 }
 
@@ -163,9 +158,9 @@ function shell(html, cls) {
 const ROUTES = [];   /* [regexp, view(match)] — filled by the screens */
 const go = h => { if (location.hash === h) route(); else location.hash = h; };
 function route() {
-  closeSheet(); stopTimer();
+  closeSheet(); stopTimer(); swStop(); closeWord();
   const h = location.hash || '#/';
-  if (!DB && !/^#\/(login|install)/.test(h)) return viewLogin();
+  if (!DB && !/^#\/(login|install|eleves)/.test(h)) return viewLogin();
   for (const [re, fn] of ROUTES) { const m = re.exec(h); if (m) return fn(m); }
   return go('#/');
 }

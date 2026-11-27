@@ -13,24 +13,13 @@ const MODES = {
   diag: { ru: 'Стартовая проверка', fr: 'Test de positionnement', sub: '2 вопроса по каждой главе · без таймера', ic: 'list' }
 };
 const P1_PLAN = ['nc', 'nc', 'pp', 'cl', 'fn', 'st', 'gm', 'ge', 'ge|cl|st|al'];
-const rnd = () => Math.floor(Math.random() * 1e9);
-const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
-
 function pickShort(n, plan, filter) {
   const used = new Set(), out = [];
   const pool = TOPICS.filter(filter);
   const take = chs => { const c = shuffle(pool.filter(t => chs.includes(t.ch) && !used.has(t.id))); return c.find(t => !isM(t.id)) || c[0]; };
   (plan || []).slice(0, n).forEach(slot => { const t = take(slot.split('|')); if (t) { used.add(t.id); out.push(t); } });
   while (out.length < n) { const t = shuffle(pool.filter(x => !used.has(x.id)))[0]; if (!t) break; used.add(t.id); out.push(t); }
-  return out.map(t => noCalcItem(t));
-}
-/* Partie 1 is without a calculator: some types of a topic need one (π, rounding) — take a type and numbers that do not */
-function noCalcItem(t) {
-  for (let k = 0; k < 24; k++) {
-    const vi = Math.floor(Math.random() * t.variants), seed = rnd();
-    try { if (!t.gen(mkRng(seed), vi).calc) return { tid: t.id, vi, seed }; } catch (e) { /* try other numbers */ }
-  }
-  return { tid: t.id, vi: 0, seed: rnd() };
+  return out.map(t => noCalcItem(t) || { tid: t.id, vi: 0, seed: rnd() });
 }
 function pickProblems(n) {
   const byCh = {}; shuffle(PROBLEMS).forEach(p => { (byCh[p.ch] = byCh[p.ch] || []).push(p); });
@@ -40,11 +29,11 @@ function pickProblems(n) {
 }
 function newExam(mode) {
   const now = Date.now(), parts = [];
-  const short = t => t.lvl <= 2 && !t.calc;
+  const short = isShort;
   if (mode === 'p1' || mode === 'blanc') parts.push({ kind: 'short', title: 'Partie 1 — Automatismes', pts: 6, dur: 20 * 60, items: pickShort(9, P1_PLAN, short) });
   if (mode === 'quick') parts.push({ kind: 'short', title: 'Экспресс', pts: 6, dur: 10 * 60, items: pickShort(6, shuffle(P1_PLAN).slice(0, 6), short) });
   if (mode === 'diag') {
-    const items = []; CHAPTERS.forEach(c => { [1, 2].forEach(l => { const ts = shuffle(TOPICS.filter(t => t.ch === c.id && t.lvl === l)); if (ts[0]) items.push({ tid: ts[0].id, vi: Math.floor(Math.random() * ts[0].variants), seed: rnd() }); }); });
+    const items = []; CHAPTERS.filter(c => c.id !== 'lg').forEach(c => { [1, 2].forEach(l => { const ts = shuffle(TOPICS.filter(t => t.ch === c.id && t.lvl === l)); if (ts[0]) items.push({ tid: ts[0].id, vi: Math.floor(Math.random() * ts[0].variants), seed: rnd() }); }); });
     parts.push({ kind: 'short', title: 'Стартовая проверка', pts: 0, dur: 0, items });
   }
   if (mode === 'p2' || mode === 'blanc') parts.push({ kind: 'prob', title: 'Partie 2 — Raisonnement et résolution de problèmes', pts: 12, dur: 100 * 60, probs: pickProblems(4) });
@@ -81,7 +70,7 @@ function viewExamRun() {
   const pi = cur.part, pt = cur.parts[pi], md = MODES[cur.mode];
   if (pt.end && Date.now() >= pt.end) return handIn(true);
   /* no «Перевод» in the mock exams — like on the day; the start test keeps it: it measures the maths, not the French */
-  chrome({ title: md.ru, back: '#/exam', tr: cur.mode === 'diag', kb: true });
+  chrome({ title: md.ru, back: '#/exam', tr: cur.mode === 'diag', words: cur.mode === 'diag', kb: true });
   const items = partItems(pi);
   let h = '<section class="card exhead"><div class="exrowtop"><div class="qname"><b>' + esc(pt.title) + '</b><span class="frn">' + (pt.kind === 'short' ? (cur.mode === 'diag' ? 'без подсказок, без таймера' : 'sans calculatrice') : 'calculatrice autorisée') + '</span></div>' +
     (pt.end ? '<div class="tmr" id="tmr" aria-live="off">' + mmss((pt.end - Date.now()) / 1000) + '</div>' : '') + '</div>' +
@@ -137,7 +126,7 @@ function scoreExam(cur, apply) {
   cur.parts.forEach((pt, pi) => {
     const items = partItems(pi, cur); const R = { kind: pt.kind, title: pt.title, pts: pt.pts, qs: [] };
     if (pt.kind === 'short') {
-      items.forEach((x, qi) => { const ok = fieldsOf(x.it.ans).every((f, i) => gradeField(f.spec, cur.vals[fid(pi, qi, i)]).ok); R.qs.push({ ok, tid: x.t.id }); res.n++; if (ok) res.ok++; else res.weak.add(x.t.id); });
+      items.forEach((x, qi) => { const ok = fieldsOf(x.it.ans).every((f, i) => gradeField(f.spec, cur.vals[fid(pi, qi, i)]).ok); R.qs.push({ ok, tid: x.t.id }); res.n++; if (ok) res.ok++; else { res.weak.add(x.t.id); if (apply && cur.mode !== 'diag' && isM(x.t.id) && !isDue(x.t.id)) slip(DB.sk[x.t.id]); } });
       R.score = items.length ? pt.pts * R.qs.filter(q => q.ok).length / items.length : 0;
     } else {
       let got = 0, tot = 0;
@@ -159,26 +148,32 @@ function finishExam() {
   const cur = DB.cur; const res = scoreExam(cur, true);
   const p1 = res.parts.filter(p => p.kind === 'short').reduce((s, p) => s + p.score, 0), p2 = res.parts.filter(p => p.kind === 'prob').reduce((s, p) => s + p.score, 0);
   if (cur.mode === 'diag') {
+    /* a right answer marks the topic as known; its first review comes in 3 to 12 days, spread so that they do not all fall on one day */
+    const now = Date.now(); let nk = 0;
+    const known = id => { DB.sk[id] = Object.assign({ a: 0, c: 0, s: 0, t: now, r: '' }, DB.sk[id], { m: 1, d: 1, md: now, rv: 0, due: plusDays(now, 3 + (nk++ % 10)) }); };
     partItems(0, cur).forEach((x, qi) => {
       const ok = res.parts[0].qs[qi].ok; const s = DB.sk[x.t.id] = Object.assign({ a: 0, c: 0, s: 0, m: 0, t: 0, r: '' }, DB.sk[x.t.id]);
-      s.a++; s.t = Date.now(); s.r = ((s.r || '') + (ok ? '1' : '0')).slice(-8);
-      if (ok) { s.c++; s.m = 1; s.d = 1; if (x.t.lvl === 2) TOPICS.filter(t => t.ch === x.t.ch && t.lvl === 1 && !DB.sk[t.id]).forEach(t => { DB.sk[t.id] = { a: 0, c: 0, s: 0, m: 1, t: Date.now(), r: '', d: 1 }; }); }
-      const k = todayKey(); DB.days[k] = (DB.days[k] || 0) + 1; const lg = DB.log[k] = DB.log[k] || { n: 0, ok: 0 }; lg.n++; if (ok) lg.ok++;
+      s.a++; s.t = now; s.r = ((s.r || '') + (ok ? '1' : '0')).slice(-8);
+      if (ok) { s.c++; if (!s.m) known(x.t.id); if (x.t.lvl === 2) TOPICS.filter(t => t.ch === x.t.ch && t.lvl === 1 && !DB.sk[t.id]).forEach(t => known(t.id)); }
+      const k = todayKey(); DB.days[k] = (DB.days[k] || 0) + 1; const lg = dayLog(); lg.n++; if (ok) lg.ok++;
     });
-    DB.diag = { at: Date.now(), n: res.n, ok: res.ok }; DB.plan = null;
+    DB.diag = { at: now, n: res.n, ok: res.ok }; DB.plan = null; DB.wu = null;
   }
   const max = cur.mode === 'blanc' ? 18 : cur.mode === 'p2' ? 12 : 6;
   const rec = { mode: cur.mode, t0: cur.t0, t1: Date.now(), p1: Math.round(p1 * 10) / 10, p2: Math.round(p2 * 10) / 10, note: Math.round((p1 + p2) * 10) / 10, max, n: res.n, ok: res.ok, weak: [...res.weak].slice(0, 12) };
   DB.last = { rec, cur };            /* the last test with the answers — for the review screen */
-  DB.exams.push(rec); DB.exams = DB.exams.slice(-30); DB.cur = null; save(); EXC.clear(); checkBadges();
+  DB.exams.push(rec); DB.exams = DB.exams.slice(-30); DB.cur = null;
+  hwNote('x', cur.mode, max ? rec.note >= max / 2 : true);
+  DB.rd[todayKey()] = ready().p; save(); EXC.clear(); checkBadges();
   go('#/exam/res');
 }
 
 /* ---------- result and review ---------- */
+let RESTR = false;
 function viewExamResult() {
   const L0 = DB.last; if (!L0) return go('#/exam');
   const { rec, cur } = L0; const md = MODES[rec.mode];
-  chrome({ title: md.ru, back: '#/exam', tr: true });
+  chrome({ title: md.ru, back: '#/exam', tr: true, trOn: RESTR, words: true, onTr: on => { RESTR = on; } });
   EXC.clear();
   let h = '<section class="card exres"><div class="scorebig">' + (rec.mode === 'diag' ? rec.ok + '<small> из ' + rec.n + '</small>' : n20(rec.note) + '<small> / ' + rec.max + '</small>') + '</div>';
   if (rec.mode === 'blanc') h += '<p class="muted">Partie 1: ' + n20(rec.p1) + ' / 6 · Partie 2: ' + n20(rec.p2) + ' / 12. На экзамене ещё 2 балла дают за ясность и оформление решений — их приложение не проверяет.</p>';

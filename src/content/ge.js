@@ -27,11 +27,21 @@ const geoC = v => String(Math.round(v * 10) / 10);
 const geoEsc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const GEO_FS = 15;
 
-/* width of a label in svg units (system sans-serif) */
+/* the stylesheet fixes the size of the labels (.ftx 15px, .ftm 13px): the layout is computed with the same sizes */
+const geoFs = o => (o && o.cls === 'ftm' ? 13 : GEO_FS);
+/* width of a label in svg units (system sans-serif; a little generous, so that labels keep clear of the lines) */
 function geoTW(s, fs) {
   let w = 0;
-  for (const ch of String(s)) w += /\d/.test(ch) ? 0.57 : /[A-Z]/.test(ch) ? 0.7 : /[a-z]/.test(ch) ? 0.53 : /[ ,.;:'′]/.test(ch) ? 0.3 : ch === '°' ? 0.42 : /[()]/.test(ch) ? 0.36 : 0.62;
+  for (const ch of String(s)) w += /\d/.test(ch) ? 0.6 : /[MW]/.test(ch) ? 0.9 : /[IJ]/.test(ch) ? 0.42 : /[A-Z]/.test(ch) ? 0.7 : /[mw]/.test(ch) ? 0.85 : /[iljtfr]/.test(ch) ? 0.34 : /[a-zà-ÿ]/.test(ch) ? 0.56 : /[ ,.;:'′]/.test(ch) ? 0.28 : ch === '°' ? 0.42 : /[()]/.test(ch) ? 0.36 : 0.6;
   return w * (fs || GEO_FS);
+}
+/* how many labels of the figures drawn since the last reset had to be put over a line or over another label */
+let GEO_BAD = 0;
+/* geoTopic: a topic whose question is generated again with other numbers (up to 12 times) while a label of its figure is badly placed */
+function geoTopic(def) {
+  const g = def.gen;
+  def.gen = function (r, vi) { let it; for (let k = 0; k < 12; k++) { GEO_BAD = 0; it = g.call(this, r, vi); if (!GEO_BAD) break; } return it; };
+  return topic(def);
 }
 
 /* fit points given in maths coordinates (y up) into a W×H box: returns the map to screen coordinates */
@@ -57,7 +67,7 @@ function geoHit(a, b, x0, y0, x1, y1) {
 }
 const GEO_SOLID = /^(fl|fl2|fhl|fdash|fang|fax|fcurve)$/;   /* lines that labels must not cross */
 function geoScene() {
-  const S = { el: [], x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity, lines: [], boxes: [] };
+  const S = { el: [], x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity, lines: [], boxes: [], tb: [] };
   S.box = (x0, y0, x1, y1) => { S.x0 = Math.min(S.x0, x0, x1); S.y0 = Math.min(S.y0, y0, y1); S.x1 = Math.max(S.x1, x0, x1); S.y1 = Math.max(S.y1, y0, y1); };
   S.pts = ps => ps.forEach(p => S.box(p.x, p.y, p.x, p.y));
   S.raw = s => S.el.push(s);
@@ -77,13 +87,14 @@ function geoScene() {
   S.dot = (p, r) => { S.pts([p]); S.el.push('<circle cx="' + geoC(p.x) + '" cy="' + geoC(p.y) + '" r="' + (r || 3) + '" class="fpt"/>'); };
   /* text centred on point c */
   S.text = (c, s, o) => {
-    o = o || {}; const fs = o.fs || GEO_FS, w = geoTW(s, fs);
+    o = o || {}; const fs = geoFs(o), w = geoTW(s, fs);
     const anc = o.anchor || 'middle', x0 = anc === 'start' ? c.x : anc === 'end' ? c.x - w : c.x - w / 2;
-    S.box(x0, c.y - fs * 0.5, x0 + w, c.y + fs * 0.5); S.boxes.push([x0, c.y - fs * 0.42, x0 + w, c.y + fs * 0.42]);
+    S.box(x0, c.y - fs * 0.5, x0 + w, c.y + fs * 0.5); S.boxes.push([x0, c.y - fs * 0.42, x0 + w, c.y + fs * 0.42]); S.tb.push([x0, c.y - fs * 0.4, x0 + w, c.y + fs * 0.4]);
     S.el.push('<text x="' + geoC(c.x) + '" y="' + geoC(c.y + fs * 0.36) + '" class="' + (o.cls || 'ftx') + '" font-size="' + fs + '" text-anchor="' + anc + '"' + (o.it ? ' font-style="italic"' : '') + '>' + geoEsc(s) + '</text>');
   };
   /* final svg: at least minW wide, the drawing centred */
   S.svg = (label, minW) => {
+    if (S.tb.some(b => S.lines.some(([p, q]) => geoHit(p, q, b[0], b[1], b[2], b[3])))) GEO_BAD++;
     const m = 5; let x0 = S.x0 - m, w = S.x1 - S.x0 + 2 * m; const y0 = S.y0 - m, h = S.y1 - S.y0 + 2 * m;
     const W = minW || 340; if (w < W) { x0 -= (W - w) / 2; w = W; }
     return svgFig(geoC(w), geoC(h), '<g transform="translate(' + geoC(-x0) + ' ' + geoC(-y0) + ')">' + S.el.join('') + '</g>', label);
@@ -95,24 +106,27 @@ function geoScene() {
 /* label of segment [ab], on the side away from point `away` (or flipped); slides along the segment to stay clear */
 function geoSegLab(S, a, b, txt, away, o) {
   o = o || {};
-  const fs = o.fs || GEO_FS, hw = geoTW(txt, fs) / 2 + 1, hh = fs * 0.42;
+  const fs = geoFs(o), hw = geoTW(txt, fs) / 2 + 1, hh = fs * 0.42;
   let n = geoUnit(geoPerp(geoSub(b, a)));
   if (away && geoDp(n, geoSub(away, geoLerp(a, b, 0.5))) > 0) n = geoMul(n, -1);
   if (o.flip) n = geoMul(n, -1);
   const d = Math.abs(n.x) * hw + Math.abs(n.y) * hh + (o.gap == null ? 5 : o.gap), t0 = o.t == null ? 0.5 : o.t;
-  const ts = [t0, t0 + 0.12, t0 - 0.12, t0 + 0.24, t0 - 0.24, t0 + 0.34, t0 - 0.34].filter(t => t > 0.08 && t < 0.92);
+  /* the label must stay in front of its own segment: no further along it than the segment is long */
+  const half = Math.abs(n.y) * hw + Math.abs(n.x) * hh, L = geoDist(a, b) || 1, lim = Math.min(0.42, Math.max(0, 0.5 - half / L) + 0.08);
+  const ts = [t0, t0 + 0.12, t0 - 0.12, t0 + 0.24, t0 - 0.24, t0 + 0.34, t0 - 0.34].filter(t => Math.abs(t - 0.5) <= lim + 1e-9 || t === t0);
   const cands = ts.map(t => geoAdd(geoLerp(a, b, t), geoMul(n, d)));
   if (o.canFlip) ts.forEach(t => cands.push(geoAdd(geoLerp(a, b, t), geoMul(n, -d))));
-  for (let extra = 0; extra <= 12; extra += 6) { const c = cands.map(p => geoAdd(p, geoMul(n, extra))).find(p => S.free(p, hw, hh)); if (c) { S.text(c, txt, o); return; } }
-  S.text(cands[0], txt, o);
+  for (let extra = 0; extra <= 12; extra += 6) { const c = cands.map((p, i) => geoAdd(p, geoMul(n, (o.canFlip && i >= ts.length ? -1 : 1) * extra))).find(p => S.free(p, hw, hh)); if (c) { S.text(c, txt, o); return true; } }
+  GEO_BAD++; S.text(cands[0], txt, o); return false;
 }
 /* label of point p, pushed in direction dir (turns around p if that place is taken) */
 function geoPtLab(S, p, dir, txt, o) {
   o = o || {};
-  const fs = o.fs || GEO_FS, hw = geoTW(txt, fs) / 2, hh = fs * 0.42, u0 = geoUnit(dir), gap = o.gap == null ? 4 : o.gap;
+  const fs = geoFs(o), hw = geoTW(txt, fs) / 2, hh = fs * 0.42, u0 = geoUnit(dir), gap = o.gap == null ? 4 : o.gap;
   const at = (u, e) => { const d = Math.abs(u.x) * hw + Math.abs(u.y) * hh + gap + e; return geoAdd(p, geoMul(u, d)); };
-  for (const e of [0, 5, 10, 16]) for (const ang of [0, 22, -22, 45, -45, 70, -70, 100, -100, 135, -135, 180]) { const c = at(geoRot(u0, ang), e); if (S.free(c, hw, hh)) { S.text(c, txt, o); return; } }
-  S.text(at(u0, 0), txt, o);
+  /* o.near: the label stays close to its point (crowded figures) — otherwise it may move away a little */
+  for (const e of (o.near ? [0, 3] : [0, 5, 10, 16])) for (const ang of [0, 22, -22, 45, -45, 70, -70, 100, -100, 135, -135, 180]) { const c = at(geoRot(u0, ang), e); if (S.free(c, hw, hh)) { S.text(c, txt, o); return c; } }
+  GEO_BAD++; S.text(at(u0, 0), txt, o); return null;
 }
 /* outward direction at vertex v of a convex polygon (neighbours a and b) */
 const geoOut = (v, a, b) => { const d = geoAdd(geoUnit(geoSub(v, a)), geoUnit(geoSub(v, b))); return geoLen(d) < 1e-6 ? geoPerp(geoSub(b, a)) : d; };
@@ -120,9 +134,9 @@ const geoOut = (v, a, b) => { const d = geoAdd(geoUnit(geoSub(v, a)), geoUnit(ge
 function geoArc(S, v, a, b, o) {
   o = o || {};
   let r = o.r || 22; const u1 = geoUnit(geoSub(a, v)), u2 = geoUnit(geoSub(b, v)), sw = geoCross(u1, u2) > 0 ? 1 : 0, u = geoUnit(geoAdd(u1, u2));
-  let lab = null;
+  let lab = null, hw = 0, hh = 0;
   if (o.txt) {
-    const fs = o.fs || GEO_FS, hw = geoTW(o.txt, fs) / 2 + 1, hh = fs * 0.42, eu = Math.abs(u.x) * hw + Math.abs(u.y) * hh;
+    const fs = GEO_FS; hw = geoTW(o.txt, fs) / 2 + 1; hh = fs * 0.42; const eu = Math.abs(u.x) * hw + Math.abs(u.y) * hh;
     const half = Math.acos(Math.max(-1, Math.min(1, geoDp(u1, u2)))) / 2;
     const ext = e => { const n = geoPerp(e); return Math.abs(n.x) * hw + Math.abs(n.y) * hh + 3; };
     let t = Math.max(ext(u1), ext(u2)) / Math.max(Math.sin(half), 0.2);
@@ -136,7 +150,7 @@ function geoArc(S, v, a, b, o) {
   if (o.double) S.path(arc(r + 4), o.cls || 'fang');
   { const a1 = Math.atan2(u1.y, u1.x); let da = Math.atan2(u2.y, u2.x) - a1; while (da > Math.PI) da -= 2 * Math.PI; while (da < -Math.PI) da += 2 * Math.PI;
     const ps = []; for (let i = 0; i <= 6; i++) ps.push(geoAdd(v, geoMul(geoV(Math.cos(a1 + da * i / 6), Math.sin(a1 + da * i / 6)), r + (o.double ? 4 : 0)))); S.line(ps); }
-  if (lab) S.text(lab, o.txt, { fs: o.fs });
+  if (lab) { if (!S.free(lab, hw - 1, hh)) GEO_BAD++; S.text(lab, o.txt); }
 }
 function geoRightMark(S, v, a, b, s) {
   s = s || 10; const u1 = geoUnit(geoSub(a, v)), u2 = geoUnit(geoSub(b, v));
@@ -151,22 +165,36 @@ function geoTicks(S, a, b, n, t) {
 /* ---------- triangle with names, lengths, angles and marks ----------
    P: three points (maths coordinates), nm: their names ['A','B','C'];
    o: { side: { AB: '5 cm', BC: '?' }, hl: ['BC'], right: 'A', ang: { B: '35°', C: '?' }, angHl: ['C'], tick: { AB: 1 }, W, H, dot } */
-function geoTri(P, nm, o) {
+/* draws the triangle with the screen points Q into the scene S; o.arc: { A: 1, B: 2 } — a single or a double arc without a value (equal angles) */
+function geoTriDraw(S, Q, nm, o) {
   o = o || {};
-  const f = geoFit(P, o.W || 230, o.H || 150), Q = P.map(f), S = geoScene(), G = geoCen(Q);
-  const get = (obj, i, j) => obj ? (obj[nm[i] + nm[j]] != null ? obj[nm[i] + nm[j]] : obj[nm[j] + nm[i]]) : null;
+  const G = geoCen(Q), get = (obj, i, j) => obj ? (obj[nm[i] + nm[j]] != null ? obj[nm[i] + nm[j]] : obj[nm[j] + nm[i]]) : null;
   const sides = [[0, 1], [1, 2], [2, 0]];
   S.poly(Q, 'fl');
   sides.forEach(([i, j]) => { if (o.hl && (o.hl.includes(nm[i] + nm[j]) || o.hl.includes(nm[j] + nm[i]))) S.seg(Q[i], Q[j], 'fhl'); });
   sides.forEach(([i, j]) => { const n = get(o.tick, i, j); if (n) geoTicks(S, Q[i], Q[j], n); });
   Q.forEach((v, i) => {
-    const a = Q[(i + 1) % 3], b = Q[(i + 2) % 3];
+    const a = Q[(i + 1) % 3], b = Q[(i + 2) % 3], txt = o.ang && o.ang[nm[i]] != null ? o.ang[nm[i]] : null, arcs = o.arc && o.arc[nm[i]];
     if (o.right === nm[i]) geoRightMark(S, v, a, b);
-    if (o.ang && o.ang[nm[i]] != null) geoArc(S, v, a, b, { txt: o.ang[nm[i]], cls: o.angHl && o.angHl.includes(nm[i]) ? 'fhl' : 'fang', r: o.r || 20, rmax: Math.max(20, 0.42 * Math.min(geoDist(v, a), geoDist(v, b))) });
+    if (txt != null || arcs) geoArc(S, v, a, b, { txt, double: arcs === 2, cls: o.angHl && o.angHl.includes(nm[i]) ? 'fhl' : 'fang', r: o.r || 20, rmax: Math.max(20, 0.42 * Math.min(geoDist(v, a), geoDist(v, b))) });
   });
   Q.forEach((v, i) => { if (o.dot) S.dot(v); geoPtLab(S, v, geoOut(v, Q[(i + 1) % 3], Q[(i + 2) % 3]), nm[i], { gap: 5 }); });
   sides.forEach(([i, j]) => { const t = get(o.side, i, j); if (t) geoSegLab(S, Q[i], Q[j], t, G); });
+}
+function geoTri(P, nm, o) {
+  o = o || {};
+  const f = geoFit(P, o.W || 230, o.H || 150), S = geoScene();
+  geoTriDraw(S, P.map(f), nm, o);
   return S.svg(o.label || 'triangle ' + nm.join(''));
+}
+/* two triangles side by side in one figure, each fitted into its own box (the figure is not to scale) */
+function geoTri2(P1, nm1, o1, P2, nm2, o2, o) {
+  o = o || {};
+  const W1 = o.W1 || 125, W2 = o.W2 || 125, H = o.H || 125, gap = o.gap || 62, S = geoScene();
+  const f1 = geoFit(P1, W1, o.H1 || H), f2 = geoFit(P2, W2, H);
+  geoTriDraw(S, P1.map(f1).map(p => geoV(p.x, p.y + (H - (o.H1 || H)) / 2)), nm1, o1);
+  geoTriDraw(S, P2.map(f2).map(p => geoV(p.x + W1 + gap, p.y)), nm2, o2);
+  return S.svg(o.label || 'triangles ' + nm1.join('') + ' et ' + nm2.join(''));
 }
 /* a triangle from its three side lengths: BC = a, CA = b, AB = c; A at the origin, B on the x-axis, C above */
 function geoTriSSS(a, b, c) {
@@ -184,6 +212,15 @@ function geoTurn(ps, deg, mirror) {
   return ps.map(p => { let q = geoSub(p, c); if (mirror) q = geoV(-q.x, q.y); return geoRot(q, deg); });
 }
 
+/* turn (and perhaps mirror) a list of maths points so that the drawing fills a W×H box well:
+   one of the 24 orientations whose scale is close to the best one, chosen at random */
+function geoLay(r, M, W, H) {
+  const mir = r() < 0.5, cand = [];
+  for (let i = 0; i < 24; i++) { const Q = M.map(P => geoRot(mir ? geoV(-P.x, P.y) : P, i * 15)); cand.push([geoFit(Q, W, H).k, Q]); }
+  const best = Math.max(...cand.map(c => c[0]));
+  return r.pick(cand.filter(c => c[0] >= 0.86 * best))[1];
+}
+
 /* ---------- text helpers (TeX and French numbers) ---------- */
 const geoHat = s => '$$\\widehat{' + s + '}$$';                 /* angle name in a text */
 const geoT = v => String(+(+v).toFixed(6)).replace('.', '{,}');   /* number for TeX: 3{,}5 */
@@ -198,7 +235,7 @@ const GEO_TRI = [['A', 'B', 'C'], ['D', 'E', 'F'], ['E', 'F', 'G'], ['R', 'S', '
 
 /* name of the angle at vertex i of triangle nm: B A C → 'BAC' */
 const geoA3 = (nm, i) => { const o = [0, 1, 2].filter(k => k !== i); return nm[o[0]] + nm[i] + nm[o[1]]; };
-const geoAngVals = [20, 22, 25, 28, 30, 32, 35, 36, 38, 40, 42, 48, 50, 52, 55, 58, 60, 62, 65, 68, 70];
+const geoAngVals = [30, 32, 35, 36, 38, 40, 42, 48, 50, 52, 54, 55, 58, 60];   /* no angle under 30°: its value would not fit next to the vertex */
 
 /* ===================== ANGLES ===================== */
 /* two parallel lines (d), (d') and a secant; alpha = angle between the lines and the secant (degrees);
@@ -228,7 +265,7 @@ const GEO_PAR_RU = {
   corr: 'Это соответственные углы («angles correspondants»): они расположены одинаково — по одну сторону от секущей и с одной и той же стороны от «своей» прямой. Сдвиг вдоль секущей переносит прямую (d) на (d\') и один угол точно на другой, поэтому при параллельных прямых соответственные углы равны.',
   alt: 'Это накрест лежащие углы («angles alternes-internes»): оба лежат между прямыми (d) и (d\'), по разные стороны от секущей. Поворот на 180° вокруг середины отрезка между двумя точками пересечения меняет прямые местами и переводит один угол в другой, поэтому при параллельных прямых они равны.',
   opp: 'Это вертикальные углы («angles opposés par le sommet»): общая вершина, а стороны одного — продолжения сторон другого. Они всегда равны: каждый из них вместе с одним и тем же соседним углом составляет развёрнутый угол 180°.',
-  adj: 'Эти углы смежные («angles adjacents supplémentaires»): общая вершина и общая сторона, а две другие стороны образуют одну прямую. Вместе они составляют развёрнутый угол, поэтому их сумма 180°.',
+  adj: 'Эти углы смежные («angles adjacents et supplémentaires»): общая вершина и общая сторона, а две другие стороны образуют одну прямую. Вместе они составляют развёрнутый угол, поэтому их сумма 180°.',
   coint: 'Оба угла лежат между параллельными прямыми и по одну сторону от секущей. Угол, накрест лежащий с углом «?», равен ему и стоит рядом с данным углом: вместе они образуют прямую, то есть 180°.'
 };
 function geoAngPar(r, naming) {
@@ -240,7 +277,7 @@ function geoAngPar(r, naming) {
   const x = b % 2 === 0 ? alpha : 180 - alpha;
   if (naming) {
     const fig = geoParFig(alpha, [{ at: pa, sec: a, hl: true }, { at: pb, sec: b, hl: true }]);
-    const opts = [L('Des angles alternes-internes', 'Накрест лежащие углы'), L('Des angles correspondants', 'Соответственные углы'), L('Des angles opposés par le sommet', 'Вертикальные углы'), L('Des angles adjacents supplémentaires', 'Смежные углы (в сумме 180°)')];
+    const opts = [L('Des angles alternes-internes', 'Накрест лежащие углы'), L('Des angles correspondants', 'Соответственные углы'), L('Des angles opposés par le sommet', 'Вертикальные углы'), L('Des angles adjacents et supplémentaires', 'Смежные углы (в сумме 180°)')];
     const c = ['alt', 'corr', 'opp', 'adj'].indexOf(rel);
     return { q: L('Les droites (d) et (d\') sont parallèles. Comment appelle-t-on les deux angles marqués sur la figure ?', 'Прямые (d) и (d\') параллельны. Как называются два угла, отмеченные на рисунке?'), fig, ans: MQ(r, opts, c),
       sol: [GEO_PAR_RU[rel], rel === 'adj' ? 'Смежные углы бывают при любых прямых; параллельность здесь не нужна.' : rel === 'opp' ? 'Вертикальные углы равны при любых прямых, параллельность здесь не нужна.' : 'Значит, эти два угла равны — именно поэтому их полезно узнавать на рисунке.'] };
@@ -266,7 +303,7 @@ function geoAngSum(r) {
         { t: 'Значит, острые углы прямоугольного треугольника в сумме дают 90°:', tex: '\\widehat{' + an(ai) + '}=90^\\circ-' + geoDg(g) + '=' + geoDg(x) }] };
   }
   let a, b, c;
-  do { a = r.ri(25, 95); b = r.ri(25, 95); c = 180 - a - b; } while (c < 25 || c > 110 || a === b);
+  do { a = r.ri(30, 95); b = r.ri(30, 95); c = 180 - a - b; } while (c < 30 || c > 110 || a === b);
   const ang = [a, b, c], ai = r.ri(0, 2), gi = [0, 1, 2].filter(k => k !== ai);
   const P = geoTurn(geoTriASA(1, ang[0], ang[1]), rot, mir);
   const fig = geoTri(P, nm, { ang: { [nm[gi[0]]]: ang[gi[0]] + '°', [nm[gi[1]]]: ang[gi[1]] + '°', [nm[ai]]: '?' }, angHl: [nm[ai]] });
@@ -291,19 +328,19 @@ function geoAngIso(r) {
       sol: ['Угол ' + A + ' прямой, поэтому два других угла вместе дают 180° − 90° = 90°.', 'Треугольник равнобедренный, а в равнобедренном треугольнике углы при основании равны (ось симметрии через вершину ' + A + ' меняет их местами).', { t: 'Каждому достаётся половина:', tex: '90^\\circ\\div 2=45^\\circ' }] };
   }
   if (kind === 'apex') {
-    let ap; do ap = 2 * r.ri(10, 70); while (ap === 60); const bs = 90 - ap / 2;
+    let ap; do ap = 2 * r.ri(15, 60); while (ap === 60); const bs = 90 - ap / 2;
     const fig = geoTri(tri(bs), nm, { tick: { [A + B]: 1, [A + C]: 1 }, ang: { [A]: ap + '°', [B]: '?' }, angHl: [B] });
     return { q: L('Le triangle ' + A + B + C + ' est isocèle en ' + A + ' et ' + geoHat(A3) + ' = ' + ap + '°. Calculer ' + geoHat(B3) + '.', 'Треугольник ' + A + B + C + ' равнобедренный: ' + A + B + ' = ' + A + C + ', и ' + geoHat(A3) + ' = ' + ap + '°. Найди ' + geoHat(B3) + '.'), fig, ans: N(bs, { unit: '°' }),
       sol: ['В равнобедренном треугольнике углы при основании равны: треугольник симметричен относительно оси, проходящей через вершину ' + A + ', и эта симметрия меняет местами углы ' + B + ' и ' + C + '.',
         { t: 'На два равных угла остаётся 180° − ' + ap + '° = ' + (180 - ap) + '°, каждому — половина:', tex: '\\widehat{' + B3 + '}=(180^\\circ-' + geoDg(ap) + ')\\div 2=' + geoDg(bs) }] };
   }
-  let bs; do bs = r.ri(25, 85); while (bs === 60); const ap = 180 - 2 * bs;
+  let bs; do bs = r.ri(30, 75); while (bs === 60); const ap = 180 - 2 * bs;
   const fig = geoTri(tri(bs), nm, { tick: { [A + B]: 1, [A + C]: 1 }, ang: { [B]: bs + '°', [A]: '?' }, angHl: [A] });
   return { q: L('Le triangle ' + A + B + C + ' est isocèle en ' + A + ' et ' + geoHat(B3) + ' = ' + bs + '°. Calculer ' + geoHat(A3) + '.', 'Треугольник ' + A + B + C + ' равнобедренный: ' + A + B + ' = ' + A + C + ', и ' + geoHat(B3) + ' = ' + bs + '°. Найди ' + geoHat(A3) + '.'), fig, ans: N(ap, { unit: '°' }),
     sol: ['Углы при основании равнобедренного треугольника равны (симметрия относительно оси через вершину ' + A + '), значит, ' + geoHat(C3) + ' = ' + bs + '° тоже.',
       { t: 'Третий угол — то, что осталось от 180°:', tex: '\\widehat{' + A3 + '}=180^\\circ-2\\times ' + geoDg(bs) + '=' + geoDg(ap) }] };
 }
-topic({ id: 'ge.angles', ch: 'ge', lvl: 1, calc: false, variants: 4,
+geoTopic({ id: 'ge.angles', ch: 'ge', lvl: 1, calc: false, variants: 4,
   ru: 'Углы треугольника и углы при параллельных', fr: 'Angles d’un triangle et droites parallèles',
   hints: [
     'Сумма углов любого треугольника равна 180°. Почему: если через вершину провести прямую, параллельную противоположной стороне, три угла треугольника сложатся в развёрнутый угол.',
@@ -313,6 +350,104 @@ topic({ id: 'ge.angles', ch: 'ge', lvl: 1, calc: false, variants: 4,
     if (vi === 0) return geoAngSum(r);
     if (vi === 1) return geoAngIso(r);
     return geoAngPar(r, vi === 3);
+  } });
+
+/* ===================== VOCABULAIRE DES ANGLES (official list of automatismes, item 17) ===================== */
+const GEO_ANG_KIND = { nul: ['Un angle nul', 'Нулевой угол'], aigu: ['Un angle aigu', 'Острый угол'], droit: ['Un angle droit', 'Прямой угол'], obtus: ['Un angle obtus', 'Тупой угол'], plat: ['Un angle plat', 'Развёрнутый угол'] };
+const geoAngKind = v => v === 0 ? 'nul' : v < 90 ? 'aigu' : v === 90 ? 'droit' : v < 180 ? 'obtus' : 'plat';
+/* rays from O in the directions dirs (degrees, anticlockwise), a named point on each; two opposite rays make a line.
+   marks: [[i, j, txt, hl]] — the angle between the rays i and j */
+function geoRays(nm, dirs, marks, label) {
+  const S = geoScene(), O = geoV(0, 0), R = 96, P = dirs.map(d => geoV(R * Math.cos(geoRad(d)), -R * Math.sin(geoRad(d))));
+  P.forEach(p => S.seg(O, geoMul(p, 1.2)));
+  marks.forEach(([i, j, txt, hl], k) => geoArc(S, O, P[i], P[j], { r: 24 + 9 * k, txt, cls: hl ? 'fhl' : 'fang' }));   /* two angles side by side: different radii, so that they do not read as one arc */
+  S.dot(O, 2.5); P.forEach(p => S.dot(p, 2.5));
+  P.forEach((p, i) => geoPtLab(S, p, geoPerp(p), nm[i], { gap: 5, near: true }));
+  /* O is named in the widest sector that carries no mark */
+  const srt = dirs.map((d, i) => [((d % 360) + 360) % 360, i]).sort((a, b) => a[0] - b[0]); let best = null;
+  srt.forEach(([d, i], k) => { const [d2, j] = srt[(k + 1) % srt.length], w = ((d2 - d) + 360) % 360 || 360; if (marks.some(m => (m[0] === i && m[1] === j) || (m[0] === j && m[1] === i))) return; if (!best || w > best[0]) best = [w, d + w / 2]; });
+  const dO = best ? best[1] : 270;
+  geoPtLab(S, O, geoV(Math.cos(geoRad(dO)), -Math.sin(geoRad(dO))), 'O', { gap: 8 });
+  return S.svg(label || 'angles de sommet O');
+}
+const GEO_ANG_TF = [
+  [true, 'Un angle plat mesure 180°.', 'Развёрнутый угол равен 180°.', 'Верно: стороны развёрнутого угла («angle plat») образуют прямую — это пол-оборота, 180°.'],
+  [false, 'Un angle droit mesure 180°.', 'Прямой угол равен 180°.', 'Неверно: прямой угол («angle droit») — это 90°, четверть оборота. 180° — это развёрнутый угол («angle plat»).'],
+  [true, 'Un angle aigu mesure moins de 90°.', 'Острый угол меньше 90°.', 'Верно: острый угол («angle aigu») лежит между 0° и 90°.'],
+  [false, 'Un angle obtus mesure plus de 180°.', 'Тупой угол больше 180°.', 'Неверно: тупой угол («angle obtus») — между 90° и 180°: больше прямого, но меньше развёрнутого.'],
+  [true, 'Un angle obtus mesure entre 90° et 180°.', 'Тупой угол — между 90° и 180°.', 'Верно: он больше прямого угла, но меньше развёрнутого.'],
+  [true, 'Un angle nul mesure 0°.', 'Нулевой угол равен 0°.', 'Верно: у нулевого угла («angle nul») стороны совпадают.'],
+  [true, 'Deux angles opposés par le sommet ont la même mesure.', 'Вертикальные углы равны.', 'Верно: каждый из них дополняет один и тот же соседний угол до развёрнутого (180°), поэтому они равны.'],
+  [false, 'Deux angles supplémentaires ont toujours la même mesure.', 'Два угла, дающие в сумме 180°, всегда равны.', 'Неверно: «supplémentaires» значит только «в сумме 180°», например 50° и 130°. Равны они, лишь когда оба по 90°.'],
+  [true, 'La somme des mesures de deux angles supplémentaires est égale à 180°.', 'Сумма двух углов «supplémentaires» равна 180°.', 'Верно: это определение слова «supplémentaires».'],
+  [false, 'Deux angles adjacents ont toujours la même mesure.', 'Два прилежащих угла всегда равны.', 'Неверно: «adjacents» — это углы с общей вершиной и общей стороной, лежащие по разные стороны от неё. Их величины могут быть любыми.'],
+  [true, 'Deux angles adjacents ont le même sommet et un côté commun.', 'У двух прилежащих углов общая вершина и общая сторона.', 'Верно: это определение (и лежат они по разные стороны от общей стороны).'],
+  [false, 'Deux angles opposés par le sommet sont toujours supplémentaires.', 'Вертикальные углы всегда дают в сумме 180°.', 'Неверно: вертикальные углы равны. В сумме 180° они дают, только если оба прямые.'],
+  [true, 'Deux angles adjacents et supplémentaires forment un angle plat.', 'Два прилежащих угла, дающих в сумме 180°, образуют развёрнутый угол.', 'Верно: их необщие стороны образуют прямую. По-русски такие углы называют смежными.'],
+  [false, 'Un angle aigu et un angle obtus sont toujours supplémentaires.', 'Острый и тупой углы всегда дают в сумме 180°.', 'Неверно: например, 30° и 100° дают в сумме только 130°.']];
+geoTopic({ id: 'ge.angles-vocabulaire', ch: 'ge', lvl: 1, calc: false, variants: 4,
+  ru: 'Виды углов и пары углов', fr: 'Reconnaître et nommer des angles',
+  hints: [
+    'Виды углов по величине: нулевой («nul») — 0°; острый («aigu») — меньше 90°; прямой («droit») — ровно 90°; тупой («obtus») — между 90° и 180°; развёрнутый («plat») — ровно 180°, его стороны образуют прямую.',
+    '«Opposés par le sommet» — вертикальные углы: общая вершина, стороны одного продолжают стороны другого; они равны. «Adjacents» — углы с общей вершиной и общей стороной, лежащие по разные стороны от неё. «Supplémentaires» — два угла, которые в сумме дают 180°.',
+    'Осторожно с переводом: русские «смежные углы» — это по-французски «adjacents et supplémentaires» сразу. Просто «adjacents» могут давать в сумме что угодно, а «supplémentaires» не обязаны стоять рядом.'],
+  gen(r, vi) {
+    const sets = [['A', 'B', 'C', 'D'], ['M', 'N', 'P', 'R'], ['E', 'F', 'G', 'H'], ['R', 'S', 'T', 'U'], ['I', 'J', 'K', 'L']];
+    if (vi === 0) {   /* the nature of an angle from its measure, and the measures to know */
+      if (r() < 0.3) {
+        const k = r.pick(['droit', 'plat', 'nul']), val = { droit: 90, plat: 180, nul: 0 }[k], ru = { droit: 'прямой', plat: 'развёрнутый', nul: 'нулевой' }[k];
+        return { q: L('Quelle est la mesure, en degrés, d’un angle ' + k + ' ?', 'Чему равен (в градусах) ' + ru + ' угол?'), ans: N(val, { unit: '°' }),
+          sol: [k === 'droit' ? 'Прямой угол («angle droit») — четверть полного оборота: 360° ÷ 4 = 90°. Его отмечают квадратиком.' : k === 'plat' ? 'У развёрнутого угла («angle plat») стороны образуют прямую: это пол-оборота, 360° ÷ 2 = 180°.' : 'У нулевого угла («angle nul») стороны совпадают: поворота нет, 0°.',
+            'Эти три значения нужно знать наизусть: 0° — «nul», 90° — «droit», 180° — «plat».'] };
+      }
+      const v = r.pick([0, 90, 180, r.ri(1, 17) * 5, r.ri(19, 35) * 5, r.ri(2, 88), r.ri(92, 178)]), k = geoAngKind(v);
+      const others = r.sh(Object.keys(GEO_ANG_KIND).filter(x => x !== k)).slice(0, 3);
+      return { q: L('Un angle mesure ' + v + '°. Quelle est la nature de cet angle ?', 'Угол равен ' + v + '°. Какой это угол?'), ans: MQ(r, [k].concat(others).map(x => L(GEO_ANG_KIND[x][0], GEO_ANG_KIND[x][1])), 0),
+        sol: ['Сравниваем с двумя «границами»: прямой угол — 90°, развёрнутый — 180°.',
+          k === 'aigu' ? v + '° меньше 90° — угол острый («aigu»).' : k === 'obtus' ? v + '° больше 90°, но меньше 180° — угол тупой («obtus»).' : k === 'droit' ? 'Ровно 90° — прямой угол («droit»).' : k === 'plat' ? 'Ровно 180° — развёрнутый угол («plat»): его стороны образуют прямую.' : '0° — нулевой угол («nul»): стороны совпадают.'] };
+    }
+    if (vi === 3) {
+      const [ok, fr, ru, why] = r.pick(GEO_ANG_TF);
+      return { q: L('Vrai ou faux : « ' + fr + ' »', 'Верно или неверно: «' + ru + '»'), ans: TF(ok), sol: [why] };
+    }
+    const nm = r.pick(sets), [A, B, C, D] = nm, rot = r.pick([0, 8, -8, 15, -15, 172, 188]);
+    const g = r.pick([35, 40, 42, 48, 50, 55, 58, 62, 65, 70, 75, 105, 110, 115, 118, 122, 125, 130, 135, 140]);
+    const H = (x, y) => geoHat(x + 'O' + y), cross = [rot, rot + 180, rot + g, rot + g + 180];   /* rays towards A, B, C, D: (AB) and (CD) cross at O, the angle AOC is g */
+    const introX = L('Les droites (' + A + B + ') et (' + C + D + ') se coupent en O', 'Прямые (' + A + B + ') и (' + C + D + ') пересекаются в точке O');
+    if (vi === 1) {   /* a measure: opposite angles, supplementary angles, adjacent angles */
+      const kind = r.pick(['opp', 'supp', 'supp', 'adj']);
+      if (kind === 'adj') {
+        const a = 5 * r.ri(5, 13), b0 = 5 * r.ri(5, 13), b = b0 === a ? b0 + 10 : b0, sub = r() < 0.5, fig = geoRays([A, B, C], [rot, rot + a, rot + a + b], sub ? [[0, 1, a + '°'], [1, 2, '?', true]] : [[0, 1, a + '°'], [1, 2, b + '°']]);
+        return sub ? { q: L('Les angles ' + H(A, B) + ' et ' + H(B, C) + ' sont adjacents. On donne ' + H(A, C) + ' = ' + (a + b) + '° et ' + H(A, B) + ' = ' + a + '°. Calculer ' + H(B, C) + '.', 'Углы ' + H(A, B) + ' и ' + H(B, C) + ' прилежащие (общая сторона [O' + B + ')). Известно: ' + H(A, C) + ' = ' + (a + b) + '° и ' + H(A, B) + ' = ' + a + '°. Найди ' + H(B, C) + '.'), fig, ans: N(b, { unit: '°' }),
+          sol: ['Прилежащие углы («adjacents») лежат по разные стороны от общей стороны [O' + B + '), поэтому вместе они составляют большой угол ' + A + 'O' + C + '.', { t: 'Значит, вторая часть — это разность:', tex: '\\widehat{' + B + 'O' + C + '}=' + geoDg(a + b) + '-' + geoDg(a) + '=' + geoDg(b) }] }
+          : { q: L('Les angles ' + H(A, B) + ' et ' + H(B, C) + ' sont adjacents. On donne ' + H(A, B) + ' = ' + a + '° et ' + H(B, C) + ' = ' + b + '°. Calculer ' + H(A, C) + '.', 'Углы ' + H(A, B) + ' и ' + H(B, C) + ' прилежащие (общая сторона [O' + B + ')). Известно: ' + H(A, B) + ' = ' + a + '° и ' + H(B, C) + ' = ' + b + '°. Найди ' + H(A, C) + '.'), fig, ans: N(a + b, { unit: '°' }),
+            sol: ['Прилежащие углы («adjacents») лежат по разные стороны от общей стороны [O' + B + '), поэтому вместе они составляют угол ' + A + 'O' + C + '.', { t: 'Складываем:', tex: '\\widehat{' + A + 'O' + C + '}=' + geoDg(a) + '+' + geoDg(b) + '=' + geoDg(a + b) }] };
+      }
+      const opp = kind === 'opp', far = r() < 0.5, ask = opp ? H(B, D) : far ? H(A, D) : H(C, B), x = opp ? g : 180 - g;
+      const fig = geoRays(nm, cross, [[0, 2, g + '°'], opp ? [1, 3, '?', true] : far ? [3, 0, '?', true] : [2, 1, '?', true]], 'deux droites sécantes en O');
+      return { q: L(introX.fr + ' et ' + H(A, C) + ' = ' + g + '°. Calculer la mesure de l’angle ' + ask + '.', introX.ru + ', и ' + H(A, C) + ' = ' + g + '°. Найди величину угла ' + ask + '.'), fig, ans: N(x, { unit: '°' }),
+        sol: opp ? ['Углы ' + A + 'O' + C + ' и ' + B + 'O' + D + ' вертикальные («opposés par le sommet»): стороны одного — продолжения сторон другого.', { t: 'Вертикальные углы равны: каждый из них дополняет один и тот же соседний угол до 180°.', tex: '\\widehat{' + B + 'O' + D + '}=\\widehat{' + A + 'O' + C + '}=' + geoDg(g) }]
+          : ['Точки ' + (far ? C + ', O, ' + D : A + ', O, ' + B) + ' лежат на одной прямой, поэтому данный и искомый углы вместе составляют развёрнутый угол 180°: они «adjacents et supplémentaires» (по-русски — смежные).', { t: 'Вычитаем из 180°:', tex: '180^\\circ-' + geoDg(g) + '=' + geoDg(x) }] };
+    }
+    /* vi 2: name the pair */
+    const kind = r.pick(['opp', 'adjsupp', 'adj', 'supp']);
+    const opts = [L('Ils sont opposés par le sommet.', 'Они вертикальные.'), L('Ils sont adjacents et supplémentaires.', 'Они прилежащие и в сумме дают 180° (по-русски — смежные).'),
+      L('Ils sont adjacents, mais pas supplémentaires.', 'Они прилежащие, но в сумме дают не 180°.'), L('Ils sont supplémentaires, mais pas adjacents.', 'Они в сумме дают 180°, но не прилежащие.')];
+    const ans = MQ(r, opts, ['opp', 'adjsupp', 'adj', 'supp'].indexOf(kind));
+    if (kind === 'supp') {
+      const top = r.pick([2, 3]), al = top === 2 ? g : 180 - g;   /* sector `top` on (d) measures g, the co-interior sector on (d') measures 180° − g */
+      return { q: L('Les droites (d) et (d\') sont parallèles. Que peut-on dire des deux angles marqués sur la figure ?', 'Прямые (d) и (d\') параллельны. Что можно сказать о двух углах, отмеченных на рисунке?'), fig: geoParFig(al, [{ at: 0, sec: top, txt: g + '°' }, { at: 1, sec: top === 2 ? 1 : 0, txt: (180 - g) + '°' }]), ans,
+        sol: [g + '° + ' + (180 - g) + '° = 180°, значит, углы «supplémentaires» — в сумме дают 180°.', 'Но вершины у них разные, общей стороны нет — они не «adjacents». Слово «supplémentaires» говорит только о сумме величин, а не о расположении.'] };
+    }
+    if (kind === 'adj') {
+      let a, b; do { a = 5 * r.ri(6, 14); b = 5 * r.ri(6, 14); } while (a === b || a + b > 150 || a + b === 90);
+      return { q: L('Sur la figure ci-dessous, que peut-on dire des angles ' + H(A, B) + ' et ' + H(B, C) + ' ?', 'Что можно сказать об углах ' + H(A, B) + ' и ' + H(B, C) + ' на рисунке?'), fig: geoRays([A, B, C], [rot, rot + a, rot + a + b], [[0, 1, a + '°'], [1, 2, b + '°']]), ans,
+        sol: ['У углов общая вершина O и общая сторона [O' + B + '), и лежат они по разные стороны от неё — это «angles adjacents».', a + '° + ' + b + '° = ' + (a + b) + '°, а не 180°: точки ' + A + ', O и ' + C + ' не лежат на одной прямой. Значит, углы не «supplémentaires».'] };
+    }
+    const isOpp = kind === 'opp';
+    return { q: L(introX.fr + '. Que peut-on dire des angles ' + H(A, C) + ' et ' + (isOpp ? H(B, D) : H(C, B)) + ' ?', introX.ru + '. Что можно сказать об углах ' + H(A, C) + ' и ' + (isOpp ? H(B, D) : H(C, B)) + '?'), fig: geoRays(nm, cross, [[0, 2, '', true], isOpp ? [1, 3, '', true] : [2, 1, '', true]], 'deux droites sécantes en O'), ans,
+      sol: isOpp ? ['У углов общая вершина O, а стороны одного — продолжения сторон другого: [O' + B + ') продолжает [O' + A + '), а [O' + D + ') продолжает [O' + C + '). Это вертикальные углы — «opposés par le sommet».', 'Такие углы всегда равны. Общей стороны у них нет, поэтому они не «adjacents».']
+        : ['У углов общая вершина O и общая сторона [O' + C + ') — они «adjacents». Две другие стороны, [O' + A + ') и [O' + B + '), образуют прямую (' + A + B + '), поэтому вместе углы дают развёрнутый угол 180° — они ещё и «supplémentaires».', 'По-русски такие углы называют смежными. Вертикальным для ' + A + 'O' + C + ' был бы угол ' + B + 'O' + D + ' — напротив, через вершину.'] };
   } });
 
 /* ===================== TRIANGLE INEQUALITY ===================== */
@@ -335,7 +470,7 @@ function geoCompassFig(nL, nR, nT, c, a, b, u) {
   geoSegLab(S, L, R, nf(c) + ' ' + u, null, { flip: false, gap: 18 });
   return S.svg('construction au compas');
 }
-topic({ id: 'ge.triangle-construire', ch: 'ge', lvl: 1, calc: false, variants: 4,
+geoTopic({ id: 'ge.triangle-construire', ch: 'ge', lvl: 1, calc: false, variants: 4,
   ru: 'Можно ли построить треугольник', fr: 'Construire un triangle : inégalité triangulaire',
   hints: [
     'Неравенство треугольника («inégalité triangulaire»): каждая сторона короче суммы двух других. Причина: путь напрямую из A в C короче, чем путь с заездом в B.',
@@ -394,7 +529,8 @@ topic({ id: 'ge.triangle-construire', ch: 'ge', lvl: 1, calc: false, variants: 4
     const acute = Math.max(A, B, C) < 90, srt = [A, B, C].sort((x, y) => x - y), two = srt[0] + srt[1] > srt[2];
     const right = A === 90 || B === 90 || C === 90;
     const dRight = right ? L('On ne peut pas savoir sans les longueurs des côtés', 'Нельзя узнать без длин сторон') : L('Non, car un triangle doit avoir un angle droit', 'Нет, потому что у треугольника должен быть прямой угол');
-    const dIneq = two ? L('Oui, car ' + srt[0] + ' + ' + srt[1] + ' > ' + srt[2], 'Да, потому что ' + srt[0] + ' + ' + srt[1] + ' > ' + srt[2]) : L('Non, car ' + srt[0] + ' + ' + srt[1] + ' < ' + srt[2], 'Нет, потому что ' + srt[0] + ' + ' + srt[1] + ' < ' + srt[2]);
+    const cmp = srt[0] + srt[1] === srt[2] ? ' = ' : ' < ';
+    const dIneq = two ? L('Oui, car ' + srt[0] + ' + ' + srt[1] + ' > ' + srt[2], 'Да, потому что ' + srt[0] + ' + ' + srt[1] + ' > ' + srt[2]) : L('Non, car ' + srt[0] + ' + ' + srt[1] + cmp + srt[2], 'Нет, потому что ' + srt[0] + ' + ' + srt[1] + cmp + srt[2]);
     const opts = ok ? [L('Oui, car ' + A + ' + ' + B + ' + ' + C + ' = 180', 'Да, потому что ' + A + ' + ' + B + ' + ' + C + ' = 180'), dRight, L('Non, car les trois angles devraient être égaux', 'Нет, потому что три угла должны быть равны'), two ? L('On ne peut pas savoir sans les longueurs des côtés', 'Нельзя узнать без длин сторон') : dIneq]
       : [L('Non, car ' + A + ' + ' + B + ' + ' + C + ' = ' + sum + ' et ' + sum + ' ≠ 180', 'Нет, потому что ' + A + ' + ' + B + ' + ' + C + ' = ' + sum + ' и ' + sum + ' ≠ 180'), L(acute ? 'Oui, car tous les angles sont aigus' : 'Oui, car chaque angle est plus petit que 180°', acute ? 'Да, потому что все углы острые' : 'Да, потому что каждый угол меньше 180°'), dIneq, dRight];
     return { q: L('Peut-on construire un triangle dont les angles mesurent ' + list + ' ?', 'Можно ли построить треугольник с углами ' + listR + '?'), ans: MQ(r, opts, 0),
@@ -403,7 +539,9 @@ topic({ id: 'ge.triangle-construire', ch: 'ge', lvl: 1, calc: false, variants: 4
   } });
 
 /* ===================== PYTHAGORE ===================== */
-const GEO_TRIPLES = [[3, 4, 5], [6, 8, 10], [5, 12, 13], [8, 15, 17], [9, 12, 15], [12, 16, 20], [7, 24, 25], [15, 20, 25], [1.5, 2, 2.5], [0.6, 0.8, 1], [30, 40, 50], [0.3, 0.4, 0.5]];
+const GEO_TRIPLES = [[3, 4, 5], [6, 8, 10], [5, 12, 13], [8, 15, 17], [9, 12, 15], [12, 16, 20], [15, 20, 25], [1.5, 2, 2.5], [0.6, 0.8, 1], [30, 40, 50], [0.3, 0.4, 0.5]];
+/* without a calculator the square root has to be one the pupil knows: up to 13, 15, 20, 25, the tens — and their tenths */
+const geoRootOk = v => { const w = v < 3 ? Math.round(v * 10) : v; return Number.isInteger(w) && (w <= 13 || [15, 20, 25, 30, 40, 50].includes(w)); };
 const geoSq = v => +(v * v).toFixed(6);
 /* right triangle: right angle at index ri; legs l1 (towards vertex ri+1) and l2 (towards ri+2); random orientation */
 function geoRT(r, ri, l1, l2) {
@@ -417,16 +555,16 @@ function geoPyData(r, list, keep) {
   const v1 = (ri + 1) % 3, v2 = (ri + 2) % 3;
   return { nm, ri, l1, l2, h, s1: geoSide(nm, ri, v1), s2: geoSide(nm, ri, v2), sh: geoSide(nm, v1, v2), P: geoRT(r, ri, l1, l2) };
 }
-topic({ id: 'ge.pythagore', ch: 'ge', lvl: 1, calc: false, variants: 5,
+geoTopic({ id: 'ge.pythagore', ch: 'ge', lvl: 1, calc: false, variants: 5,
   ru: 'Теорема Пифагора', fr: 'Théorème de Pythagore',
   hints: [
     'Теорема Пифагора работает только в прямоугольном треугольнике: квадрат гипотенузы равен сумме квадратов катетов. Гипотенуза («hypoténuse») — сторона напротив прямого угла, самая длинная.',
     'Запиши равенство буквами этого треугольника: если прямой угол при вершине A, то $BC^2=AB^2+AC^2$. Потом подставь длины.',
     'Ищешь гипотенузу — складываешь квадраты катетов и извлекаешь корень. Ищешь катет — из квадрата гипотенузы вычитаешь квадрат другого катета, потом корень.'],
   gen(r, vi) {
-    const u = r.pick(['cm', 'cm', 'cm', 'm', 'mm']);
+    const u = r.pick(vi === 4 ? ['cm', 'cm', 'm'] : ['cm', 'cm', 'cm', 'm', 'mm']);
     if (vi === 0 || vi === 1) {
-      const T = r.pick(GEO_TRIPLES.filter(t => u !== 'mm' || t[0] >= 3));
+      const T = r.pick(GEO_TRIPLES.filter(t => (u !== 'mm' || t[0] >= 3) && (vi === 0 ? geoRootOk(t[2]) : geoRootOk(t[0]) && geoRootOk(t[1]))));
       const d = geoPyData(r, T), { nm, ri, s1, s2, sh } = d, tri = nm.join('');
       const legAsk = vi === 1, ask = legAsk ? s2 : sh;
       const side = legAsk ? { [s1]: nf(d.l1) + ' ' + u, [sh]: nf(d.h) + ' ' + u, [s2]: '?' } : { [s1]: nf(d.l1) + ' ' + u, [s2]: nf(d.l2) + ' ' + u, [sh]: '?' };
@@ -471,24 +609,24 @@ topic({ id: 'ge.pythagore', ch: 'ge', lvl: 1, calc: false, variants: 5,
           'Вывод: сначала убедись, что треугольник прямоугольный (это дано или доказано), и только потом применяй теорему Пифагора.'] };
     }
     /* exact value with a square root */
-    const legs = r.pick([[1, 2], [2, 3], [1, 3], [2, 4], [3, 5], [1, 4], [2, 5], [4, 5], [3, 6], [2, 2], [3, 3], [4, 6], [5, 6], [4, 7]]);
+    const legs = r.pick([[1, 2], [2, 3], [2, 4], [3, 5], [2, 5], [4, 5], [3, 6], [2, 2], [3, 3], [4, 6], [5, 6], [4, 7], [1, 1], [5, 7]]);
     const d = geoPyData(r, [legs[0], legs[1], Math.sqrt(legs[0] ** 2 + legs[1] ** 2)]), { nm, ri, s1, s2, sh } = d;
     const askLeg = r() < 0.4;
     if (!askLeg) {
       const k = d.l1 * d.l1 + d.l2 * d.l2;
       const fig = geoTri(d.P, nm, { right: nm[ri], side: { [s1]: d.l1 + ' ' + u, [s2]: d.l2 + ' ' + u, [sh]: '?' }, hl: [sh] });
       return { q: L('Le triangle ' + nm.join('') + ' est rectangle en ' + nm[ri] + ', ' + s1 + ' = ' + d.l1 + ' ' + u + ' et ' + s2 + ' = ' + d.l2 + ' ' + u + '. Donner la valeur exacte de ' + sh + '.', 'Треугольник ' + nm.join('') + ' прямоугольный, прямой угол при ' + nm[ri] + ', ' + s1 + ' = ' + d.l1 + ' ' + GEO_U[u] + ' и ' + s2 + ' = ' + d.l2 + ' ' + GEO_U[u] + '. Запиши точное значение ' + sh + '.'), fig,
-        ans: N('sqrt(' + k + ')', { forms: ['any'], unit: u, help: GM('', 'Точное значение — с корнем, например <code>√13</code>') }),
+        ans: N('sqrt(' + k + ')', { forms: ['any'], unit: u }),
         sol: ['Гипотенуза — [' + sh + '], напротив прямого угла. По теореме Пифагора:', ['', sh + '^2=' + d.l1 + '^2+' + d.l2 + '^2=' + (d.l1 * d.l1) + '+' + (d.l2 * d.l2) + '=' + k],
           [k + ' — не квадрат целого числа, поэтому точное значение записывают с корнем:', sh + '=√' + k, u], 'Десятичная запись (≈ ' + nf(geoRound(Math.sqrt(k), 2)) + ') была бы уже округлением, а просят точное значение.'] };
     }
-    const hyp = r.pick([3, 4, 5, 6, 7, 8]), leg = r.ri(1, hyp - 1), k = hyp * hyp - leg * leg;
+    const hyp = r.pick([3, 4, 5, 6, 7, 8]), leg = r.ri(Math.ceil(hyp * 0.35), hyp - 1), k = hyp * hyp - leg * leg;
     if (Number.isInteger(Math.sqrt(k))) return this.gen(r, vi);
     const nm2 = r.pick(GEO_TRI), ri2 = r.ri(0, 2), v1 = (ri2 + 1) % 3, v2 = (ri2 + 2) % 3;
     const S1 = geoSide(nm2, ri2, v1), S2 = geoSide(nm2, ri2, v2), SH = geoSide(nm2, v1, v2);
     const fig = geoTri(geoRT(r, ri2, leg, Math.sqrt(k)), nm2, { right: nm2[ri2], side: { [S1]: leg + ' ' + u, [SH]: hyp + ' ' + u, [S2]: '?' }, hl: [S2] });
     return { q: L('Le triangle ' + nm2.join('') + ' est rectangle en ' + nm2[ri2] + ', ' + SH + ' = ' + hyp + ' ' + u + ' et ' + S1 + ' = ' + leg + ' ' + u + '. Donner la valeur exacte de ' + S2 + '.', 'Треугольник ' + nm2.join('') + ' прямоугольный, прямой угол при ' + nm2[ri2] + ', ' + SH + ' = ' + hyp + ' ' + GEO_U[u] + ' и ' + S1 + ' = ' + leg + ' ' + GEO_U[u] + '. Запиши точное значение ' + S2 + '.'), fig,
-      ans: N('sqrt(' + k + ')', { forms: ['any'], unit: u, help: GM('', 'Точное значение — с корнем, например <code>√7</code>') }),
+      ans: N('sqrt(' + k + ')', { forms: ['any'], unit: u }),
       sol: ['Гипотенуза — [' + SH + ']. По теореме Пифагора $' + SH + '^2=' + S1 + '^2+' + S2 + '^2$, значит, квадрат катета — разность:', ['', S2 + '^2=' + hyp + '^2-' + leg + '^2=' + (hyp * hyp) + '-' + (leg * leg) + '=' + k],
         [k + ' — не квадрат целого числа, поэтому точное значение — корень:', S2 + '=√' + k, u]] };
   } });
@@ -497,7 +635,7 @@ topic({ id: 'ge.pythagore', ch: 'ge', lvl: 1, calc: false, variants: 5,
 const geoArr = (dp, u) => dp === 1 ? L('Arrondir au dixième.', 'Округли до десятых.') : dp === 2 ? (u === 'm' ? L('Arrondir au centimètre.', 'Округли до сантиметра.') : L('Arrondir au centième.', 'Округли до сотых.')) : (u === '°' ? L('Arrondir au degré.', 'Округли до градуса.') : L('Arrondir à l’unité.', 'Округли до целых.'));
 /* a decimal with one digit, avoiding whole numbers */
 const geoD1 = (r, lo, hi) => { let v; do v = r.ri(lo * 10, hi * 10) / 10; while (Number.isInteger(v)); return v; };
-topic({ id: 'ge.pythagore-calc', ch: 'ge', lvl: 2, calc: true, variants: 3,
+geoTopic({ id: 'ge.pythagore-calc', ch: 'ge', lvl: 2, calc: true, variants: 3,
   ru: 'Пифагор с калькулятором и в задачах', fr: 'Théorème de Pythagore : calculs et problèmes',
   hints: [
     'Найди прямой угол и гипотенузу напротив него. Запиши теорему Пифагора буквами этого треугольника.',
@@ -511,7 +649,7 @@ topic({ id: 'ge.pythagore-calc', ch: 'ge', lvl: 2, calc: true, variants: 3,
         a = geoD1(r, 1.5, 9.5);
         if (vi === 0) { b = geoD1(r, 2, 12); val = Math.sqrt(a * a + b * b); }
         else { c = +(a + geoD1(r, 1.2, 7)).toFixed(1); val = Math.sqrt(c * c - a * a); }
-      } while (!geoSafe(val, dp) || (vi === 0 && Math.abs(a - b) < 0.6));
+      } while (!geoSafe(val, dp) || Number.isInteger(+val.toFixed(6)) || (vi === 0 && Math.abs(a - b) < 0.6));
       const key = geoRound(val, dp).toFixed(dp);
       const d = geoPyData(r, vi === 0 ? [a, b, val] : [a, val, c], vi === 1), { nm, ri, s1, s2, sh } = d, tri = nm.join('');
       const leg = vi === 1, ask = leg ? s2 : sh;
@@ -587,7 +725,7 @@ function geoRecData(r, set) {
   const order = r.sh([s1, s2, sh]);
   return { nm, ri, s1, s2, sh, a, b, c, len, order, P: geoTurn(P, r.pick([0, 0, 15, -15, 180, 90]), r() < 0.5), right: Math.abs(a * a + b * b - c * c) < 1e-9 };
 }
-topic({ id: 'ge.pythagore-reciproque', ch: 'ge', lvl: 2, calc: false, variants: 3,
+geoTopic({ id: 'ge.pythagore-reciproque', ch: 'ge', lvl: 2, calc: false, variants: 3,
   ru: 'Прямоугольный ли треугольник (обратная теорема Пифагора)', fr: 'Réciproque du théorème de Pythagore',
   hints: [
     'Если треугольник прямоугольный, гипотенуза — самая длинная сторона. Поэтому сравниваем квадрат самой длинной стороны с суммой квадратов двух других.',
@@ -640,7 +778,7 @@ const geoAcross = (txt, a, b) => { const n = geoUnit(geoPerp(geoSub(b, a))); ret
    nm: names in the same order; lab: { O1, O3, 13, O2, O4, 24, 12, 34 } → text; pap: butterfly (P4 may also lie on the ray of P2) */
 function geoThFig(M, nm, lab, pap, o) {
   o = o || {};
-  const f = geoFit(M, o.W || 240, o.H || 160), [O, P1, P3, P2, P4] = M.map(f), S = geoScene();
+  const f = geoFit(M, o.W || 270, o.H || 190), [O, P1, P3, P2, P4] = M.map(f), S = geoScene();
   const same = pap && geoDp(geoSub(P2, O), geoSub(P4, O)) > 0;
   const far2 = geoDist(O, P2) >= geoDist(O, P4) ? P2 : P4;
   if (pap) { S.seg(P1, P3); if (same) S.seg(O, far2); else S.seg(P2, P4); } else { S.seg(O, P3); S.seg(O, P4); }
@@ -682,11 +820,11 @@ function geoThFig(M, nm, lab, pap, o) {
 }
 /* a Thalès configuration: small triangle sides (OP1, OP2, P1P2), ratio p/q (big = small × p/q) */
 function geoThData(r, pap) {
-  const K = r.pick([[2, 1], [3, 1], [3, 2], [5, 2], [4, 3], [5, 4], [2, 1], [3, 2], [4, 1], [5, 3]]), [p, q] = K;
+  const K = r.pick([[2, 1], [3, 1], [3, 2], [5, 2], [4, 3], [5, 4], [2, 1], [3, 2], [5, 3]]), [p, q] = K;
   let s, ok = false, g = 0;
   while (!ok && g++ < 200) {
     s = [r.ri(1, 6) * q, r.ri(1, 6) * q, r.ri(1, 6) * q];
-    const half = r() < 0.25 && q === 1 && p !== 3; if (half) s = s.map(v => v / 2 + (v % 2 ? 0 : 0));
+    const half = r() < 0.25 && q === 1 && p !== 3; if (half) s = s.map(v => v / 2);
     const [a, b, c] = s;   /* OP1, OP2, P1P2 */
     if (Math.max(a, b, c) * p / q > 24 || Math.min(a, b, c) < 1.5) continue;
     /* angles of the small triangle all at least 25°, the angle at O at most 110° */
@@ -700,8 +838,7 @@ function geoThData(r, pap) {
   const [a, b, c] = s, th = Math.acos((a * a + b * b - c * c) / (2 * a * b));
   const P1 = geoV(a, 0), P2 = geoV(b * Math.cos(th), b * Math.sin(th));
   const P3 = pap ? geoMul(P1, -k) : geoMul(P1, k), P4 = pap ? geoMul(P2, -k) : geoMul(P2, k);
-  const rot = r.ri(0, 23) * 15, mir = r() < 0.5;
-  const M = [geoV(0, 0), P1, P3, P2, P4].map(P => { let Q = mir ? geoV(-P.x, P.y) : P; return geoRot(Q, rot); });
+  const M = geoLay(r, [geoV(0, 0), P1, P3, P2, P4], 270, 190);
   return { s, big, k, p, q, M };
 }
 const GEO_TH_TRI = [['A', 'B', 'E', 'C', 'D'], ['A', 'M', 'B', 'N', 'C'], ['O', 'M', 'R', 'N', 'S'], ['K', 'L', 'N', 'M', 'P'], ['R', 'S', 'U', 'T', 'V'], ['E', 'F', 'H', 'G', 'I'], ['S', 'I', 'E', 'J', 'F']];
@@ -746,7 +883,7 @@ function geoThalesQ(r, pap, trap) {
   sol.push(askBig ? 'Проверка: ' + X + ' длиннее, чем ' + names[j][0] + ', — стороны большого треугольника в ' + kk + ' раза длиннее сторон маленького.' : 'Проверка: ' + X + ' короче, чем ' + names[j][1] + ', — стороны маленького треугольника в ' + kk + ' раза короче сторон большого.');
   return { q, fig, ans: N(fx(ansV), { unit: u }), sol };
 }
-topic({ id: 'ge.thales', ch: 'ge', lvl: 2, calc: false, variants: 4,
+geoTopic({ id: 'ge.thales', ch: 'ge', lvl: 2, calc: false, variants: 4,
   ru: 'Теорема Фалеса: найти длину', fr: 'Théorème de Thalès : calculer une longueur',
   hints: [
     'Фалес работает, когда две прямые пересекаются в одной точке, а две другие прямые параллельны. Тогда маленький треугольник — уменьшенная копия большого: все его стороны в одно и то же число раз короче.',
@@ -758,6 +895,7 @@ topic({ id: 'ge.thales', ch: 'ge', lvl: 2, calc: false, variants: 4,
     if (vi === 3) return geoThalesQ(r, false, true);
     /* which equality is true */
     const pap = r() < 0.4, nm = r.pick(pap ? GEO_TH_PAP : GEO_TH_TRI), D = geoThData(r, pap), [O, P1, P3, P2, P4] = nm;
+    if (Math.abs(D.s[2] * D.k - D.s[0] * (D.k + (pap ? 1 : -1))) < 0.06 * D.s[2] * D.k) return this.gen(r, vi);   /* a wrong option would be true on this figure */
     const fig = geoThFig(D.M, nm, {}, pap);
     const fr = (a, b) => '\\dfrac{' + a + '}{' + b + '}', T = s => '$$' + s + '$$';
     const good = fr(O + P1, O + P3) + '=' + fr(O + P2, O + P4) + '=' + fr(P1 + P2, P3 + P4);
@@ -777,43 +915,44 @@ const geoRatio = (a, b) => { const v = a / b, e = Math.abs(v * 1000 - Math.round
 function geoRecThData(r, par) {
   let big, rho, sm, g = 0;
   do {
-    big = [r.ri(5, 12), r.ri(5, 12)]; rho = r.pick([0.4, 0.5, 0.6, 0.75, 0.8, 0.3, 0.7, 0.25]);
+    big = [r.ri(5, 12), r.ri(5, 12)]; rho = r.pick([0.4, 0.5, 0.6, 0.75, 0.8, 0.7, 0.5, 0.6]);   /* no small ratio: the lengths must fit along the short parts */
     sm = big.map(v => geoRound(v * rho, 2));
     if (!par) sm[1] = geoRound(sm[1] + r.pick([-0.6, -0.4, -0.3, 0.3, 0.4, 0.6]), 2);
     g++;
-  } while (g < 100 && (big[0] === big[1] || sm.some((v, i) => v <= 0.8 || v >= big[i] - 0.8 || !Number.isInteger(v * 10)) || (!par && Math.abs(sm[0] / big[0] - sm[1] / big[1]) < 0.015)));
+  } while (g < 100 && (big[0] === big[1] || Math.min(big[0], big[1]) < 0.6 * Math.max(big[0], big[1]) || sm.some((v, i) => v <= 0.8 || v >= big[i] - 0.8 || !Number.isInteger(v * 10)) || (!par && Math.abs(sm[0] / big[0] - sm[1] / big[1]) < 0.015)));
   return { big, sm, rho };
 }
-topic({ id: 'ge.thales-reciproque', ch: 'ge', lvl: 3, calc: true, variants: 4,
+geoTopic({ id: 'ge.thales-reciproque', ch: 'ge', lvl: 2, calc: true, variants: 4,
   ru: 'Параллельны ли прямые (обратная теорема Фалеса)', fr: 'Réciproque du théorème de Thalès',
   hints: [
     'Обратная теорема Фалеса («réciproque du théorème de Thalès») доказывает параллельность. Нужны два условия: точки на двух прямых идут в одном и том же порядке, и отношения $AM/AB$ и $AN/AC$ равны.',
     'Вычисли каждое отношение отдельно (десятичной дробью) — или сравни перекрёстные произведения $AM*AC$ и $AN*AB$.',
     'Если отношения разные, прямые точно не параллельны: иначе по прямой теореме Фалеса отношения были бы равны. Если отношения равны, но порядок точек разный, прямые тоже не параллельны.'],
   gen(r, vi) {
-    const u = 'cm';
+    const u = 'cm', fr = (a, b) => '\\dfrac{' + a + '}{' + b + '}';
+    /* «AM/AB = 2,1/7 = 0,3» as TeX */
+    const calcT = (nA, nB, a, b) => fr(nA, nB) + '=' + fr(geoT(a), geoT(b)) + (geoRatio(a, b).exact ? '=' : '\\approx ') + geoT(geoRound(a / b, 3));
     if (vi === 0 || vi === 2) {
       const par = vi === 2 || r() < 0.5, nm = r.pick(GEO_TH_TRI), [O, P1, P3, P2, P4] = nm, D = geoRecThData(r, par);
       /* points: O, P3, P4 from a triangle; P1, P2 at the given distances */
-      const th = geoRad(r.ri(40, 75)), base = [geoV(D.big[0], 0), geoPol(D.big[1], geoDeg(th))], rot = r.ri(0, 23) * 15;
-      const M = [geoV(0, 0), geoMul(base[0], D.sm[0] / D.big[0]), base[0], geoMul(base[1], D.sm[1] / D.big[1]), base[1]].map(P => geoRot(P, rot));
+      const base = [geoV(D.big[0], 0), geoPol(D.big[1], r.ri(40, 75))];
+      const M = geoLay(r, [geoV(0, 0), geoMul(base[0], D.sm[0] / D.big[0]), base[0], geoMul(base[1], D.sm[1] / D.big[1]), base[1]], 270, 190);
       const lab = { O1: nf(D.sm[0]) + ' cm', O3: nf(D.big[0]) + ' cm', O2: nf(D.sm[1]) + ' cm', O4: nf(D.big[1]) + ' cm' };
       const fig = geoThFig(M, nm, lab, false);
-      const r1 = geoRatio(D.sm[0], D.big[0]), r2 = geoRatio(D.sm[1], D.big[1]);
-      const q1 = O + P1 + '/' + O + P3, q2 = O + P2 + '/' + O + P4;
+      const Q1 = fr(O + P1, O + P3), Q2 = fr(O + P2, O + P4), T1 = calcT(O + P1, O + P3, D.sm[0], D.big[0]), T2 = calcT(O + P2, O + P4, D.sm[1], D.big[1]);
       const data = [O + P1 + ' = ' + nf(D.sm[0]) + ' cm', O + P3 + ' = ' + nf(D.big[0]) + ' cm', O + P2 + ' = ' + nf(D.sm[1]) + ' cm', O + P4 + ' = ' + nf(D.big[1]) + ' cm'];
       const intro = L('Le point ' + P1 + ' appartient au segment [' + O + P3 + '] et le point ' + P2 + ' appartient au segment [' + O + P4 + ']. On donne ' + geoList(data) + '.', 'Точка ' + P1 + ' лежит на отрезке [' + O + P3 + '], точка ' + P2 + ' — на отрезке [' + O + P4 + ']. Известно: ' + geoList(data.map(x => x.replace('cm', 'см')), true) + '.');
       if (vi === 2) {
-        const st = [L('D’une part $' + q1 + '=' + fx(D.sm[0]) + '/' + D.big[0] + r1.m + '$ ; d’autre part $' + q2 + '=' + fx(D.sm[1]) + '/' + D.big[1] + r2.m + '$.', 'С одной стороны, $' + q1 + '=' + fx(D.sm[0]) + '/' + D.big[0] + r1.m + '$; с другой стороны, $' + q2 + '=' + fx(D.sm[1]) + '/' + D.big[1] + r2.m + '$.'),
-          L('Donc $' + q1 + '=' + q2 + '$.', 'Значит, $' + q1 + '=' + q2 + '$.'),
-          L('De plus, les points ' + O + ', ' + P1 + ', ' + P3 + ' et ' + O + ', ' + P2 + ', ' + P4 + ' sont alignés dans le même ordre, donc, d’après la réciproque du théorème de Thalès, les droites (' + P1 + P2 + ') et (' + P3 + P4 + ') sont parallèles.', 'Кроме того, точки ' + O + ', ' + P1 + ', ' + P3 + ' и ' + O + ', ' + P2 + ', ' + P4 + ' лежат на прямых в одном порядке, поэтому по обратной теореме Фалеса прямые (' + P1 + P2 + ') и (' + P3 + P4 + ') параллельны.')];
+        const st = [L('D’une part, $$' + T1 + '$$.', 'С одной стороны, $$' + T1 + '$$.'), L('D’autre part, $$' + T2 + '$$.', 'С другой стороны, $$' + T2 + '$$.'),
+          L('Donc $$' + Q1 + '=' + Q2 + '$$.', 'Значит, $$' + Q1 + '=' + Q2 + '$$.'),
+          L('De plus, les points ' + O + ', ' + P1 + ', ' + P3 + ' et les points ' + O + ', ' + P2 + ', ' + P4 + ' sont alignés dans le même ordre, donc, d’après la réciproque du théorème de Thalès, les droites (' + P1 + P2 + ') et (' + P3 + P4 + ') sont parallèles.', 'Кроме того, точки ' + O + ', ' + P1 + ', ' + P3 + ' и точки ' + O + ', ' + P2 + ', ' + P4 + ' лежат на прямых в одном и том же порядке, поэтому по обратной теореме Фалеса прямые (' + P1 + P2 + ') и (' + P3 + P4 + ') параллельны.')];
         return { q: L(intro.fr + ' Remettre dans l’ordre les étapes de la démonstration : les droites (' + P1 + P2 + ') et (' + P3 + P4 + ') sont parallèles.', intro.ru + ' Расставь по порядку шаги доказательства того, что прямые (' + P1 + P2 + ') и (' + P3 + P4 + ') параллельны.'), fig, ans: ORD(r, st),
-          sol: ['Сначала вычисления (оба отношения), потом вывод из них (отношения равны), и в конце — ссылка на обратную теорему Фалеса вместе с её вторым условием: порядок точек одинаковый.', 'Без условия о порядке точек вывод неполный: равных отношений мало, если одна из точек лежит «с другой стороны».'] };
+          sol: ['Сначала вычисления: «D’une part…» — первое отношение, «D’autre part…» — второе. Потом вывод из них (отношения равны), и в конце — ссылка на обратную теорему Фалеса вместе с её вторым условием: порядок точек одинаковый.', 'Без условия о порядке точек вывод неполный: равных отношений мало, если одна из точек лежит «с другой стороны».'] };
       }
-      const opts = [L('Oui, car $' + q1 + '=' + q2 + '$ et les points sont alignés dans le même ordre', 'Да, потому что $' + q1 + '=' + q2 + '$ и точки идут в одном порядке'), L('Non, car $' + q1 + '≠' + q2 + '$', 'Нет, потому что $' + q1 + '≠' + q2 + '$'),
+      const opts = [L('Oui, car $$' + Q1 + '=' + Q2 + '$$ et les points sont alignés dans le même ordre', 'Да, потому что $$' + Q1 + '=' + Q2 + '$$ и точки идут в одном порядке'), L('Non, car $$' + Q1 + '\\neq ' + Q2 + '$$', 'Нет, потому что $$' + Q1 + '\\neq ' + Q2 + '$$'),
         L('Oui, car sur la figure les droites (' + P1 + P2 + ') et (' + P3 + P4 + ') ne se coupent pas', 'Да, потому что на рисунке прямые (' + P1 + P2 + ') и (' + P3 + P4 + ') не пересекаются'), L('On ne peut pas savoir sans connaître ' + P1 + P2 + ' et ' + P3 + P4, 'Нельзя узнать, не зная ' + P1 + P2 + ' и ' + P3 + P4)];
       return { q: L(intro.fr + ' Les droites (' + P1 + P2 + ') et (' + P3 + P4 + ') sont-elles parallèles ?', intro.ru + ' Параллельны ли прямые (' + P1 + P2 + ') и (' + P3 + P4 + ')?'), fig, ans: MQ(r, opts, par ? 0 : 1),
-        sol: ['Сравниваем отношения длин от общей точки ' + O + ':', ['', q1 + '=' + fx(D.sm[0]) + '/' + D.big[0] + r1.m + ';' + q2 + '=' + fx(D.sm[1]) + '/' + D.big[1] + r2.m],
+        sol: ['Сравниваем отношения длин от общей точки ' + O + ':', { t: '', tex: T1 }, { t: '', tex: T2 },
           par ? 'Отношения равны, и точки ' + O + ', ' + P1 + ', ' + P3 + ' и ' + O + ', ' + P2 + ', ' + P4 + ' идут в одном порядке. По обратной теореме Фалеса (' + P1 + P2 + ') ∥ (' + P3 + P4 + ').'
             : 'Отношения разные. Если бы прямые были параллельны, по теореме Фалеса эти отношения были бы равны, — значит, прямые не параллельны. «На глаз» это не видно: рисунок не доказательство.'] };
     }
@@ -821,20 +960,19 @@ topic({ id: 'ge.thales-reciproque', ch: 'ge', lvl: 3, calc: true, variants: 4,
       const kind = r.pick(['par', 'ratio', 'order']), nm = r.pick(GEO_TH_PAP), [O, P1, P3, P2, P4] = nm;
       const D = geoRecThData(r, kind !== 'ratio');
       /* P3 on the far side of O from P1; P4 on the far side from P2 (or on the same side for «order») */
-      const th = geoRad(r.ri(45, 75)), e1 = geoV(1, 0), e2 = geoPol(1, geoDeg(th));
+      const e1 = geoV(1, 0), e2 = geoPol(1, r.ri(45, 75));
       const bigOnFirst = r() < 0.5;   /* which pair is drawn as the big one */
       const p1 = geoMul(e1, bigOnFirst ? D.big[0] : D.sm[0]), p2 = geoMul(e2, bigOnFirst ? D.big[1] : D.sm[1]);
       const p3 = geoMul(e1, -(bigOnFirst ? D.sm[0] : D.big[0])), p4 = geoMul(e2, (kind === 'order' ? 1 : -1) * (bigOnFirst ? D.sm[1] : D.big[1]));
-      if (kind === 'order' && geoDist(p2, p4) < 1.2) return this.gen(r, vi);
-      const rot = r.ri(0, 23) * 15, M = [geoV(0, 0), p1, p3, p2, p4].map(P => geoRot(P, rot));
+      if (kind === 'order' && geoDist(p2, p4) < 2.4) return this.gen(r, vi);
+      const M = geoLay(r, [geoV(0, 0), p1, p3, p2, p4], 270, 190);
       const L1 = bigOnFirst ? [D.big[0], D.sm[0]] : [D.sm[0], D.big[0]], L2 = bigOnFirst ? [D.big[1], D.sm[1]] : [D.sm[1], D.big[1]];
       const fig = geoThFig(M, nm, { O1: nf(L1[0]) + ' cm', O3: nf(L1[1]) + ' cm', O2: nf(L2[0]) + ' cm', O4: nf(L2[1]) + ' cm' }, true, { label: 'deux droites sécantes en ' + O });
       const data = [O + P1 + ' = ' + nf(L1[0]) + ' cm', O + P3 + ' = ' + nf(L1[1]) + ' cm', O + P2 + ' = ' + nf(L2[0]) + ' cm', O + P4 + ' = ' + nf(L2[1]) + ' cm'];
-      const q1 = O + P3 + '/' + O + P1, q2 = O + P4 + '/' + O + P2;
-      const r1 = geoRatio(L1[1], L1[0]), r2 = geoRatio(L2[1], L2[0]);
-      const opts = [L('Oui : $' + q1 + '=' + q2 + '$ et les points sont alignés dans le même ordre', 'Да: $' + q1 + '=' + q2 + '$ и точки идут в одном порядке'), L('Non, car $' + q1 + '≠' + q2 + '$', 'Нет, потому что $' + q1 + '≠' + q2 + '$'),
+      const Q1 = fr(O + P3, O + P1), Q2 = fr(O + P4, O + P2), T1 = calcT(O + P3, O + P1, L1[1], L1[0]), T2 = calcT(O + P4, O + P2, L2[1], L2[0]);
+      const opts = [L('Oui : $$' + Q1 + '=' + Q2 + '$$ et les points sont alignés dans le même ordre', 'Да: $$' + Q1 + '=' + Q2 + '$$ и точки идут в одном порядке'), L('Non, car $$' + Q1 + '\\neq ' + Q2 + '$$', 'Нет, потому что $$' + Q1 + '\\neq ' + Q2 + '$$'),
         L('Non : les points ' + P1 + ', ' + O + ', ' + P3 + ' et ' + P2 + ', ' + O + ', ' + P4 + ' ne sont pas alignés dans le même ordre', 'Нет: точки ' + P1 + ', ' + O + ', ' + P3 + ' и ' + P2 + ', ' + O + ', ' + P4 + ' идут не в одном порядке'), L('On ne peut pas savoir sans connaître ' + P1 + P2 + ' et ' + P3 + P4, 'Нельзя узнать, не зная ' + P1 + P2 + ' и ' + P3 + P4)];
-      const sol = ['Сравниваем отношения длин от точки пересечения ' + O + ':', ['', q1 + '=' + fx(L1[1]) + '/' + fx(L1[0]) + r1.m + ';' + q2 + '=' + fx(L2[1]) + '/' + fx(L2[0]) + r2.m]];
+      const sol = ['Сравниваем отношения длин от точки пересечения ' + O + ':', { t: '', tex: T1 }, { t: '', tex: T2 }];
       if (kind === 'ratio') sol.push('Отношения разные, значит, прямые (' + P1 + P2 + ') и (' + P3 + P4 + ') не параллельны: при параллельных прямых по теореме Фалеса отношения были бы равны.');
       else if (kind === 'order') sol.push('Отношения равны, но посмотри на рисунок: ' + P3 + ' лежит по другую сторону от ' + O + ', чем ' + P1 + ', а ' + P4 + ' — по ту же сторону, что и ' + P2 + '. Порядок точек разный, поэтому обратная теорема Фалеса не применяется, и прямые не параллельны (на рисунке это видно).');
       else sol.push('Отношения равны, и в обеих тройках точка ' + O + ' стоит посередине: ' + P1 + ', ' + O + ', ' + P3 + ' и ' + P2 + ', ' + O + ', ' + P4 + ' — один и тот же порядок. По обратной теореме Фалеса (' + P1 + P2 + ') ∥ (' + P3 + P4 + ').');
@@ -843,7 +981,7 @@ topic({ id: 'ge.thales-reciproque', ch: 'ge', lvl: 3, calc: true, variants: 4,
     }
     /* where to put N so that (MN) // (BC) */
     const nm = r.pick(GEO_TH_TRI), [O, P1, P3, P2, P4] = nm, D = geoRecThData(r, true);
-    const th = r.ri(40, 75), rot = r.ri(0, 23) * 15, M = [geoV(0, 0), geoV(D.sm[0], 0), geoV(D.big[0], 0), geoPol(D.sm[1], th), geoPol(D.big[1], th)].map(P => geoRot(P, rot));
+    const th = r.ri(40, 75), M = geoLay(r, [geoV(0, 0), geoV(D.sm[0], 0), geoV(D.big[0], 0), geoPol(D.sm[1], th), geoPol(D.big[1], th)], 270, 190);
     const fig = geoThFig(M, nm, { O1: nf(D.sm[0]) + ' cm', O3: nf(D.big[0]) + ' cm', O4: nf(D.big[1]) + ' cm', O2: '?' }, false, { hl: ['O2'] });
     return { q: L('Le point ' + P1 + ' appartient au segment [' + O + P3 + '] et ' + O + P1 + ' = ' + nf(D.sm[0]) + ' cm, ' + O + P3 + ' = ' + nf(D.big[0]) + ' cm, ' + O + P4 + ' = ' + nf(D.big[1]) + ' cm. À quelle distance de ' + O + ' faut-il placer le point ' + P2 + ' sur le segment [' + O + P4 + '] pour que les droites (' + P1 + P2 + ') et (' + P3 + P4 + ') soient parallèles ?',
       'Точка ' + P1 + ' лежит на отрезке [' + O + P3 + '], ' + O + P1 + ' = ' + nf(D.sm[0]) + ' см, ' + O + P3 + ' = ' + nf(D.big[0]) + ' см, ' + O + P4 + ' = ' + nf(D.big[1]) + ' см. На каком расстоянии от ' + O + ' нужно поставить точку ' + P2 + ' на отрезке [' + O + P4 + '], чтобы прямые (' + P1 + P2 + ') и (' + P3 + P4 + ') были параллельны?'), fig,
@@ -868,79 +1006,97 @@ const GEO_FN_RU = { cos: 'косинус', sin: 'синус', tan: 'танген
 const GEO_SIDE_RU = { adj: 'прилежащий катет', opp: 'противолежащий катет', hyp: 'гипотенуза' };
 const GEO_SIDE_FR = { adj: 'côté adjacent', opp: 'côté opposé', hyp: 'hypoténuse' };
 const geoTr = (fn, ang) => '\\' + fn + '\\widehat{' + ang + '}';
-topic({ id: 'ge.trigo-choisir', ch: 'ge', lvl: 1, calc: false, variants: 4,
-  ru: 'Тригонометрия: какое отношение выбрать', fr: 'Trigonométrie : choisir le bon rapport',
+/* Partie 1 (official list, item 26) only asks for the cosine: this topic is about the cosine alone, without a calculator.
+   Sine and tangent belong to the problems of Partie 2: they are in ge.trigo-calcul. */
+const geoDF = (a, b) => '$$\\dfrac{' + a + '}{' + b + '}$$';
+geoTopic({ id: 'ge.trigo-choisir', ch: 'ge', lvl: 1, calc: false, variants: 5,
+  ru: 'Косинус острого угла: какое отношение', fr: 'Cosinus d’un angle aigu : reconnaître le bon rapport',
   hints: [
-    'В прямоугольном треугольнике для острого угла: гипотенуза («hypoténuse») — напротив прямого угла; противолежащий катет («côté opposé») — напротив выбранного угла; прилежащий катет («côté adjacent») — сторона угла, которая не гипотенуза.',
-    'cos = прилежащий / гипотенуза, sin = противолежащий / гипотенуза, tan = противолежащий / прилежащий. Французы запоминают «CAH SOH TOA» (звучит как «casse-toi»): Cosinus = Adjacent / Hypoténuse, Sinus = Opposé / Hypoténuse, Tangente = Opposé / Adjacent.',
-    'Чтобы выбрать отношение, отметь две стороны, которые участвуют в задаче (известную и искомую), и посмотри, как они называются относительно угла. Ровно одно из трёх отношений содержит именно их.'],
+    'В прямоугольном треугольнике для острого угла: гипотенуза («hypoténuse») — напротив прямого угла; прилежащий катет («côté adjacent») — сторона угла, которая не гипотенуза; противолежащий катет («côté opposé») — напротив выбранного угла.',
+    'Косинус острого угла — это прилежащий катет, делённый на гипотенузу: «cosinus = côté adjacent / hypoténuse». Гипотенуза — самая длинная сторона и стоит в знаменателе, поэтому косинус всегда меньше 1.',
+    'Косинус связывает угол, прилежащий катет и гипотенузу. Знаешь угол и гипотенузу — прилежащий катет равен «гипотенуза × cos». Знаешь угол и прилежащий катет — гипотенуза равна «катет ÷ cos». Если в задаче участвует противолежащий катет, нужны синус или тангенс: они встречаются в задачах Partie 2, с калькулятором.'],
   gen(r, vi) {
-    const T = geoTrigData(r), tri = T.nm.join(''), R = T.nm[T.ri];
+    const T = geoTrigData(r), tri = T.nm.join(''), R = T.nm[T.ri], Av = T.nm[T.ai];
     const intro = L('Le triangle ' + tri + ' est rectangle en ' + R + '.', 'Треугольник ' + tri + ' прямоугольный, прямой угол при вершине ' + R + '.');
+    const sides = 'Смотрим на стороны относительно угла ' + Av + ': гипотенуза — [' + T.hyp + '] (напротив прямого угла), прилежащий катет — [' + T.adj + '] (сторона угла ' + Av + ', но не гипотенуза), противолежащий — [' + T.opp + '] (напротив угла ' + Av + ').';
     if (vi === 0 || vi === 1) {
-      const fn = r.pick(['cos', 'sin', 'tan']), [num, den] = GEO_FN[fn];
       const trip = r.pick([[3, 4, 5], [5, 12, 13], [8, 15, 17], [7, 24, 25], [20, 21, 29], [6, 8, 10]]), sw = r() < 0.5;
       const len = { adj: sw ? trip[0] : trip[1], opp: sw ? trip[1] : trip[0], hyp: trip[2] };
-      const nameOf = k => T[k];
-      const show = vi === 0 ? (a, b) => '$' + len[a] + '/' + len[b] + '$' : (a, b) => '$' + nameOf(a) + '/' + nameOf(b) + '$';
-      const all = [['adj', 'hyp'], ['opp', 'hyp'], ['opp', 'adj'], ['adj', 'opp'], ['hyp', 'adj'], ['hyp', 'opp']];
-      const others = all.filter(p => !(p[0] === num && p[1] === den));
-      const inv = others.find(p => p[0] === den && p[1] === num), rest = r.sh(others.filter(p => p !== inv)).slice(0, 2);
-      const opts = [[num, den], inv, ...rest].map(p => L(show(p[0], p[1]), show(p[0], p[1])));
-      const fig = geoTri(geoTrigPts(r, T, len.adj, len.opp), T.nm, { right: R, ang: { [T.nm[T.ai]]: '' }, side: vi === 0 ? { [T.adj]: len.adj + ' cm', [T.opp]: len.opp + ' cm', [T.hyp]: len.hyp + ' cm' } : null });
-      const q = vi === 0 ? L(intro.fr + ' Parmi les propositions suivantes, laquelle est égale à $$' + geoTr(fn, T.ang) + '$$ ?', intro.ru + ' Какое из чисел равно $$' + geoTr(fn, T.ang) + '$$?')
-        : L(intro.fr + ' Quel quotient permet de calculer $$' + geoTr(fn, T.ang) + '$$ ?', intro.ru + ' Какое отношение позволяет вычислить $$' + geoTr(fn, T.ang) + '$$?');
+      const show = vi === 0 ? (a, b) => geoDF(len[a], len[b]) : (a, b) => geoDF(T[a], T[b]);
+      const rest = r.sh([['opp', 'adj'], ['adj', 'opp'], ['hyp', 'opp']]).slice(0, 1);
+      const opts = [['adj', 'hyp'], ['hyp', 'adj'], ['opp', 'hyp'], ...rest].map(p => L(show(p[0], p[1]), show(p[0], p[1])));
+      const fig = geoTri(geoTrigPts(r, T, len.adj, len.opp), T.nm, { right: R, ang: { [Av]: '' }, arc: { [Av]: 1 }, side: vi === 0 ? { [T.adj]: len.adj + ' cm', [T.opp]: len.opp + ' cm', [T.hyp]: len.hyp + ' cm' } : null });
+      const q = vi === 0 ? L(intro.fr + ' Parmi les propositions suivantes, laquelle donne le cosinus de l’angle ' + geoHat(T.ang) + ' ?', intro.ru + ' Какое из чисел равно косинусу угла ' + geoHat(T.ang) + '?')
+        : L(intro.fr + ' Quel calcul doit-on effectuer pour déterminer le cosinus de l’angle ' + geoHat(T.ang) + ' ?', intro.ru + ' Какое вычисление даёт косинус угла ' + geoHat(T.ang) + '?');
       return { q, fig, ans: MQ(r, opts, 0),
-        sol: ['Смотрим на стороны относительно угла ' + T.nm[T.ai] + ': гипотенуза — [' + T.hyp + '] (напротив прямого угла), прилежащий катет — [' + T.adj + '] (сторона угла ' + T.nm[T.ai] + '), противолежащий — [' + T.opp + '] (напротив угла ' + T.nm[T.ai] + ').',
-          { t: GEO_FN_RU[fn][0].toUpperCase() + GEO_FN_RU[fn].slice(1) + ' — это ' + GEO_SIDE_RU[num] + ', делённый на ' + (den === 'hyp' ? 'гипотенузу' : 'прилежащий катет') + ':', tex: geoTr(fn, T.ang) + '=\\dfrac{' + T[num] + '}{' + T[den] + '}' + (vi === 0 ? '=\\dfrac{' + len[num] + '}{' + len[den] + '}' : '') },
-          (fn === 'tan' ? 'Перевёрнутая дробь — частая ошибка: тангенс — противолежащий катет сверху.' : 'Косинус и синус острого угла всегда меньше 1, потому что гипотенуза — самая длинная сторона и стоит в знаменателе. Дроби с гипотенузой в числителе сразу отпадают.')] };
+        sol: [sides, { t: 'Косинус — это прилежащий катет, делённый на гипотенузу:', tex: geoTr('cos', T.ang) + '=\\dfrac{' + T.adj + '}{' + T.hyp + '}' + (vi === 0 ? '=\\dfrac{' + len.adj + '}{' + len.hyp + '}' : '') },
+          'Косинус острого угла всегда меньше 1: гипотенуза — самая длинная сторона и стоит в знаменателе. Дробь с гипотенузой в числителе сразу отпадает, а дробь с противолежащим катетом — это уже синус или тангенс.'] };
     }
     if (vi === 2) {
-      const k = r.pick(['adj', 'opp', 'hyp']);
-      const fig = geoTri(geoTrigPts(r, T, r.ri(3, 6), r.ri(2, 5)), T.nm, { right: R, ang: { [T.nm[T.ai]]: '' } });
+      const k = r.pick(['adj', 'opp', 'hyp', 'adj']);
+      const fig = geoTri(geoTrigPts(r, T, r.ri(3, 6), r.ri(2, 5)), T.nm, { right: R, arc: { [Av]: 1 } });
       const opts = ['adj', 'opp', 'hyp'].map(x => L('[' + T[x] + ']', '[' + T[x] + ']'));
       const qfr = k === 'hyp' ? 'Quelle est l’hypoténuse de ce triangle ?' : 'Quel est le ' + GEO_SIDE_FR[k] + ' à l’angle ' + geoHat(T.ang) + ' ?';
       const qru = k === 'hyp' ? 'Какая сторона — гипотенуза этого треугольника?' : 'Какая сторона — ' + GEO_SIDE_RU[k] + ' для угла ' + geoHat(T.ang) + '?';
       return { q: L(intro.fr + ' ' + qfr, intro.ru + ' ' + qru), fig, ans: MQ(r, opts, ['adj', 'opp', 'hyp'].indexOf(k)),
         sol: ['Гипотенуза («hypoténuse») всегда напротив прямого угла: прямой угол при ' + R + ', значит, гипотенуза — [' + T.hyp + '].',
-          'Угол ' + T.nm[T.ai] + ' образован двумя сторонами: [' + T.hyp + '] и [' + T.adj + ']. Та из них, что не гипотенуза, — прилежащий катет («côté adjacent»): [' + T.adj + '].',
-          'Оставшаяся сторона [' + T.opp + '] не касается вершины ' + T.nm[T.ai] + ' — она напротив угла: это противолежащий катет («côté opposé»).'] };
+          'Угол ' + Av + ' образован двумя сторонами: [' + T.hyp + '] и [' + T.adj + ']. Та из них, что не гипотенуза, — прилежащий катет («côté adjacent»): [' + T.adj + '].',
+          'Оставшаяся сторона [' + T.opp + '] не касается вершины ' + Av + ' — она напротив угла: это противолежащий катет («côté opposé»).'] };
     }
-    /* which formula gives the length */
-    const pairs = [['hyp', 'adj'], ['hyp', 'opp'], ['adj', 'hyp'], ['adj', 'opp'], ['opp', 'hyp'], ['opp', 'adj']], [kn, ask] = r.pick(pairs);
-    const al = r.pick([20, 25, 30, 35, 40, 50, 55, 60, 65, 70]), kv = r.ri(3, 12);
-    const good = { 'hyp>adj': ['cos', '×'], 'hyp>opp': ['sin', '×'], 'adj>hyp': ['cos', '÷'], 'adj>opp': ['tan', '×'], 'opp>hyp': ['sin', '÷'], 'opp>adj': ['tan', '÷'] }[kn + '>' + ask];
-    const fx2 = (fn, op) => '$$' + kv + (op === '×' ? '\\times' : '\\div') + '\\' + fn + '(' + al + '^\\circ)$$';
-    const fns = ['cos', 'sin', 'tan'], other = fns.filter(x => x !== good[0]), opOther = good[1] === '×' ? '÷' : '×';
-    const cand = [[good[0], opOther], [r.pick(other), good[1]], [r.pick(other), opOther]];
-    if (cand[1][0] === cand[2][0]) cand[2][0] = other.find(x => x !== cand[1][0]);
-    const opts = [good, ...cand].map(([fn, op]) => L(fx2(fn, op), fx2(fn, op)));
-    const adjL = Math.cos(geoRad(al)), oppL = Math.sin(geoRad(al));
-    const fig = geoTri(geoTrigPts(r, T, adjL, oppL), T.nm, { right: R, ang: { [T.nm[T.ai]]: al + '°' }, side: { [T[kn]]: kv + ' cm', [T[ask]]: '?' }, hl: [T[ask]] });
-    const [num, den] = GEO_FN[good[0]];
-    return { q: L(intro.fr + ' On donne ' + T[kn] + ' = ' + kv + ' cm et ' + geoHat(T.ang) + ' = ' + al + '°. Quelle expression permet de calculer la longueur ' + T[ask] + ' ?', intro.ru + ' Известно: ' + T[kn] + ' = ' + kv + ' см и ' + geoHat(T.ang) + ' = ' + al + '°. Каким выражением вычисляется длина ' + T[ask] + '?'), fig, ans: MQ(r, opts, 0),
-      sol: ['Относительно угла ' + T.nm[T.ai] + ': [' + T[kn] + '] — ' + GEO_SIDE_RU[kn] + ' (известна), [' + T[ask] + '] — ' + GEO_SIDE_RU[ask] + ' (ищем).',
-        { t: 'Эти две стороны связывает ' + GEO_FN_RU[good[0]] + ':', tex: geoTr(good[0], T.ang) + '=\\dfrac{' + T[num] + '}{' + T[den] + '}' },
-        good[1] === '×' ? { t: 'Неизвестное в числителе — умножаем обе части на знаменатель:', tex: T[ask] + '=' + kv + '\\times\\' + good[0] + '(' + al + '^\\circ)' } : { t: 'Неизвестное в знаменателе — из пропорции оно получается делением:', tex: T[ask] + '=' + kv + '\\div\\' + good[0] + '(' + al + '^\\circ)' },
-        good[0] === 'tan' ? 'Тангенс бывает и больше, и меньше 1, поэтому здесь главное — верно выбрать отношение и увидеть, где стоит неизвестное: в числителе — умножаем, в знаменателе — делим.'
-          : good[1] === '×' ? 'Проверка здравым смыслом: катет короче гипотенузы — и правда, умножение на ' + good[0] + ' (число меньше 1) уменьшает длину.' : 'Проверка здравым смыслом: гипотенуза длиннее катета — и правда, деление на ' + good[0] + ' (число меньше 1) увеличивает длину.'] };
+    const al = r.pick([20, 25, 30, 35, 40, 50, 55, 60, 65, 70]), kv = r.ri(3, 12), adjL = Math.cos(geoRad(al)), oppL = Math.sin(geoRad(al));
+    if (vi === 3) {   /* which formula gives the length: hypotenuse → adjacent side (×), adjacent side → hypotenuse (÷) */
+      const [kn, ask] = r.pick([['hyp', 'adj'], ['adj', 'hyp']]), mult = kn === 'hyp';
+      const fx2 = (fn, op) => '$$' + kv + (op === '×' ? '\\times' : '\\div') + '\\' + fn + '(' + al + '^\\circ)$$';
+      const opts = [['cos', mult ? '×' : '÷'], ['cos', mult ? '÷' : '×'], ['sin', '×'], ['sin', '÷']].map(([fn, op]) => L(fx2(fn, op), fx2(fn, op)));
+      const fig = geoTri(geoTrigPts(r, T, adjL, oppL), T.nm, { right: R, ang: { [Av]: al + '°' }, side: { [T[kn]]: kv + ' cm', [T[ask]]: '?' }, hl: [T[ask]] });
+      return { q: L(intro.fr + ' On donne ' + T[kn] + ' = ' + kv + ' cm et ' + geoHat(T.ang) + ' = ' + al + '°. Parmi les formules suivantes, laquelle permet d’obtenir la longueur ' + T[ask] + ' ?', intro.ru + ' Известно: ' + T[kn] + ' = ' + kv + ' см и ' + geoHat(T.ang) + ' = ' + al + '°. Какая из формул даёт длину ' + T[ask] + '?'), fig, ans: MQ(r, opts, 0),
+        sol: ['Относительно угла ' + Av + ': [' + T[kn] + '] — ' + GEO_SIDE_RU[kn] + ' (известна), [' + T[ask] + '] — ' + GEO_SIDE_RU[ask] + ' (ищем). Прилежащий катет и гипотенузу связывает косинус:',
+          { t: '', tex: geoTr('cos', T.ang) + '=\\dfrac{' + T.adj + '}{' + T.hyp + '}' },
+          mult ? { t: 'Неизвестное в числителе — умножаем обе части на гипотенузу:', tex: T[ask] + '=' + kv + '\\times\\cos(' + al + '^\\circ)' } : { t: 'Неизвестное в знаменателе: из $' + kv + '=' + T[ask] + '*c$, где $c$ — косинус, получаем деление:', tex: T[ask] + '=' + kv + '\\div\\cos(' + al + '^\\circ)' },
+          mult ? 'Проверка здравым смыслом: катет короче гипотенузы — и правда, умножение на косинус (число меньше 1) уменьшает длину. Синус дал бы другой катет — противолежащий.' : 'Проверка здравым смыслом: гипотенуза длиннее катета — и правда, деление на косинус (число меньше 1) увеличивает длину.'] };
+    }
+    /* vi 4: is the cosine the right tool? it links the angle, the adjacent side and the hypotenuse */
+    const kn = r.pick(['hyp', 'adj', 'opp']), unk = r.sh(['hyp', 'adj', 'opp'].filter(x => x !== kn));
+    const opts = unk.map(x => L('La longueur ' + T[x], 'Длину ' + T[x])).concat([L('Aucune des deux : il faut le sinus ou la tangente', 'Ни одну из двух: нужен синус или тангенс')]);
+    const c = kn === 'opp' ? 2 : unk.indexOf(kn === 'hyp' ? 'adj' : 'hyp');
+    const fig = geoTri(geoTrigPts(r, T, adjL, oppL), T.nm, { right: R, ang: { [Av]: al + '°' }, side: { [T[kn]]: kv + ' cm' } });
+    return { q: L(intro.fr + ' On connaît ' + geoHat(T.ang) + ' = ' + al + '° et ' + T[kn] + ' = ' + kv + ' cm. Quelle longueur peut-on calculer directement avec le cosinus de l’angle ' + geoHat(T.ang) + ' ?', intro.ru + ' Известно: ' + geoHat(T.ang) + ' = ' + al + '° и ' + T[kn] + ' = ' + kv + ' см. Какую длину можно сразу найти с помощью косинуса угла ' + geoHat(T.ang) + '?'), fig, ans: MQF(opts, c),
+      sol: [sides, { t: 'Косинус связывает только прилежащий катет и гипотенузу:', tex: geoTr('cos', T.ang) + '=\\dfrac{' + T.adj + '}{' + T.hyp + '}' },
+        kn === 'opp' ? 'Известен противолежащий катет [' + T.opp + '], а его в этом равенстве нет: обе длины в формуле косинуса неизвестны. Здесь нужен синус (он даёт гипотенузу) или тангенс (он даёт прилежащий катет) — это уже задачи с калькулятором.'
+          : 'Известна ' + (kn === 'hyp' ? 'гипотенуза' : 'длина прилежащего катета') + ' [' + T[kn] + '], значит, из равенства находится вторая длина — [' + T[kn === 'hyp' ? 'adj' : 'hyp'] + ']. Противолежащий катет [' + T.opp + '] в формулу косинуса не входит.'] };
   } });
 
-topic({ id: 'ge.trigo-calcul', ch: 'ge', lvl: 2, calc: true, variants: 4,
+geoTopic({ id: 'ge.trigo-calcul', ch: 'ge', lvl: 2, calc: true, variants: 5,
   ru: 'Тригонометрия: найти длину или угол', fr: 'Trigonométrie : calculer une longueur ou un angle',
   hints: [
-    'Определи для данного угла, какие стороны известны и какая нужна: гипотенуза, противолежащий или прилежащий катет. Это подскажет cos, sin или tan («CAH SOH TOA»).',
+    'Определи для данного угла, какие стороны известны и какая нужна: гипотенуза, противолежащий или прилежащий катет. Это подскажет отношение: cos = прилежащий / гипотенуза, sin = противолежащий / гипотенуза, tan = противолежащий / прилежащий. Французы запоминают «CAH SOH TOA»: Cosinus = Adjacent / Hypoténuse, Sinus = Opposé / Hypoténuse, Tangente = Opposé / Adjacent.',
     'Запиши отношение и подставь числа. Неизвестное в числителе — умножаем, в знаменателе — делим. Калькулятор должен быть в режиме градусов («degrés»).',
     'Угол по двум сторонам находят обратной функцией: клавиши $$\\cos^{-1}$$, $$\\sin^{-1}$$, $$\\tan^{-1}$$ (Arccos, Arcsin, Arctan). Округляй только в самом конце.'],
   gen(r, vi) {
     const T = geoTrigData(r), tri = T.nm.join(''), R = T.nm[T.ri], A = T.nm[T.ai];
     const intro = L('Le triangle ' + tri + ' est rectangle en ' + R + '.', 'Треугольник ' + tri + ' прямоугольный, прямой угол при вершине ' + R + '.');
     const named = k => GEO_SIDE_RU[k];
+    if (vi === 4) {   /* cosine, sine or tangent: which quotient (the first step of every problem of Partie 2) */
+      const fn = r.pick(['sin', 'tan', 'sin', 'tan', 'cos']), [num, den] = GEO_FN[fn], nums = r() < 0.5;
+      const trip = r.pick([[3, 4, 5], [5, 12, 13], [8, 15, 17], [7, 24, 25], [20, 21, 29], [6, 8, 10]]), sw = r() < 0.5;
+      const len = { adj: sw ? trip[0] : trip[1], opp: sw ? trip[1] : trip[0], hyp: trip[2] };
+      const show = nums ? (a, b) => geoDF(len[a], len[b]) : (a, b) => geoDF(T[a], T[b]);
+      const others = [['adj', 'hyp'], ['opp', 'hyp'], ['opp', 'adj'], ['adj', 'opp'], ['hyp', 'adj'], ['hyp', 'opp']].filter(p => !(p[0] === num && p[1] === den));
+      const inv = others.find(p => p[0] === den && p[1] === num), rest = r.sh(others.filter(p => p !== inv)).slice(0, 2);
+      const opts = [[num, den], inv, ...rest].map(p => L(show(p[0], p[1]), show(p[0], p[1])));
+      const fig = geoTri(geoTrigPts(r, T, len.adj, len.opp), T.nm, { right: R, arc: { [A]: 1 }, side: nums ? { [T.adj]: len.adj + ' cm', [T.opp]: len.opp + ' cm', [T.hyp]: len.hyp + ' cm' } : null });
+      const q = nums ? L(intro.fr + ' Parmi les propositions suivantes, laquelle est égale à $$' + geoTr(fn, T.ang) + '$$ ?', intro.ru + ' Какое из чисел равно $$' + geoTr(fn, T.ang) + '$$?')
+        : L(intro.fr + ' Quel quotient est égal à $$' + geoTr(fn, T.ang) + '$$ ?', intro.ru + ' Какое отношение равно $$' + geoTr(fn, T.ang) + '$$?');
+      return { q, fig, ans: MQ(r, opts, 0),
+        sol: ['Смотрим на стороны относительно угла ' + A + ': гипотенуза — [' + T.hyp + '] (напротив прямого угла), прилежащий катет — [' + T.adj + '] (сторона угла ' + A + '), противолежащий — [' + T.opp + '] (напротив угла ' + A + ').',
+          { t: GEO_FN_RU[fn][0].toUpperCase() + GEO_FN_RU[fn].slice(1) + ' — это ' + GEO_SIDE_RU[num] + ', делённый на ' + (den === 'hyp' ? 'гипотенузу' : 'прилежащий катет') + ':', tex: geoTr(fn, T.ang) + '=\\dfrac{' + T[num] + '}{' + T[den] + '}' + (nums ? '=\\dfrac{' + len[num] + '}{' + len[den] + '}' : '') },
+          (fn === 'tan' ? 'Перевёрнутая дробь — частая ошибка: у тангенса противолежащий катет сверху. Тангенс может быть и больше 1.' : 'Косинус и синус острого угла всегда меньше 1, потому что гипотенуза — самая длинная сторона и стоит в знаменателе. Дроби с гипотенузой в числителе сразу отпадают.')] };
+    }
     if (vi === 0 || vi === 1) {
       /* vi 0: the unknown is in the numerator; vi 1: in the denominator */
       const pairs = vi === 0 ? [['hyp', 'adj'], ['hyp', 'opp'], ['adj', 'opp']] : [['adj', 'hyp'], ['opp', 'hyp'], ['opp', 'adj']];
       let kn, ask, al, kv, val, g = 0;
-      do { [kn, ask] = r.pick(pairs); al = r.ri(18, 72); kv = r() < 0.6 ? r.ri(3, 15) : geoD1(r, 2.5, 14); const c = Math.cos(geoRad(al)), s = Math.sin(geoRad(al)), t = Math.tan(geoRad(al));
+      do { [kn, ask] = r.pick(pairs); al = r.ri(28, 62); kv = r() < 0.6 ? r.ri(3, 15) : geoD1(r, 2.5, 14); const c = Math.cos(geoRad(al)), s = Math.sin(geoRad(al)), t = Math.tan(geoRad(al));
         val = { 'hyp>adj': kv * c, 'hyp>opp': kv * s, 'adj>opp': kv * t, 'adj>hyp': kv / c, 'opp>hyp': kv / s, 'opp>adj': kv / t }[kn + '>' + ask]; } while ((!geoSafe(val, 1) || val > 60) && g++ < 50);
       const fn = { 'hyp>adj': 'cos', 'hyp>opp': 'sin', 'adj>opp': 'tan', 'adj>hyp': 'cos', 'opp>hyp': 'sin', 'opp>adj': 'tan' }[kn + '>' + ask];
       const [num, den] = GEO_FN[fn], u = r.pick(['cm', 'cm', 'm']), key = geoRound(val, 1).toFixed(1);
@@ -957,7 +1113,7 @@ topic({ id: 'ge.trigo-calcul', ch: 'ge', lvl: 2, calc: true, variants: 4,
       const fn = r.pick(['cos', 'sin', 'tan']), [num, den] = GEO_FN[fn];
       let a, b, al, dp = r() < 0.5 ? 0 : 1, g = 0;
       do { const x = r.ri(2, 14); let y = r.ri(2, 14); if (y === x) y++; if (fn === 'tan') { a = x; b = y; } else { a = Math.min(x, y); b = Math.max(x, y) + r.ri(1, 4); }
-        al = geoDeg(fn === 'cos' ? Math.acos(a / b) : fn === 'sin' ? Math.asin(a / b) : Math.atan(a / b)); } while ((!geoSafe(al, dp) || al < 12 || al > 78) && g++ < 60);
+        al = geoDeg(fn === 'cos' ? Math.acos(a / b) : fn === 'sin' ? Math.asin(a / b) : Math.atan(a / b)); } while ((!geoSafe(al, dp) || al < 28 || al > 62) && g++ < 200);
       const len = { [num]: a, [den]: b }, legA = Math.cos(geoRad(al)), legO = Math.sin(geoRad(al));
       const key = geoRound(al, dp).toFixed(dp), u = 'cm';
       const fig = geoTri(geoTrigPts(r, T, legA, legO), T.nm, { right: R, ang: { [A]: '?' }, angHl: [A], side: { [T[num]]: a + ' cm', [T[den]]: b + ' cm' } });
@@ -970,11 +1126,11 @@ topic({ id: 'ge.trigo-calcul', ch: 'ge', lvl: 2, calc: true, variants: 4,
     /* problems */
     const kind = r.pick(['echelle', 'arbre', 'rampe', 'cerf']), S = geoScene(), nmP = r.pick(PRENOMS_F.concat(PRENOMS_M)), elle = PRENOMS_F.includes(nmP);
     if (kind === 'echelle') {
-      let Lg, al, h; do { Lg = r.pick([3, 3.5, 4, 4.5, 5, 6, 7]); al = r.ri(60, 80); h = Lg * Math.sin(geoRad(al)); } while (!geoSafe(h, 2));
+      let Lg, al, h; do { Lg = r.pick([3, 3.5, 4, 4.5, 5, 6, 7]); al = r.ri(58, 72); h = Lg * Math.sin(geoRad(al)); } while (!geoSafe(h, 2));
       const k = 150 / h, W = geoV(60, 170), T2 = geoV(60, 170 - h * k), F = geoV(60 + Lg * Math.cos(geoRad(al)) * k, 170);
       S.seg(geoV(20, 170), geoV(210, 170)); S.seg(geoV(60, 170), geoV(60, 5));
       for (let y = 15; y < 170; y += 14) S.seg(geoV(60, y), geoV(52, y + 8), 'fl2');
-      S.seg(T2, F, 'fhl'); geoRightMark(S, W, T2, F); geoArc(S, F, T2, geoV(210, 170), { txt: al + '°', r: 22 });
+      S.seg(T2, F, 'fhl'); geoRightMark(S, W, T2, F); geoArc(S, F, T2, W, { txt: al + '°', r: 18 });   /* the angle between the ladder and the ground, inside the triangle */
       geoSegLab(S, T2, F, nf(Lg) + ' m', W); geoSegLab(S, W, T2, '?', F, { gap: 14 });
       const key = geoRound(h, 2).toFixed(2);
       return { q: L('Une échelle de ' + nf(Lg) + ' m est appuyée contre un mur vertical. Elle forme avec le sol horizontal un angle de ' + al + '°. À quelle hauteur le haut de l’échelle touche-t-il le mur ? Arrondir au centimètre.', 'Лестница длиной ' + nf(Lg) + ' м приставлена к вертикальной стене и образует с горизонтальным полом угол ' + al + '°. На какой высоте верх лестницы касается стены? Округли до сантиметра.'),
@@ -1019,16 +1175,22 @@ topic({ id: 'ge.trigo-calcul', ch: 'ge', lvl: 2, calc: true, variants: 4,
 
 /* ===================== GRIDS: symmetries, translations, rotations ===================== */
 /* a grid of cols × rows cells; P(i, j) → screen point (j counted upwards) */
+/* a line of a grid: the squares have to be counted, and the stylesheet's .fgrid is too pale for that (hardly visible in the dark theme),
+   so the grid is drawn with the thin grey line, lighter; labels may lie over it */
+function geoGridLine(S, a, b) {
+  S.pts([a, b]); S.raw('<line x1="' + geoC(a.x) + '" y1="' + geoC(a.y) + '" x2="' + geoC(b.x) + '" y2="' + geoC(b.y) + '" class="fl2" stroke-opacity="0.5"/>');
+}
 function geoGrid(cols, rows, c) {
   const S = geoScene();
-  for (let i = 0; i <= cols; i++) S.seg(geoV(i * c, 0), geoV(i * c, rows * c), 'fgrid');
-  for (let j = 0; j <= rows; j++) S.seg(geoV(0, j * c), geoV(cols * c, j * c), 'fgrid');
+  for (let i = 0; i <= cols; i++) geoGridLine(S, geoV(i * c, 0), geoV(i * c, rows * c));
+  for (let j = 0; j <= rows; j++) geoGridLine(S, geoV(0, j * c), geoV(cols * c, j * c));
   return { S, c, cols, rows, P: (i, j) => geoV(i * c, (rows - j) * c) };
 }
 /* labelled points on a grid: [[i, j, name], …] — dots first, then the names in a free corner of a cell */
 function geoGridPts(G, pts) {
   pts.forEach(([i, j]) => { const p = G.P(i, j); G.S.dot(p, 3); G.S.boxes.push([p.x - 3, p.y - 3, p.x + 3, p.y + 3]); });
-  pts.forEach(([i, j, t]) => geoPtLab(G.S, G.P(i, j), geoV(1, -1), t, { gap: 3 }));
+  /* the name stays next to its own point, and clearly nearer to it than to any other point */
+  pts.forEach(([i, j, t]) => { const p = G.P(i, j), c = geoPtLab(G.S, p, geoV(1, -1), t, { gap: 8, near: true }); if (c && pts.some(([i2, j2]) => (i2 !== i || j2 !== j) && geoDist(c, G.P(i2, j2)) < 1.35 * geoDist(c, p))) GEO_BAD++; });
 }
 const GEO_LETTERS = 'ABCDEFGHJKLMNPRSTUVWXYZ'.split('');
 const geoPl = (n, a, b, c) => { n = Math.abs(n); const m10 = n % 10, m100 = n % 100; return n + ' ' + (m10 === 1 && m100 !== 11 ? a : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? b : c); };
@@ -1049,13 +1211,25 @@ function geoImgQ(r, G, K, pts4, extra) {
   geoGridPts(G, [[K[0], K[1], nK]].concat(r.sh(named), extra || []));
   return { nK, names: letters.slice(0, 4), opts: letters.slice(0, 4).map(l => L('Le point ' + l, 'Точка ' + l)) };
 }
-topic({ id: 'ge.symetries', ch: 'ge', lvl: 1, calc: false, variants: 3,
+geoTopic({ id: 'ge.symetries', ch: 'ge', lvl: 1, calc: false, variants: 4,
   ru: 'Осевая и центральная симметрия', fr: 'Symétrie axiale et symétrie centrale',
   hints: [
     'Осевая симметрия («symétrie axiale») — это перегиб листа по прямой (d): точка и её образ лежат на одном перпендикуляре к (d), на равных расстояниях по разные стороны от неё.',
     'Центральная симметрия («symétrie centrale») с центром O — пол-оборота вокруг O: O — середина отрезка между точкой и её образом. На клетках: сколько клеток от K до O вправо и вверх — столько же от O дальше, тоже вправо и вверх.',
     'Ось симметрии фигуры — прямая, при перегибе по которой фигура совпадает сама с собой. Проверяй каждую возможную ось: через вершины, через середины сторон.'],
   gen(r, vi) {
+    if (vi === 3) {   /* a symmetry or a translation only moves the figure: lengths, angles, perimeters and areas are kept */
+      const tr = r.pick([['la symétrie axiale d’axe (d)', 'осевой симметрии относительно прямой (d)'], ['la symétrie centrale de centre O', 'центральной симметрии с центром O'], ['la translation qui transforme M en N', 'параллельном переносе, который переводит M в N']]);
+      const nm = r.pick(GEO_TRI.filter(t => !t.some(x => 'MNO'.includes(x)))), [A, B, C] = nm, tri = nm.join(''), im = nm.map(x => x + '′').join('');
+      const what = r.pick(['len', 'ang', 'per', 'aire']), v = what === 'ang' ? 5 * r.ri(5, 25) : what === 'len' ? r.ri(3, 12) : r.ri(12, 40);
+      const D = { len: [A + B + ' = ' + v + ' cm', 'Quelle est la longueur ' + A + '′' + B + '′ ?', A + B + ' = ' + v + ' см', 'Чему равна длина ' + A + '′' + B + '′?', 'cm', 'см'],
+        ang: [geoHat(A + B + C) + ' = ' + v + '°', 'Quelle est la mesure de l’angle ' + geoHat(A + "'" + B + "'" + C + "'") + ' ?', geoHat(A + B + C) + ' = ' + v + '°', 'Чему равен угол ' + geoHat(A + "'" + B + "'" + C + "'") + '?', '°', '°'],
+        per: ['le périmètre du triangle ' + tri + ' est égal à ' + v + ' cm', 'Quel est le périmètre du triangle ' + im + ' ?', 'периметр треугольника ' + tri + ' равен ' + v + ' см', 'Чему равен периметр треугольника ' + im + '?', 'cm', 'см'],
+        aire: ['l’aire du triangle ' + tri + ' est égale à ' + v + ' cm²', 'Quelle est l’aire du triangle ' + im + ' ?', 'площадь треугольника ' + tri + ' равна ' + v + ' см²', 'Чему равна площадь треугольника ' + im + '?', 'cm²', 'см²'] }[what];
+      return { q: L('Le triangle ' + im + ' est l’image du triangle ' + tri + ' par ' + tr[0] + '. On sait que ' + D[0] + '. ' + D[1], 'Треугольник ' + im + ' — образ треугольника ' + tri + ' при ' + tr[1] + '. Известно: ' + D[2] + '. ' + D[3]), ans: N(v, { unit: D[4] }),
+        sol: ['Осевая симметрия, центральная симметрия и параллельный перенос только перемещают фигуру (перегиб листа, пол-оборота, сдвиг): она не растягивается и не сжимается.',
+          'Поэтому образ — такой же треугольник: длины сторон, углы, периметр и площадь сохраняются. Ответ тот же: ' + v + ' ' + D[5] + '.', 'Размеры меняет только гомотетия («homothétie») — и то если её коэффициент не равен 1 или −1.'] };
+    }
     if (vi === 2) {   /* number of axes of symmetry of a figure */
       const sh = r.pick(['carre', 'rect', 'los', 'equi', 'iso', 'para', 'trap', 'hexa', 'penta', 'cerf', 'quel']);
       const D = { carre: [4, 'ce carré', 'этого квадрата'], rect: [2, 'ce rectangle (qui n’est pas un carré)', 'этого прямоугольника (не квадрата)'], los: [2, 'ce losange (qui n’est pas un carré)', 'этого ромба (не квадрата)'],
@@ -1093,7 +1267,7 @@ topic({ id: 'ge.symetries', ch: 'ge', lvl: 1, calc: false, variants: 3,
       }
       const Q = geoImgQ(r, G, K, res, [[O[0], O[1], 'O']]);
       const dx = O[0] - K[0], dy = O[1] - K[1], st = (n, a, b) => geoCells(n) + ' ' + (n > 0 ? a : b);
-      return { q: L('Dans le quadrillage ci-dessous, quel est le symétrique du point ' + Q.nK + ' par la symétrie de centre O ?', 'На клетчатой сетке ниже: какая точка симметрична точке ' + Q.nK + ' относительно центра O?'), fig: G.S.svg('quadrillage'), ans: MQ(r, Q.opts, 0),
+      return { q: L('Dans le quadrillage ci-dessous, quel est le symétrique du point ' + Q.nK + ' par la symétrie centrale de centre O ?', 'На клетчатой сетке ниже: какая точка симметрична точке ' + Q.nK + ' относительно центра O?'), fig: G.S.svg('quadrillage'), ans: MQ(r, Q.opts, 0),
         sol: ['При центральной симметрии O — середина отрезка между точкой и её образом: образ лежит на прямой ' + Q.nK + 'O, по другую сторону от O, на том же расстоянии.',
           'От ' + Q.nK + ' до O: ' + st(dx, 'вправо', 'влево') + ' и ' + st(dy, 'вверх', 'вниз') + '. Повторяем тот же путь от O дальше — попадаем в точку ' + Q.names[0] + '.',
           'Точки, где изменилось только одно направление, — это образы при осевой симметрии (перегибе), а не при центральной.'] };
@@ -1120,7 +1294,7 @@ topic({ id: 'ge.symetries', ch: 'ge', lvl: 1, calc: false, variants: 3,
       'Идём от ' + Q.nK + ' по диагоналям клеток перпендикулярно (d), считаем шаги до оси и делаем столько же шагов дальше: попадаем в ' + Q.names[0] + '.', 'Частая ошибка — идти к наклонной оси по горизонтали или по вертикали: так получаются неверные точки.']
       : ['При осевой симметрии точка и её образ лежат на перпендикуляре к оси (d), на равных расстояниях от неё. Ось ' + (kind === 'v' ? 'вертикальная, значит, двигаемся по горизонтали' : 'горизонтальная, значит, двигаемся по вертикали') + '.',
         'От ' + Q.nK + ' до (d) — ' + geoCells(kind === 'v' ? K[0] - ax : K[1] - ax) + '; откладываем столько же по другую сторону — это точка ' + Q.names[0] + '.'];
-    return { q: L('Dans le quadrillage ci-dessous, quel est le symétrique du point ' + Q.nK + ' par la symétrie d’axe (d) ?', 'На клетчатой сетке ниже: какая точка симметрична точке ' + Q.nK + ' относительно прямой (d)?'), fig: G.S.svg('quadrillage'), ans: MQ(r, Q.opts, 0), sol };
+    return { q: L('Dans le quadrillage ci-dessous, quel est le symétrique du point ' + Q.nK + ' par la symétrie axiale d’axe (d) ?', 'На клетчатой сетке ниже: какая точка симметрична точке ' + Q.nK + ' относительно прямой (d)?'), fig: G.S.svg('quadrillage'), ans: MQ(r, Q.opts, 0), sol };
   } });
 
 /* text of a grid step: «3 клетки вправо и 1 клетка вверх» */
@@ -1153,7 +1327,7 @@ function geoSixteenFig(F, shade) {
 }
 const GEO_DIR_FR = { 'sens+': 'dans le sens inverse des aiguilles d’une montre', 'sens-': 'dans le sens des aiguilles d’une montre' };
 const GEO_DIR_RU = { 'sens+': 'против часовой стрелки', 'sens-': 'по часовой стрелке' };
-topic({ id: 'ge.transformations', ch: 'ge', lvl: 2, calc: false, variants: 5,
+geoTopic({ id: 'ge.transformations', ch: 'ge', lvl: 2, calc: false, variants: 5,
   ru: 'Перенос, поворот, какое преобразование', fr: 'Translation, rotation : reconnaître une transformation',
   hints: [
     'Параллельный перенос («translation») сдвигает всю фигуру на один и тот же вектор: на столько же клеток и в ту же сторону, что и от точки A до точки B. Фигура не поворачивается и не переворачивается.',
@@ -1171,7 +1345,7 @@ topic({ id: 'ge.transformations', ch: 'ge', lvl: 2, calc: false, variants: 5,
       const names = [F.nameOf(img), ...cands.slice(0, 3).map(F.nameOf)];
       const fig = geoSixteenFig(F, src), nA = F.nameAt[geoKey(P0)], nB = F.nameAt[geoKey(P1)], nS = F.nameOf(src);
       const step = (v[0] ? (v[0] > 0 ? 'вправо' : 'влево') : '') + (v[0] && v[1] ? ' и ' : '') + (v[1] ? (v[1] > 0 ? 'вверх' : 'вниз') : '');
-      return { q: L('La figure ci-dessous est formée de 16 triangles rectangles isocèles identiques. Quelle est l’image du triangle ' + nS + ' par la translation qui transforme ' + nA + ' en ' + nB + ' ?', 'Фигура ниже составлена из 16 одинаковых прямоугольных равнобедренных треугольников. Какой треугольник — образ треугольника ' + nS + ' при параллельном переносе, который переводит ' + nA + ' в ' + nB + '?'), fig,
+      return { q: L('La figure ci-dessous est formée de 16 triangles rectangles isocèles superposables. Quelle est l’image du triangle ' + nS + ' par la translation qui transforme ' + nA + ' en ' + nB + ' ?', 'Фигура ниже составлена из 16 одинаковых прямоугольных равнобедренных треугольников. Какой треугольник — образ треугольника ' + nS + ' при параллельном переносе, который переводит ' + nA + ' в ' + nB + '?'), fig,
         ans: MQ(r, names.map(n => L('Le triangle ' + n, 'Треугольник ' + n)), 0),
         sol: ['Перенос сдвигает каждую точку фигуры одинаково: так же, как ' + nA + ' сдвигается в ' + nB + '. Здесь это сдвиг на сторону маленького квадрата ' + step + (v[0] && v[1] ? ' (по диагонали маленького квадрата)' : '') + '.',
           'Сдвигаем каждую вершину треугольника ' + nS + ': ' + src.map((p, k) => F.nameAt[geoKey(p)] + ' → ' + F.nameAt[geoKey(img[k])]).join(', ') + '. Получаем треугольник ' + F.nameOf(img) + '.',
@@ -1187,11 +1361,13 @@ topic({ id: 'ge.transformations', ch: 'ge', lvl: 2, calc: false, variants: 5,
         S.text(P(geoPol(1.22, th + 10)), String(m + 1));
       }
       S.dot(C); geoPtLab(S, C, geoPol(1, -(ph + 180 / n) + 180), 'O', { gap: 5 });
-      const ang = 360 * (k - 1) / n;
-      return { q: L('La figure ci-dessous est formée de ' + n + ' motifs identiques numérotés de 1 à ' + n + ', disposés autour du point O. Quel est l’angle de la rotation de centre O, dans le sens inverse des aiguilles d’une montre, qui transforme le motif 1 en le motif ' + k + ' ?',
-        'Фигура ниже составлена из ' + n + ' одинаковых фигурок, пронумерованных от 1 до ' + n + ' вокруг точки O. На какой угол нужно повернуть фигурку 1 вокруг O против часовой стрелки, чтобы получить фигурку ' + k + '?'), fig: S.svg('rosace'), ans: N(ang, { unit: '°' }),
+      /* the shorter way round: anticlockwise up to half a turn, clockwise beyond */
+      const dir = 2 * (k - 1) <= n ? 'sens+' : 'sens-', st = dir === 'sens+' ? k - 1 : n - (k - 1), ang = 360 * st / n, back = []; for (let m = n; m >= k; m--) back.push(m);
+      return { q: L('La figure ci-dessous est formée de ' + n + ' motifs identiques numérotés de 1 à ' + n + ', disposés autour du point O. Quel est l’angle de la rotation de centre O, ' + GEO_DIR_FR[dir] + ', qui transforme le motif 1 en le motif ' + k + ' ?',
+        'Фигура ниже составлена из ' + n + ' одинаковых фигурок, пронумерованных от 1 до ' + n + ' вокруг точки O. На какой угол нужно повернуть фигурку 1 вокруг O ' + GEO_DIR_RU[dir] + ', чтобы получить фигурку ' + k + '?'), fig: S.svg('rosace'), ans: N(ang, { unit: '°' }),
         sol: ['Фигурки одинаковые и стоят равномерно, поэтому полный оборот 360° делится на ' + n + ' равных частей:', { t: 'угол между соседними фигурками', tex: '360^\\circ\\div ' + n + '=' + geoDg(360 / n) },
-          { t: 'От фигурки 1 до фигурки ' + k + ' — ' + (k - 1) + ' ' + (k - 1 === 1 ? 'шаг' : k - 1 < 5 ? 'шага' : 'шагов') + ' против часовой стрелки:', tex: (k - 1) + '\\times ' + geoDg(360 / n) + '=' + geoDg(ang) }] };
+          { t: 'От фигурки 1 до фигурки ' + k + ' — ' + st + ' ' + (st === 1 ? 'шаг' : st < 5 ? 'шага' : 'шагов') + ' ' + GEO_DIR_RU[dir] + (dir === 'sens-' ? ' (через фигурки 1, ' + back.join(', ') + ')' : '') + ':', tex: st + '\\times ' + geoDg(360 / n) + '=' + geoDg(ang) },
+          'Направление важно: в другую сторону до той же фигурки пришлось бы повернуть на ' + (360 - ang) + '°.'] };
     }
     if (vi === 4) {   /* which transformation */
       const kind = r.pick(['tr', 'ax', 'ce', 'ro']);
@@ -1252,45 +1428,60 @@ topic({ id: 'ge.transformations', ch: 'ge', lvl: 2, calc: false, variants: 5,
     }
     const Q = geoImgQ(r, G, K, res, [[O[0], O[1], 'O']]);
     const nd = dir === 'sens+' ? [-d[1], d[0]] : [d[1], -d[0]];
-    return { q: L('Dans le quadrillage ci-dessous, quelle est l’image du point ' + Q.nK + ' par la rotation de centre O, d’angle 90°, ' + GEO_DIR_FR[dir] + ' ?', 'На клетчатой сетке ниже: в какую точку переходит ' + Q.nK + ' при повороте вокруг O на 90° ' + GEO_DIR_RU[dir] + '?'), fig: G.S.svg('quadrillage'), ans: MQ(r, Q.opts, 0),
+    return { q: L('Dans le quadrillage ci-dessous, quelle est l’image du point ' + Q.nK + ' par la rotation de centre O et d’angle 90° ' + GEO_DIR_FR[dir] + ' ?', 'На клетчатой сетке ниже: в какую точку переходит ' + Q.nK + ' при повороте вокруг O на 90° ' + GEO_DIR_RU[dir] + '?'), fig: G.S.svg('quadrillage'), ans: MQ(r, Q.opts, 0),
       sol: ['При повороте точка остаётся на том же расстоянии от центра O, а отрезок O' + Q.nK + ' поворачивается на 90° — на четверть оборота.',
         'От O до ' + Q.nK + ': ' + geoStep(d[0], d[1]) + '. При повороте на четверть оборота ' + GEO_DIR_RU[dir] + ' этот путь поворачивается вместе с отрезком и становится таким: ' + geoStep(nd[0], nd[1]) + '. От O это точка ' + Q.names[0] + '.',
         'Точка «напротив» через O — это поворот на 180° (центральная симметрия), а поворот в другую сторону даёт другую точку — поэтому направление важно.'] };
   } });
 
 /* ===================== HOMOTHÉTIE ===================== */
-const geoKt = k => Number.isInteger(k) ? String(k) : (k < 0 ? '-(1/' + Math.round(1 / Math.abs(k)) + ')' : '1/' + Math.round(1 / k));   /* 2, -2, 1/2, -(1/2) in input syntax */
-topic({ id: 'ge.homothetie', ch: 'ge', lvl: 3, calc: false, variants: 4,
+/* a ratio as TeX: 2, −2, 1/2, −1/2 */
+const geoKt = k => Number.isInteger(k) ? String(k) : (k < 0 ? '-' : '') + '\\dfrac{1}{' + Math.round(1 / Math.abs(k)) + '}';
+/* do two convex polygons (lists of [x, y]) overlap or touch — separating axis test */
+function geoOverlap(P, Q) {
+  for (const poly of [P, Q]) for (let i = 0; i < poly.length; i++) {
+    const a = poly[i], b = poly[(i + 1) % poly.length], n = [b[1] - a[1], a[0] - b[0]], pr = X => X.map(p => p[0] * n[0] + p[1] * n[1]), p1 = pr(P), p2 = pr(Q);
+    if (Math.max(...p1) < Math.min(...p2) - 1e-9 || Math.max(...p2) < Math.min(...p1) - 1e-9) return false;
+  }
+  return true;
+}
+/* small triangles given by the offsets of their vertices from the centre O: big enough to carry their names, and their images stay on the grid */
+const GEO_HOMO_TRI = [[[2, 0], [3, 2], [1, 2]], [[1, 0], [3, 0], [2, 2]], [[1, 1], [3, 0], [3, 2]], [[2, 0], [3, 1], [1, 2]], [[1, 0], [3, 1], [1, 2]]];
+geoTopic({ id: 'ge.homothetie', ch: 'ge', lvl: 2, calc: false, variants: 4,
   ru: 'Гомотетия: коэффициент, длины и площади', fr: 'Homothétie : rapport, longueurs et aires',
   hints: [
-    'Гомотетия («homothétie») с центром O и коэффициентом k: точка M переходит в M′ на прямой (OM), причём OM′ = |k| × OM. Если k > 0 — образ по ту же сторону от O, если k < 0 — по другую сторону.',
-    'Все длины умножаются на |k|: при |k| > 1 фигура увеличивается, при |k| < 1 — уменьшается, при k = −1 это центральная симметрия. Углы и форма не меняются.',
+    'Гомотетия («homothétie») с центром O и коэффициентом k («rapport»): точка M переходит в M′ на прямой (OM), причём OM′ = |k| × OM. Если k > 0 — образ по ту же сторону от O, если k < 0 — по другую сторону.',
+    'Все длины умножаются на |k|: при |k| > 1 фигура увеличивается («agrandissement»), при |k| < 1 — уменьшается («réduction»), при k = −1 это центральная симметрия. Углы и форма не меняются.',
     'Площади умножаются на k², объёмы — на |k|³: фигура растягивается сразу в двух (или трёх) направлениях.'],
   gen(r, vi) {
     if (vi === 0) {   /* the ratio, read on a grid */
-      const k = r.pick([2, -2, 3, -3, 0.5, -0.5, 2, -2]), small = Math.abs(k) < 1, G = geoGrid(14, 9, 23);
+      const k = r.pick([2, -2, 3, -3, 0.5, -0.5, 2, -2]), K = Math.max(Math.abs(k), 1 / Math.abs(k)), G = geoGrid(14, 10, 23);
       let O, src, img, ok = false, g = 0;
       while (!ok && g++ < 300) {
-        O = [r.ri(1, 13), r.ri(1, 8)];
-        const m = small ? 2 : 1, sx = r.sgn(), sy = r.sgn();
-        const off = [[sx * m * r.ri(1, 2), sy * m * r.ri(0, 1)], [sx * m * r.ri(1, 3), sy * m * r.ri(1, 2)], [sx * m * r.ri(0, 1), sy * m * r.ri(1, 2)]];
-        if (new Set(off.map(geoKey)).size < 3 || Math.abs((off[1][0] - off[0][0]) * (off[2][1] - off[0][1]) - (off[1][1] - off[0][1]) * (off[2][0] - off[0][0])) < 1) continue;
-        src = off.map(d => [O[0] + d[0], O[1] + d[1]]); img = off.map(d => [O[0] + k * d[0], O[1] + k * d[1]]);
-        ok = src.concat(img).every(p => p[0] >= 0.5 && p[0] <= 13.5 && p[1] >= 0.5 && p[1] <= 8.5);
+        const sx = r.sgn(), sy = r.sgn(), tp = K === 2 && r() < 0.4;
+        const small = r.pick(GEO_HOMO_TRI).map(p => (tp ? [sx * p[1], sy * p[0]] : [sx * p[0], sy * p[1]]));
+        const so = Math.abs(k) > 1 ? small : small.map(p => [p[0] * K, p[1] * K]), io = so.map(p => [p[0] * k, p[1] * k]), all = so.concat(io, [[0, 0]]);
+        if (k > 0 && geoOverlap(so, io)) continue;
+        const x0 = 1 - Math.min(...all.map(p => p[0])), x1 = 13 - Math.max(...all.map(p => p[0])), y0 = 1 - Math.min(...all.map(p => p[1])), y1 = 9 - Math.max(...all.map(p => p[1]));
+        if (x1 < x0 || y1 < y0) continue;
+        O = [r.ri(x0, x1), r.ri(y0, y1)]; src = so.map(d => [O[0] + d[0], O[1] + d[1]]); img = io.map(d => [O[0] + d[0], O[1] + d[1]]); ok = true;
       }
+      if (!ok) return this.gen(r, vi);
       const toS = p => G.P(p[0], p[1]);
+      /* the lines through O and each vertex, then the two triangles */
+      src.forEach((p, i) => { const q = img[i], far = k > 0 ? (K === Math.abs(k) ? q : p) : null; G.S.seg(far ? toS(O) : toS(p), far ? toS(far) : toS(q), 'fl2'); });
       G.S.poly(src.map(toS), 'ffill'); G.S.poly(src.map(toS), 'fl'); G.S.poly(img.map(toS), 'ffill'); G.S.poly(img.map(toS), 'fl');
-      src.concat(img).forEach(p => G.S.seg(toS(O), toS(p), 'fl2'));
-      G.S.dot(toS(O)); geoPtLab(G.S, toS(O), geoV(-1, 1), 'O', { gap: 3 });
-      const nm = ['A', 'B', 'C'], cen = geoCen(src.map(toS)), ceni = geoCen(img.map(toS));
-      src.forEach((p, i) => geoPtLab(G.S, toS(p), geoSub(toS(p), cen), nm[i], { gap: 3 }));
-      img.forEach((p, i) => geoPtLab(G.S, toS(p), geoSub(toS(p), ceni), nm[i] + '′', { gap: 3 }));
-      const opts = [k, -k, 1 / k, -1 / k].map(v => L('$' + geoKt(v) + '$', '$' + geoKt(v) + '$'));
+      src.concat(img).forEach(p => G.S.dot(toS(p), 2.5)); G.S.dot(toS(O), 3.5);
+      const nm = ['A', 'B', 'C'], cen = geoCen(src.map(toS)), ceni = geoCen(img.map(toS)), away = geoSub(toS(O), geoCen([cen, ceni]));
+      src.forEach((p, i) => geoPtLab(G.S, toS(p), geoSub(toS(p), cen), nm[i], { gap: 4, near: true }));
+      img.forEach((p, i) => geoPtLab(G.S, toS(p), geoSub(toS(p), ceni), nm[i] + '′', { gap: 4, near: true }));
+      geoPtLab(G.S, toS(O), k < 0 ? geoPerp(geoSub(cen, toS(O))) : away, 'O', { gap: 5, near: true });
+      const opts = [k, -k, 1 / k, -1 / k].map(v => L('$$' + geoKt(v) + '$$', '$$' + geoKt(v) + '$$'));
       const d0 = [src[0][0] - O[0], src[0][1] - O[1]], d1 = [img[0][0] - O[0], img[0][1] - O[1]];
       return { q: L('Le triangle A′B′C′ est l’image du triangle ABC par une homothétie de centre O. Quel est le rapport de cette homothétie ?', 'Треугольник A′B′C′ — образ треугольника ABC при гомотетии с центром O. Чему равен коэффициент этой гомотетии?'), fig: G.S.svg('homothétie sur un quadrillage'), ans: MQ(r, opts, 0),
         sol: ['Сравниваем путь от O до A и от O до A′ по клеткам: до A — ' + geoStep(d0[0], d0[1]) + ', до A′ — ' + geoStep(d1[0], d1[1]) + '.',
-          'A′ ' + (Math.abs(k) > 1 ? 'в ' + Math.abs(k) + ' раза дальше' : 'в ' + Math.round(1 / Math.abs(k)) + ' раза ближе') + ' от O, чем A, значит, |k| = ' + nf(Math.abs(k)) + '. ' + (k > 0 ? 'Образ лежит по ту же сторону от O, что и A, поэтому k > 0.' : 'Образ лежит по другую сторону от O, поэтому k < 0.'),
-          'Итак, k = ' + nf(k) + '. Проверка на других вершинах: B′ и C′ устроены так же.'] };
+          'A′ ' + (Math.abs(k) > 1 ? 'в ' + Math.abs(k) + ' раза дальше' : 'в ' + Math.round(1 / Math.abs(k)) + ' раза ближе') + ' от O, чем A, значит, |k| = ' + (Math.abs(k) > 1 ? Math.abs(k) : '$1/' + K + '$') + '. ' + (k > 0 ? 'Образ лежит по ту же сторону от O, что и A, поэтому k > 0.' : 'Образ лежит по другую сторону от O, поэтому k < 0.'),
+          'Итак, k = ' + (Number.isInteger(k) ? nf(k) : '$' + (k < 0 ? '-' : '') + '1/' + K + '$') + '. Проверка на других вершинах: B′ и C′ устроены так же. Перевёрнутое число (' + (Math.abs(k) > 1 ? '$1/' + K + '$' : K) + ') получилось бы, если перепутать, какой треугольник исходный, а какой — образ.'] };
     }
     if (vi === 1) {   /* lengths */
       const k = r.pick([2, 3, 4, -2, -3, 0.5, 1.5, 2.5, -0.5, 0.25]), back = r() < 0.35;
@@ -1306,62 +1497,71 @@ topic({ id: 'ge.homothetie', ch: 'ge', lvl: 3, calc: false, variants: 4,
       const fig = vol ? r.pick([['un cube', 'куба'], ['une pyramide', 'пирамиды'], ['un cône', 'конуса'], ['une boule', 'шара']]) : r.pick([['un triangle', 'треугольника'], ['un rectangle', 'прямоугольника'], ['un disque', 'круга'], ['un losange', 'ромба']]);
       let A0 = r.ri(2, 12); if (Math.abs(k) === 0.5) A0 = (vol ? 8 : 4) * r.ri(1, 5); if (k === 1.5) A0 = 4 * r.ri(1, 4);
       const f = vol ? Math.pow(Math.abs(k), 3) : k * k, A1 = +(A0 * f).toFixed(4), u = vol ? 'cm³' : 'cm²', ur = vol ? 'см³' : 'см²';
-      return { q: L((vol ? 'Le volume d’' : 'L’aire d’') + fig[0] + ' est ' + nf(A0) + ' ' + u + '. On applique une homothétie de rapport ' + nf(k) + '. Quel est ' + (vol ? 'le volume' : 'l’aire') + ' de la figure obtenue ?', (vol ? 'Объём ' + fig[1] + ' равен ' : 'Площадь ' + fig[1] + ' равна ') + nf(A0) + ' ' + ur + '. К фигуре применяют гомотетию с коэффициентом ' + nf(k) + '. ' + (vol ? 'Чему равен объём' : 'Чему равна площадь') + ' полученной фигуры?'),
+      return { q: L((vol ? 'Le volume d’' + fig[0] + ' est égal à ' : 'L’aire d’' + fig[0] + ' est égale à ') + nf(A0) + ' ' + u + '. On lui applique une homothétie de rapport ' + nf(k) + '. ' + (vol ? 'Quel est le volume du solide obtenu ?' : 'Quelle est l’aire de la figure obtenue ?'), (vol ? 'Объём ' + fig[1] + ' равен ' : 'Площадь ' + fig[1] + ' равна ') + nf(A0) + ' ' + ur + '. К ' + (vol ? 'телу' : 'фигуре') + ' применяют гомотетию с коэффициентом ' + nf(k) + '. ' + (vol ? 'Чему равен объём полученного тела?' : 'Чему равна площадь полученной фигуры?')),
         ans: N(fx(A1), { unit: u }),
         sol: [vol ? 'Объём растягивается сразу в трёх направлениях (длина, ширина, высота), и в каждом — в |k| раз. Поэтому объём умножается на |k|³.' : 'Площадь растягивается сразу в двух направлениях, и в каждом — в |k| раз. Поэтому площадь умножается на k² (знак k на площадь не влияет).',
           { t: '', tex: geoT(A0) + '\\times ' + (vol ? geoT(Math.abs(k)) + '^3' : (k < 0 ? '(' + geoT(k) + ')' : geoT(k)) + '^2') + '=' + geoT(A0) + '\\times ' + geoT(f) + '=' + geoT(A1) + '\\text{ ' + (vol ? 'cm}^3' : 'cm}^2') },
           'Частая ошибка — умножить ' + (vol ? 'объём' : 'площадь') + ' просто на k: получилось бы ' + nf(+(A0 * Math.abs(k)).toFixed(4)) + ', а это неверно.'] };
     }
-    /* what does it do to the lengths */
-    const k = r.pick([-2, 3, 1.5, -0.5, 0.4, 0.25, -1, -3, 2.5, -0.75]);
-    const opts = [L('Elle agrandit les longueurs.', 'Увеличивает длины.'), L('Elle réduit les longueurs.', 'Уменьшает длины.'), L('Elle conserve les longueurs.', 'Сохраняет длины.'), L('Elle change les mesures des angles.', 'Меняет величины углов.')];
+    /* enlargement or reduction */
+    const k = r.pick([-2, 3, 1.5, -0.5, 0.4, 0.25, -1, -3, 2.5, -0.75, 4, 0.8]);
+    const opts = [L('Un agrandissement', 'Увеличение'), L('Une réduction', 'Уменьшение'), L('Ni l’un ni l’autre : les longueurs sont conservées', 'Ни то ни другое: длины сохраняются'), L('Cela dépend du centre de l’homothétie', 'Зависит от центра гомотетии')];
     const c = Math.abs(k) > 1 ? 0 : Math.abs(k) < 1 ? 1 : 2;
-    return { q: L('Que fait une homothétie de rapport ' + nf(k) + ' ?', 'Что делает гомотетия с коэффициентом ' + nf(k) + '?'), ans: MQF(opts, c),
-      sol: ['Длины умножаются на |k| = ' + nf(Math.abs(k)) + '. ' + (c === 0 ? 'Это больше 1 — длины увеличиваются.' : c === 1 ? 'Это меньше 1 — длины уменьшаются.' : 'Это ровно 1 — длины сохраняются: гомотетия с коэффициентом −1 — это центральная симметрия.'),
-        (k < 0 ? 'Знак минус не уменьшает фигуру: он только «переворачивает» её на другую сторону от центра. ' : '') + 'Углы гомотетия никогда не меняет — фигура остаётся подобной себе.'] };
+    return { q: L('Une homothétie de rapport ' + nf(k) + ' est-elle un agrandissement ou une réduction ?', 'Гомотетия с коэффициентом ' + nf(k) + ' — это увеличение или уменьшение?'), ans: MQF(opts, c),
+      sol: ['Длины умножаются на |k| = ' + nf(Math.abs(k)) + '. ' + (c === 0 ? 'Это больше 1 — длины увеличиваются: «agrandissement».' : c === 1 ? 'Это меньше 1 — длины уменьшаются: «réduction».' : 'Это ровно 1 — длины сохраняются: гомотетия с коэффициентом −1 — это центральная симметрия.'),
+        (k < 0 ? 'Знак минус не уменьшает фигуру: он только «переворачивает» её на другую сторону от центра. ' : '') + 'От центра зависит, где окажется образ, но не его размер. Углы гомотетия никогда не меняет — фигура сохраняет форму.'] };
   } });
 
 /* ===================== REPÉRAGE ===================== */
 /* axes: x from x0 to x1, y from y0 to y1 (in cells), one cell = step units; returns { S, P: (x, y) in units → screen } */
-function geoAxes(x0, x1, y0, y1, c, step) {
-  const S = geoScene();
-  for (let i = x0; i <= x1; i++) S.seg(geoV(i * c, -y1 * c), geoV(i * c, -y0 * c), 'fgrid');
-  for (let j = y0; j <= y1; j++) S.seg(geoV(x0 * c, -j * c), geoV(x1 * c, -j * c), 'fgrid');
+/* o.above: the numbers of the x-axis are written above it; o.right: those of the y-axis on its right
+   (used when a dashed line arrives from the usual side: a dash in front of «1» would read «−1») */
+function geoAxes(x0, x1, y0, y1, c, step, o) {
+  o = o || {}; const S = geoScene(), ly = o.above ? -13 : 13, lx = o.right ? 7 : -7;
+  for (let i = x0; i <= x1; i++) geoGridLine(S, geoV(i * c, -y1 * c), geoV(i * c, -y0 * c));
+  for (let j = y0; j <= y1; j++) geoGridLine(S, geoV(x0 * c, -j * c), geoV(x1 * c, -j * c));
   S.seg(geoV(x0 * c - 4, 0), geoV(x1 * c + 10, 0), 'fax'); S.seg(geoV(0, -y0 * c + 4), geoV(0, -y1 * c - 10), 'fax');
   S.poly([geoV(x1 * c + 4, -4), geoV(x1 * c + 10, 0), geoV(x1 * c + 4, 4)], 'fax', true); S.poly([geoV(-4, -y1 * c - 4), geoV(0, -y1 * c - 10), geoV(4, -y1 * c - 4)], 'fax', true);
-  for (let i = x0; i <= x1; i++) if (i) { S.seg(geoV(i * c, -3), geoV(i * c, 3), 'fax'); if (step === 1 || i % 2 === 0) S.text(geoV(i * c, 13), nf(i * step), { cls: 'ftm', fs: 12 }); }
-  for (let j = y0; j <= y1; j++) if (j) { S.seg(geoV(-3, -j * c), geoV(3, -j * c), 'fax'); if (step === 1 || j % 2 === 0) S.text(geoV(-6, -j * c), nf(j * step), { cls: 'ftm', fs: 12, anchor: 'end' }); }
-  S.text(geoV(-8, 11), '0', { cls: 'ftm', fs: 12 });
+  for (let i = x0; i <= x1; i++) if (i) { S.seg(geoV(i * c, -3), geoV(i * c, 3), 'fax'); if (step === 1 || i % 2 === 0) S.text(geoV(i * c, ly), nf(i * step), { cls: 'ftm' }); }
+  for (let j = y0; j <= y1; j++) if (j) { S.seg(geoV(-3, -j * c), geoV(3, -j * c), 'fax'); if (step === 1 || j % 2 === 0) S.text(geoV(lx, -j * c), nf(j * step), { cls: 'ftm', anchor: o.right ? 'start' : 'end' }); }
+  S.text(geoV(o.right ? 9 : -9, o.above ? -11 : 11), '0', { cls: 'ftm' });
   return { S, P: (x, y) => geoV(x / step * c, -y / step * c) };
 }
-topic({ id: 'ge.reperage', ch: 'ge', lvl: 1, calc: false, variants: 3,
+geoTopic({ id: 'ge.reperage', ch: 'ge', lvl: 1, calc: false, variants: 3,
   ru: 'Координаты точки на плоскости', fr: 'Se repérer dans le plan',
   hints: [
     'Координаты точки пишут в скобках через точку с запятой: сначала абсцисса («abscisse», по горизонтальной оси), потом ордината («ordonnée», по вертикальной): A(3 ; −2).',
     'Чтобы прочитать координату, мысленно опусти из точки перпендикуляр на ось. Сначала посмотри на шаг делений: одна клетка может означать 1, 2 или 0,5.',
     'Знак: правее нуля абсцисса положительная, левее — отрицательная; выше нуля ордината положительная, ниже — отрицательная.'],
   gen(r, vi) {
-    const step = vi === 2 ? r.pick([2, 0.5, 5]) : 1, A = geoAxes(-5, 5, -4, 4, 26, step);
+    const step = vi === 2 ? r.pick([2, 0.5, 5]) : 1;
     const pick = () => [r.nz(-4, 4) * step, r.nz(-3, 3) * step];
-    if (vi === 1) {
+    if (vi === 1) {   /* which point has the given coordinates: at least one of them is negative */
+      const A = geoAxes(-5, 5, -4, 4, 26, step);
       let a, cands;
-      do { a = pick(); cands = [a, [a[1], a[0]], [-a[0], a[1]], [a[0], -a[1]]]; } while (Math.abs(a[0]) === Math.abs(a[1]) || cands.some(p => Math.abs(p[0]) > 4 * step || Math.abs(p[1]) > 3 * step));
+      do { a = pick(); cands = [a, [a[1], a[0]], [-a[0], a[1]], [a[0], -a[1]]]; } while (Math.abs(a[0]) === Math.abs(a[1]) || (a[0] > 0 && a[1] > 0) || cands.some(p => Math.abs(p[0]) > 4 * step || Math.abs(p[1]) > 3 * step));
       const letters = r.sh(GEO_LETTERS.filter(x => x !== 'O')).slice(0, 4);
-      cands.forEach((p, i) => { const q = A.P(p[0], p[1]); A.S.dot(q, 3); A.S.boxes.push([q.x - 3, q.y - 3, q.x + 3, q.y + 3]); });
-      cands.forEach((p, i) => geoPtLab(A.S, A.P(p[0], p[1]), geoV(1, -1), letters[i], { gap: 3 }));
+      cands.forEach(p => { const q = A.P(p[0], p[1]); A.S.dot(q, 3); A.S.boxes.push([q.x - 3, q.y - 3, q.x + 3, q.y + 3]); });
+      cands.forEach((p, i) => geoPtLab(A.S, A.P(p[0], p[1]), geoV(1, -1), letters[i], { gap: 5, near: true }));
       const co = p => '(' + nf(p[0]) + ' ; ' + nf(p[1]) + ')';
       return { q: L('Dans le repère ci-dessous, quel point a pour coordonnées ' + co(a) + ' ?', 'В системе координат ниже: у какой точки координаты ' + co(a) + '?'), fig: A.S.svg('repère'), ans: MQ(r, letters.map(l => L('Le point ' + l, 'Точка ' + l)), 0),
-        sol: ['Первое число — абсцисса: ' + nf(a[0]) + ', то есть ' + (a[0] > 0 ? 'вправо' : 'влево') + ' от нуля по горизонтальной оси. Второе — ордината: ' + nf(a[1]) + ', то есть ' + (a[1] > 0 ? 'вверх' : 'вниз') + '.', 'Это точка ' + letters[0] + '. Точка ' + letters[1] + ' — с переставленными координатами ' + co(cands[1]) + ': порядок чисел важен.'] };
+        sol: ['Первое число — абсцисса: ' + nf(a[0]) + ', то есть ' + (a[0] > 0 ? 'вправо' : 'влево') + ' от нуля по горизонтальной оси. Второе — ордината: ' + nf(a[1]) + ', то есть ' + (a[1] > 0 ? 'вверх' : 'вниз') + '.', 'Это точка ' + letters[0] + '. Точка ' + letters[1] + ' — с переставленными координатами ' + co(cands[1]) + ': порядок чисел важен. У точек ' + letters[2] + ' и ' + letters[3] + ' перепутан знак одной из координат.'] };
     }
     let a; do a = pick(); while (vi === 2 && Math.abs(a[0]) === Math.abs(a[1]));
-    const q0 = A.P(a[0], a[1]), nm = r.pick(['A', 'B', 'M', 'P', 'K', 'E']);
-    A.S.seg(q0, A.P(a[0], 0), 'fdash'); A.S.seg(q0, A.P(0, a[1]), 'fdash');
-    A.S.dot(q0, 3.5); geoPtLab(A.S, q0, geoV(a[0] > 0 ? 1 : -1, a[1] > 0 ? -1 : 1), nm, { gap: 3 });
-    return { q: L('Dans le repère ci-dessous, quelles sont les coordonnées du point ' + nm + ' ?', 'В системе координат ниже: каковы координаты точки ' + nm + '?'), fig: A.S.svg('repère'),
+    const nm = r.pick(['A', 'B', 'M', 'P', 'K', 'E']);
+    /* the question shows the point alone; the solution adds the dashed lines to the axes (the numbers of an axis move to its other side
+       when a dashed line arrives there: a dash in front of «1» would read «−1») */
+    const draw = sol => {
+      const A = geoAxes(-5, 5, -4, 4, 26, step, { above: a[1] < 0, right: a[0] < 0 }), q0 = A.P(a[0], a[1]);
+      if (sol) { A.S.seg(q0, A.P(a[0], 0), 'fdash'); A.S.seg(q0, A.P(0, a[1]), 'fdash'); }
+      A.S.dot(q0, 3.5); A.S.boxes.push([q0.x - 4, q0.y - 4, q0.x + 4, q0.y + 4]); geoPtLab(A.S, q0, geoV(a[0] > 0 ? 1 : -1, a[1] > 0 ? -1 : 1), nm, { gap: 5 });
+      return A.S.svg('repère');
+    };
+    return { q: L('Dans le repère ci-dessous, quelles sont les coordonnées du point ' + nm + ' ?', 'В системе координат ниже: каковы координаты точки ' + nm + '?'), fig: draw(false),
       ans: multi([L('abscisse de ' + nm + ' :', 'абсцисса ' + nm + ':'), N(fx(a[0]))], [L('ordonnée de ' + nm + ' :', 'ордината ' + nm + ':'), N(fx(a[1]))]),
       sol: [step !== 1 ? 'Сначала шаг делений: одна клетка — это ' + nf(step) + (step < 1 ? ' (две клетки — единица)' : '') + '. Числа у осей это подтверждают.' : 'Одна клетка — одна единица.',
-        'Пунктир от ' + nm + ' вниз (или вверх) до горизонтальной оси показывает абсциссу: ' + nf(a[0]) + '. Пунктир до вертикальной оси показывает ординату: ' + nf(a[1]) + '.',
-        'Ответ: ' + nm + '(' + nf(a[0]) + ' ; ' + nf(a[1]) + '). Сначала абсцисса, потом ордината.'] };
+        { t: 'Из точки ' + nm + ' идём по вертикали до горизонтальной оси — читаем абсциссу: ' + nf(a[0]) + '. Идём по горизонтали до вертикальной оси — читаем ординату: ' + nf(a[1]) + '.', svg: draw(true) },
+        'Ответ: ' + nm + '(' + nf(a[0]) + ' ; ' + nf(a[1]) + '). Сначала абсцисса, потом ордината. Левее нуля абсцисса отрицательная, ниже нуля — отрицательная ордината.'] };
   } });
 
 /* ===================== SOLIDS: cavalier perspective and round solids ===================== */
@@ -1412,7 +1612,8 @@ function geoSphereFig(R, o) {
   S.circle(C, rr, 'fl'); geoEll(S, C, rr, rr * 0.3, 'fl2', 'fdash');
   if (o.d != null) {
     const yy = -o.d * k, w = Math.sqrt(R * R - o.d * o.d) * k, c2 = geoV(0, yy);
-    S.ellipse(c2, w, w * 0.3, 'ffill'); geoEll(S, c2, w, w * 0.3, 'fhl', 'fdash');
+    if (!o.hollow) S.ellipse(c2, w, w * 0.3, 'ffill');   /* a sphere is only the surface: its section is a circle, not a disc */
+    geoEll(S, c2, w, w * 0.3, 'fhl', 'fdash');
     if (o.tri) { const M = geoV(w, yy); S.seg(C, c2, 'fl'); S.seg(c2, M, 'fl'); S.seg(C, M, 'fl'); geoRightMark(S, c2, C, M, 7); S.dot(C, 2.5); S.dot(c2, 2.5); S.dot(M, 2.5);
       geoPtLab(S, C, geoV(-1, 0.4), 'O', { gap: 4 }); geoPtLab(S, c2, geoV(-1, -0.6), 'H', { gap: 4 }); geoPtLab(S, M, geoV(1, -0.3), 'M', { gap: 4 });
       if (o.lab) { geoSegLab(S, C, M, o.lab.OM, c2, { canFlip: true }); geoSegLab(S, C, c2, o.lab.OH, M, { canFlip: true }); geoSegLab(S, c2, M, o.lab.HM, C, { canFlip: true }); } }
@@ -1447,7 +1648,7 @@ function geoGlobe(pts) {
   return S.svg('globe terrestre');
 }
 const geoGeo = (la, lo) => '(' + Math.abs(la) + '° ' + (la > 0 ? 'N' : 'S') + ' ; ' + Math.abs(lo) + '° ' + (lo > 0 ? 'E' : 'O') + ')';
-topic({ id: 'ge.reperage-espace', ch: 'ge', lvl: 2, calc: false, variants: 3,
+geoTopic({ id: 'ge.reperage-espace', ch: 'ge', lvl: 2, calc: false, variants: 3,
   ru: 'Координаты в пространстве и на глобусе', fr: 'Se repérer dans l’espace et sur une sphère',
   hints: [
     'В прямоугольном параллелепипеде («pavé droit») точку задают тремя числами: абсцисса, ордината и высота («altitude»), например G(4 ; 3 ; 2).',
@@ -1460,7 +1661,7 @@ topic({ id: 'ge.reperage-espace', ch: 'ge', lvl: 2, calc: false, variants: 3,
       const letters = r.sh(['A', 'B', 'C', 'D', 'M', 'P', 'R', 'T']).slice(0, 4);
       const fig = geoGlobe(pts4.map((p, i) => [p[0], p[1], letters[i]]));
       const sol = ['Широта — угол к северу (N) или к югу (S) от экватора: считаем параллели от экватора, каждая через 30°. Долгота — угол к востоку (E, вправо) или к западу (O, влево) от гринвичского меридиана.',
-        'Точка ' + letters[0] + ': ' + (la > 0 ? 'выше' : 'ниже') + ' экватора на ' + Math.abs(la) + '° и ' + (lo > 0 ? 'правее' : 'левее') + ' Гринвича на ' + Math.abs(lo) + '°, то есть ' + geoGeo(la, lo) + '. Первой пишут широту, второй — долготу.'];
+        'Точка ' + letters[0] + ': ' + (la > 0 ? 'выше' : 'ниже') + ' экватора на ' + Math.abs(la) + '° и ' + (lo > 0 ? 'правее' : 'левее') + ' Гринвича на ' + Math.abs(lo) + '°, то есть ' + geoGeo(la, lo) + '. Буквы подсказывают, что есть что: N или S — широта, E или O — долгота (на экзамене их могут записать и в другом порядке — смотри на буквы).'];
       if (r() < 0.5) return { q: L('Sur le globe ci-dessous, les parallèles et les méridiens sont tracés tous les 30°. Quel point a pour coordonnées ' + geoGeo(la, lo) + ' ?', 'На глобусе ниже параллели и меридианы проведены через каждые 30°. У какой точки координаты ' + geoGeo(la, lo) + '?'), fig,
         ans: MQ(r, letters.map(l => L('Le point ' + l, 'Точка ' + l)), 0), sol };
       return { q: L('Sur le globe ci-dessous, les parallèles et les méridiens sont tracés tous les 30°. Quelles sont la latitude et la longitude du point ' + letters[0] + ' ?', 'На глобусе ниже параллели и меридианы проведены через каждые 30°. Каковы широта и долгота точки ' + letters[0] + '?'), fig,
@@ -1515,7 +1716,7 @@ function geoNet(kind, o) {
 const GEO_SOL = { pave: ['un pavé droit', 'прямоугольный параллелепипед'], cube: ['un cube', 'куб'], cyl: ['un cylindre', 'цилиндр'], cone: ['un cône', 'конус'], pyr: ['une pyramide à base carrée', 'четырёхугольная пирамида (основание — квадрат)'],
   prism: ['un prisme droit à base triangulaire', 'прямая треугольная призма'], tetra: ['une pyramide à base triangulaire', 'треугольная пирамида'], boule: ['une boule', 'шар'] };
 const geoSolidFig = k => k === 'pave' ? geoPave(5, 3, 2.5, { noNames: true }) : k === 'cube' ? geoPave(3, 3, 3, { noNames: true, label: 'cube' }) : k === 'cyl' ? geoCyl(2, 4) : k === 'cone' ? geoCone(2, 3.6) : k === 'pyr' ? geoPyr(3, 3.2) : k === 'prism' ? geoPrism() : k === 'tetra' ? geoTetra() : geoSphereFig(4);
-topic({ id: 'ge.solides', ch: 'ge', lvl: 1, calc: false, variants: 5,
+geoTopic({ id: 'ge.solides', ch: 'ge', lvl: 1, calc: false, variants: 5,
   ru: 'Тела в пространстве и их развёртки', fr: 'Solides et patrons',
   hints: [
     'Многогранники: у призмы («prisme droit») два одинаковых параллельных основания и боковые грани-прямоугольники; у пирамиды («pyramide») одно основание и треугольные грани, сходящиеся в вершине. Куб и прямоугольный параллелепипед («pavé droit») — особые призмы.',
@@ -1541,7 +1742,7 @@ topic({ id: 'ge.solides', ch: 'ge', lvl: 1, calc: false, variants: 5,
         pyr: ['Граней: квадрат-основание + 4 треугольника = 5.', 'Рёбер: 4 стороны основания + 4 ребра к вершине = 8.', 'Вершин: 4 у основания + 1 вершина пирамиды = 5.'],
         prism: ['Граней: 2 треугольных основания + 3 боковых прямоугольника = 5.', 'Рёбер: 3 у нижнего треугольника + 3 у верхнего + 3 боковых = 9.', 'Вершин: 3 внизу + 3 вверху = 6.'],
         tetra: ['Граней: треугольник-основание + 3 боковых треугольника = 4.', 'Рёбер: 3 стороны основания + 3 ребра к вершине = 6.', 'Вершин: 3 у основания + 1 вершина = 4.'] }[k];
-      return { q: L('Combien de ' + W[0] + ' possède ' + nm[0] + ' ?', 'Сколько ' + W[1] + ' у ' + nm[1] + '?'), fig: geoSolidFig(k), ans: N(D[idx]),
+      return { q: L('Combien ' + (what === 'aretes' ? 'd’' : 'de ') + W[0] + ' possède ' + nm[0] + ' ?', 'Сколько ' + W[1] + ' у ' + nm[1] + '?'), fig: geoSolidFig(k), ans: N(D[idx]),
         sol: ['Не забываем невидимые (штриховые) рёбра и грани сзади. Считаем по частям:', how[idx], 'Проверка по формуле Эйлера для многогранников: грани + вершины − рёбра = 2. Здесь ' + D[0] + ' + ' + D[2] + ' − ' + D[1] + ' = 2.'] };
     }
     if (vi === 2) {
@@ -1554,7 +1755,7 @@ topic({ id: 'ge.solides', ch: 'ge', lvl: 1, calc: false, variants: 5,
         sol: ['Смотрим на форму и количество частей развёртки: каждая часть станет гранью или поверхностью тела.', why] };
     }
     if (vi === 3) {   /* cylinder: length of the rectangle of its net */
-      let R, H; do { R = r.ri(2, 7); H = r.ri(3, 12); } while (new Set([2 * R, R, R * R, 2 * H]).size < 4 || H === R);
+      let R, H; do { R = r.ri(2, 7); H = r.ri(3, 12); } while (new Set([2 * R, R, R * R, 2 * H]).size < 4 || H <= R);   /* H > R: the rectangle is tall enough for its arrow */
       const S = geoScene(), sc = Math.min(280 / (2 * Math.PI * R), 190 / (H + 4 * R)), W = 2 * Math.PI * R * sc, h = H * sc, rr = R * sc;
       const rect = [geoV(0, 0), geoV(W, 0), geoV(W, h), geoV(0, h)];
       S.poly(rect, 'fl'); S.circle(geoV(W / 2, -rr), rr, 'fl'); S.circle(geoV(W / 2, h + rr), rr, 'fl');
@@ -1579,7 +1780,7 @@ topic({ id: 'ge.solides', ch: 'ge', lvl: 1, calc: false, variants: 5,
   } });
 
 /* ===================== SECTIONS ===================== */
-topic({ id: 'ge.sections', ch: 'ge', lvl: 2, calc: false, variants: 4,
+geoTopic({ id: 'ge.sections', ch: 'ge', lvl: 2, calc: false, variants: 4,
   ru: 'Сечения тел плоскостью, сфера и шар', fr: 'Sections de solides par un plan',
   hints: [
     'Сечение («section») — фигура, которая получается, если разрезать тело плоскостью. Плоскость, параллельная грани параллелепипеда, даёт прямоугольник, равный этой грани (на рисунке в перспективе он выглядит как параллелограмм, но это прямоугольник).',
@@ -1594,7 +1795,7 @@ topic({ id: 'ge.sections', ch: 'ge', lvl: 2, calc: false, variants: 4,
         cylA: [() => geoCyl(2, 4, { sec: 'par', d: -0.9 }), 'ce cylindre par un plan parallèle à son axe', 'этот цилиндр плоскостью, параллельной его оси', 'rect'],
         cone: [() => geoCone(2, 3.6, { sec: 0.45 }), 'ce cône par un plan parallèle à sa base', 'этот конус плоскостью, параллельной основанию', 'disque'],
         pyr: [() => geoPyr(3, 3.2, { sec: 0.45 }), 'cette pyramide à base carrée par un plan parallèle à sa base', 'эту пирамиду с квадратным основанием плоскостью, параллельной основанию', 'carre'],
-        boule: [() => geoSphereFig(4, { d: 1.6 }), 'cette boule par un plan', 'этот шар плоскостью', 'disque'], sphere: [() => geoSphereFig(4, { d: 1.6 }), 'cette sphère par un plan', 'эту сферу плоскостью', 'cercle'] }[k];
+        boule: [() => geoSphereFig(4, { d: 1.6 }), 'cette boule par un plan', 'этот шар плоскостью', 'disque'], sphere: [() => geoSphereFig(4, { d: 1.6, hollow: true }), 'cette sphère par un plan', 'эту сферу плоскостью', 'cercle'] }[k];
       const names = { rect: ['un rectangle', 'прямоугольник'], carre: ['un carré', 'квадрат'], disque: ['un disque', 'круг'], cercle: ['un cercle', 'окружность'], para: ['un parallélogramme non rectangle', 'параллелограмм без прямых углов'], ell: ['une ellipse', 'эллипс («овал»)'], tri: ['un triangle', 'треугольник'], trap: ['un trapèze', 'трапеция'] };
       const dis = { rect: ['para', 'tri', 'disque'], carre: ['tri', 'trap', 'disque'], disque: ['ell', 'rect', 'tri'], cercle: ['disque', 'ell', 'carre'] }[F[3]];
       if (k === 'cylA') dis[2] = 'ell';
@@ -1608,7 +1809,7 @@ topic({ id: 'ge.sections', ch: 'ge', lvl: 2, calc: false, variants: 4,
         ans: MQ(r, [F[3]].concat(dis).map(x => L(names[x][0][0].toUpperCase() + names[x][0].slice(1), names[x][1][0].toUpperCase() + names[x][1].slice(1))), 0), sol: [why] };
     }
     if (vi === 1) {
-      const a = r.ri(4, 10), b = r.ri(2, 7), c = r.ri(2, 6), kind = r.pick(['x', 'y', 'z']);
+      const a = r.ri(4, 10), b = r.ri(4, 7), c = r.ri(2, 6), kind = r.pick(['x', 'y', 'z']);   /* deep enough for the cut to be seen apart from the faces */
       const sec = kind === 'x' ? [[[a * 0.55, 0, 0], 1], [[a * 0.55, 0, c], 1], [[a * 0.55, b, c], 0], [[a * 0.55, b, 0], 0]] : kind === 'y' ? [[[0, b * 0.5, 0], 0], [[a, b * 0.5, 0], 1], [[a, b * 0.5, c], 1], [[0, b * 0.5, c], 0]] : [[[0, 0, c * 0.5], 1], [[a, 0, c * 0.5], 1], [[a, b, c * 0.5], 0], [[0, b, c * 0.5], 0]];
       const face = { x: ['BCGF', 'AD × AE', b * c, b, c], y: ['ABFE', 'AB × AE', a * c, a, c], z: ['ABCD', 'AB × AD', a * b, a, b] }[kind];
       const fig = geoPave(a, b, c, { sec, W: 210 });
@@ -1616,7 +1817,7 @@ topic({ id: 'ge.sections', ch: 'ge', lvl: 2, calc: false, variants: 4,
         sol: ['Сечение плоскостью, параллельной грани, — прямоугольник, равный этой грани ' + face[0] + ' (где бы ни прошла плоскость).', { t: 'Стороны грани ' + face[0] + ' равны ' + face[3] + ' см и ' + face[4] + ' см, поэтому:', tex: face[3] + '\\times ' + face[4] + '=' + face[2] + '\\text{ cm}^2' }] };
     }
     if (vi === 2) {   /* section of a ball: Pythagoras */
-      const [R, d, rr] = r.pick([[5, 3, 4], [5, 4, 3], [10, 6, 8], [10, 8, 6], [13, 5, 12], [13, 12, 5], [15, 9, 12], [15, 12, 9], [17, 8, 15], [25, 7, 24]]);
+      const [R, d, rr] = r.pick([[5, 3, 4], [5, 4, 3], [10, 6, 8], [10, 8, 6], [13, 12, 5], [15, 9, 12], [15, 12, 9], [17, 15, 8], [25, 15, 20], [25, 20, 15]]);   /* d ≥ 0,6 R: room for the lengths; roots that are known */
       const fig = geoSphereFig(R, { d, tri: true, lab: { OM: R + ' cm', OH: d + ' cm', HM: '?' } });
       return { q: L('Une boule de centre O et de rayon ' + R + ' cm est coupée par un plan situé à ' + d + ' cm de O. La section est un disque de centre H. Quel est son rayon HM ?', 'Шар с центром O и радиусом ' + R + ' см разрезают плоскостью на расстоянии ' + d + ' см от O. В сечении — круг с центром H. Чему равен его радиус HM?'), fig, ans: N(rr, { unit: 'cm' }),
         sol: ['Отрезок OH перпендикулярен плоскости сечения, поэтому треугольник OHM прямоугольный, прямой угол при H. Гипотенуза — OM, это радиус шара: M лежит на сфере.',
@@ -1672,7 +1873,7 @@ const GEO_QTF = [
   [true, 'Un losange qui a un angle droit est un carré.', 'Ромб с прямым углом — квадрат.', 'Верно: ромб — параллелограмм, с прямым углом все углы прямые, а стороны и так равны.'],
   [false, 'Un quadrilatère dont les diagonales sont perpendiculaires est un losange.', 'Четырёхугольник с перпендикулярными диагоналями — ромб.', 'Неверно: например, у «воздушного змея» диагонали перпендикулярны, но стороны не все равны. Нужно ещё, чтобы диагонали делились пополам.'],
   [true, 'Un parallélogramme dont les diagonales ont la même longueur est un rectangle.', 'Параллелограмм с равными диагоналями — прямоугольник.', 'Верно: это признак прямоугольника.']];
-topic({ id: 'ge.quadrilateres', ch: 'ge', lvl: 1, calc: false, variants: 3,
+geoTopic({ id: 'ge.quadrilateres', ch: 'ge', lvl: 1, calc: false, variants: 3,
   ru: 'Четырёхугольники: узнать по отметкам', fr: 'Quadrilatères particuliers',
   hints: [
     'Параллелограмм — противоположные стороны параллельны (и равны); его диагонали точкой пересечения делятся пополам.',
@@ -1698,45 +1899,293 @@ topic({ id: 'ge.quadrilateres', ch: 'ge', lvl: 1, calc: false, variants: 3,
       sol: [why, 'Рисунок от руки ничего не доказывает — решают только отметки. Квадрат одновременно и ромб, и прямоугольник, поэтому выбираем самое точное название, которое следует из отметок.'] };
   } });
 
+/* ===================== CODAGE D'UNE FIGURE (official list of automatismes, item 16) ===================== */
+/* a «hand-drawn» copy of maths points: every point is moved a little */
+function geoShake(r, P, amp) {
+  const c = geoCen(P), s = Math.max(...P.map(p => geoDist(p, c))) * (amp || 0.06);
+  return P.map(p => geoV(p.x + (r() - 0.5) * 2 * s, p.y + (r() - 0.5) * 2 * s));
+}
+/* segment [AB] and a line (d) that meets it at I.
+   o: { t: place of I on [AB] (0…1), ang: angle between (AB) and (d), rot, ticks, right, noD: no line, I: name of I,
+        lenAI, cote: text of a dimension line under [AB], M: { lab, lenA, lenB } — a point of (d) joined to A and B } */
+function geoMedFig(nm, o) {
+  const S = geoScene(), u = geoPol(1, o.rot || 0), A = geoMul(u, -100), B = geoMul(u, 100), I = geoLerp(A, B, o.t == null ? 0.5 : o.t), w = geoRot(u, -(o.ang || 90));
+  const d1 = geoAdd(I, geoMul(w, 84)), d2 = geoAdd(I, geoMul(w, -58));
+  S.seg(A, B); if (!o.noD) S.seg(d1, d2);
+  let M = null; if (o.M) { M = geoAdd(I, geoMul(w, 58)); S.seg(M, A, 'fl2'); S.seg(M, B, 'fl2'); }
+  if (o.ticks) { geoTicks(S, A, I, 2); geoTicks(S, I, B, 2); }
+  if (o.right) geoRightMark(S, I, B, d1, 9);
+  S.dot(A, 2.5); S.dot(B, 2.5); if (M) S.dot(M, 2.5); if (o.I) S.dot(I, 2.5);
+  geoPtLab(S, A, geoSub(A, B), nm[0], { gap: 5 }); geoPtLab(S, B, geoSub(B, A), nm[1], { gap: 5 });
+  if (!o.noD) geoPtLab(S, d1, geoAdd(w, geoMul(u, 1.2)), '(d)', { gap: 4 });
+  if (o.I) geoPtLab(S, I, geoAdd(geoMul(w, o.noD ? 1 : -1), geoMul(u, o.noD ? 0 : -1.1)), o.I, { gap: 6 });
+  if (M) { geoPtLab(S, M, geoAdd(w, geoMul(u, -1.2)), o.M.lab, { gap: 5 }); if (o.M.lenA) geoSegLab(S, M, A, o.M.lenA, B); if (o.M.lenB) geoSegLab(S, M, B, o.M.lenB, A); }
+  if (o.lenAI) geoSegLab(S, A, I, o.lenAI, d1, { gap: 9 });
+  if (o.cote) geoCote(S, A, B, o.cote, d1, 34);
+  return S.svg('segment [' + nm[0] + nm[1] + ']' + (o.noD ? '' : ' et droite (d)'));
+}
+const GEO_SEG = [['A', 'B'], ['E', 'F'], ['R', 'S'], ['K', 'L'], ['C', 'D'], ['P', 'Q']];
+geoTopic({ id: 'ge.codage', ch: 'ge', lvl: 1, calc: false, variants: 3,
+  ru: 'Отметки на чертеже: что по ним можно утверждать', fr: 'Exploiter le codage d’une figure',
+  hints: [
+    'Отметки на чертеже («codage») — это данные задачи: одинаковые чёрточки — равные длины, квадратик — прямой угол. Рисунок «от руки» («à main levée») может быть неточным: утверждать можно только то, что отмечено или написано.',
+    'Треугольник: две равные стороны — равнобедренный («isocèle») с вершиной в их общей точке; три равные стороны — равносторонний («équilatéral»); квадратик — прямоугольный («rectangle») при этой вершине.',
+    'Серединный перпендикуляр к отрезку («médiatrice») — прямая, которая проходит через середину отрезка и перпендикулярна ему: нужны обе отметки сразу. Каждая точка этой прямой одинаково удалена от концов отрезка.'],
+  gen(r, vi) {
+    if (vi === 0) {   /* the nature of a triangle from its marks */
+      const nm = r.pick(GEO_TRI), tri = nm.join(''), kind = r.pick(['iso', 'equi', 'rect', 'isorect', 'iso', 'rect']), ai = r.ri(0, 2), X = nm[ai], Y = nm[(ai + 1) % 3], Z = nm[(ai + 2) % 3];
+      const base = { iso: [geoV(0, 1.45), geoV(-0.8, 0), geoV(0.8, 0)], equi: [geoV(0, 0.87), geoV(-0.5, 0), geoV(0.5, 0)], rect: [geoV(0, 0), geoV(1.5, 0), geoV(0, 1)], isorect: [geoV(0, 0), geoV(1.1, 0), geoV(0, 1.1)] }[kind];
+      const B = geoTurn(geoShake(r, base), r.ri(0, 11) * 30, r() < 0.5), P = []; P[ai] = B[0]; P[(ai + 1) % 3] = B[1]; P[(ai + 2) % 3] = B[2];
+      const tick = kind === 'equi' ? { [X + Y]: 1, [X + Z]: 1, [Y + Z]: 1 } : kind === 'rect' ? null : { [X + Y]: 1, [X + Z]: 1 };
+      const fig = geoTri(P, nm, { tick, right: kind === 'rect' || kind === 'isorect' ? X : null, label: 'triangle ' + tri + ' tracé à main levée' });
+      const O = { isoX: L('Un triangle isocèle en ' + X, 'Равнобедренный треугольник с вершиной ' + X + ' (' + X + Y + ' = ' + X + Z + ')'), isoY: L('Un triangle isocèle en ' + Y, 'Равнобедренный треугольник с вершиной ' + Y + ' (' + Y + X + ' = ' + Y + Z + ')'),
+        equi: L('Un triangle équilatéral', 'Равносторонний треугольник'), rectX: L('Un triangle rectangle en ' + X, 'Прямоугольный треугольник, прямой угол при ' + X), rectY: L('Un triangle rectangle en ' + Y, 'Прямоугольный треугольник, прямой угол при ' + Y),
+        irX: L('Un triangle rectangle et isocèle en ' + X, 'Прямоугольный и равнобедренный треугольник с вершиной ' + X), quel: L('Un triangle quelconque : le codage n’indique rien', 'Произвольный треугольник: отметки ничего не говорят') };
+      const set = { iso: ['isoX', 'isoY', 'equi', 'rectX'], equi: ['equi', 'rectX', 'irX', 'quel'], rect: ['rectX', 'rectY', 'isoX', 'irX'], isorect: ['irX', 'equi', 'isoY', 'rectY'] }[kind];
+      const why = { iso: 'Одинаковыми чёрточками отмечены стороны [' + X + Y + '] и [' + X + Z + ']: они равны. Две равные стороны выходят из вершины ' + X + ' — треугольник равнобедренный с вершиной ' + X + ' («isocèle en ' + X + '»). Третья сторона не отмечена, прямой угол тоже — утверждать больше нечего.',
+        equi: 'Одинаковыми чёрточками отмечены все три стороны: они равны, значит, треугольник равносторонний («équilatéral»). На рисунке от руки стороны могут выглядеть разными — верим отметкам.',
+        rect: 'Квадратик при вершине ' + X + ' — отметка прямого угла: треугольник прямоугольный, прямой угол при ' + X + ' («rectangle en ' + X + '»). Чёрточек на сторонах нет, поэтому о равенстве сторон ничего утверждать нельзя.',
+        isorect: 'Квадратик при вершине ' + X + ' — прямой угол, а одинаковые чёрточки на [' + X + Y + '] и [' + X + Z + '] — равные стороны. Значит, треугольник и прямоугольный, и равнобедренный с вершиной ' + X + ' («rectangle et isocèle en ' + X + '»).' }[kind];
+      return { q: L('Le triangle ' + tri + ' ci-dessous est tracé à main levée. D’après le codage, quelle est sa nature ?', 'Треугольник ' + tri + ' ниже нарисован от руки. Что можно сказать о нём по отметкам на рисунке?'), fig, ans: MQ(r, set.map(k => O[k]), 0),
+        sol: [why, 'Рисунок от руки ничего не доказывает: утверждать можно только то, что отмечено. Название «isocèle en ' + X + '» указывает вершину, из которой выходят равные стороны, а «rectangle en ' + X + '» — вершину прямого угла.'] };
+    }
+    const nm = r.pick(GEO_SEG), [A, B] = nm, rot = r.pick([0, 0, 10, -10, 20, -20]);
+    if (vi === 1) {   /* is (d) the perpendicular bisector of [AB]? both marks are needed */
+      const kind = r.pick(['both', 'mid', 'perp']), side = r.sgn();
+      const fig = geoMedFig(nm, kind === 'both' ? { rot, t: 0.5 + 0.02 * side, ang: 90 + 3 * side, ticks: true, right: true } : kind === 'mid' ? { rot, t: 0.5, ang: 90 + r.pick([-22, -17, 17, 22]), ticks: true } : { rot, t: 0.5 + 0.15 * side, ang: 90, right: true });
+      const opts = [L('Oui, car (d) est perpendiculaire à (' + A + B + ') et passe par le milieu de [' + A + B + '].', 'Да: (d) перпендикулярна (' + A + B + ') и проходит через середину [' + A + B + '].'),
+        L('Non, car le codage n’indique pas que (d) est perpendiculaire à (' + A + B + ').', 'Нет: по отметкам не видно, что (d) перпендикулярна (' + A + B + ').'),
+        L('Non, car le codage n’indique pas que (d) passe par le milieu de [' + A + B + '].', 'Нет: по отметкам не видно, что (d) проходит через середину [' + A + B + '].'),
+        L('Oui, car (d) coupe le segment [' + A + B + '].', 'Да: (d) пересекает отрезок [' + A + B + '].')];
+      return { q: L('La figure ci-dessous est tracée à main levée. D’après le codage, peut-on affirmer que la droite (d) est la médiatrice du segment [' + A + B + '] ?', 'Рисунок ниже сделан от руки. Можно ли по отметкам утверждать, что прямая (d) — серединный перпендикуляр к отрезку [' + A + B + ']?'), fig, ans: MQ(r, opts, ['both', 'mid', 'perp'].indexOf(kind)),
+        sol: ['«Médiatrice» отрезка — серединный перпендикуляр: прямая, которая проходит через середину отрезка И перпендикулярна ему. Нужны обе отметки: одинаковые чёрточки на двух половинах отрезка и квадратик прямого угла.',
+          kind === 'both' ? 'Здесь есть и то и другое: чёрточки показывают, что (d) проходит через середину [' + A + B + '], а квадратик — что она перпендикулярна (' + A + B + '). Значит, (d) — «médiatrice».'
+            : kind === 'mid' ? 'Чёрточки есть: (d) проходит через середину [' + A + B + ']. Но прямой угол не отмечен — утверждать, что (d) перпендикулярна (' + A + B + '), нельзя. Через середину отрезка проходит сколько угодно прямых, и только одна из них — серединный перпендикуляр.'
+              : 'Квадратик есть: (d) перпендикулярна (' + A + B + '). Но две части отрезка не отмечены как равные — утверждать, что (d) проходит через середину, нельзя. Перпендикуляров к (' + A + B + ') сколько угодно, и только один проходит через середину.',
+          'Просто пересекать отрезок мало: это умеет любая прямая.'] };
+    }
+    /* vi 2: a length that follows from the marks */
+    const kind = r.pick(['iso', 'equi', 'mil', 'med']);
+    if (kind === 'iso' || kind === 'equi') {
+      const t = r.pick(GEO_TRI), tri = t.join(''), ai = r.ri(0, 2), X = t[ai], Y = t[(ai + 1) % 3], Z = t[(ai + 2) % 3], a = r.ri(3, 9);
+      let b = r.ri(2, 2 * a - 2); if (b === a) b = a - 1;
+      const sh = kind === 'equi' ? [geoV(0, 0.87), geoV(-0.5, 0), geoV(0.5, 0)] : [geoV(0, Math.sqrt(a * a - b * b / 4)), geoV(-b / 2, 0), geoV(b / 2, 0)];
+      const T = geoTurn(geoShake(r, sh, 0.03), r.pick([0, 0, 180, 20, -20, 160, 200])), P = []; P[ai] = T[0]; P[(ai + 1) % 3] = T[1]; P[(ai + 2) % 3] = T[2];
+      const per = kind === 'equi' ? 3 * a : 2 * a + b;
+      const fig = geoTri(P, t, { tick: kind === 'equi' ? { [X + Y]: 1, [X + Z]: 1, [Y + Z]: 1 } : { [X + Y]: 1, [X + Z]: 1 }, side: kind === 'equi' ? { [X + Y]: a + ' cm' } : { [X + Y]: a + ' cm', [Y + Z]: b + ' cm' }, label: 'triangle ' + tri + ' tracé à main levée' });
+      const giv = kind === 'equi' ? X + Y + ' = ' + a + ' cm' : X + Y + ' = ' + a + ' cm et ' + Y + Z + ' = ' + b + ' cm';
+      return { q: L('Sur la figure ci-dessous, tracée à main levée, ' + giv + '. D’après le codage, quel est le périmètre du triangle ' + tri + ' ?', 'На рисунке ниже, сделанном от руки, ' + giv.replace(/cm/g, 'см').replace(' et ', ' и ') + '. Чему равен периметр треугольника ' + tri + ', если верить отметкам?'), fig, ans: N(per, { unit: 'cm' }),
+        sol: kind === 'equi' ? ['Все три стороны отмечены одинаковыми чёрточками — они равны: треугольник равносторонний, каждая сторона ' + a + ' см.', ['Периметр — сумма трёх сторон:', '3*' + a + '=' + per, 'cm']]
+          : ['Стороны [' + X + Y + '] и [' + X + Z + '] отмечены одинаковыми чёрточками — они равны: ' + X + Z + ' = ' + X + Y + ' = ' + a + ' см (треугольник равнобедренный с вершиной ' + X + '). Третья сторона другая: ' + Y + Z + ' = ' + b + ' см.', ['Периметр — сумма трёх сторон:', a + '+' + a + '+' + b + '=' + per, 'cm'], 'Ошибка — сложить только два числа с рисунка: неподписанная сторона тоже входит в периметр, а её длину даёт отметка.'] };
+    }
+    const a = r.ri(2, 9), half = r() < 0.5;
+    if (kind === 'mil') {
+      const I = r.pick(['I', 'M', 'J', 'O']), fig = geoMedFig(nm, { rot, noD: true, ticks: true, I, t: 0.5, lenAI: half ? null : a + ' cm', cote: half ? 2 * a + ' cm' : '?' });
+      return half ? { q: L('Sur la figure ci-dessous, le point ' + I + ' appartient au segment [' + A + B + '] et ' + A + B + ' = ' + 2 * a + ' cm. D’après le codage, quelle est la longueur ' + A + I + ' ?', 'На рисунке ниже точка ' + I + ' лежит на отрезке [' + A + B + '] и ' + A + B + ' = ' + 2 * a + ' см. Чему равна длина ' + A + I + ', если верить отметкам?'), fig, ans: N(a, { unit: 'cm' }),
+        sol: ['Одинаковые чёрточки на [' + A + I + '] и [' + I + B + '] означают, что эти отрезки равны: ' + I + ' — середина («milieu») отрезка [' + A + B + '].', ['Середина делит отрезок пополам:', 2 * a + '÷2=' + a, 'cm']] }
+        : { q: L('Sur la figure ci-dessous, le point ' + I + ' appartient au segment [' + A + B + '] et ' + A + I + ' = ' + a + ' cm. D’après le codage, quelle est la longueur ' + A + B + ' ?', 'На рисунке ниже точка ' + I + ' лежит на отрезке [' + A + B + '] и ' + A + I + ' = ' + a + ' см. Чему равна длина ' + A + B + ', если верить отметкам?'), fig, ans: N(2 * a, { unit: 'cm' }),
+          sol: ['Одинаковые чёрточки на [' + A + I + '] и [' + I + B + '] означают, что эти отрезки равны: ' + I + ' — середина («milieu») отрезка [' + A + B + '], и ' + I + B + ' = ' + a + ' см тоже.', ['Весь отрезок — две равные половины:', '2*' + a + '=' + 2 * a, 'cm']] };
+    }
+    const Mn = r.pick(['M', 'N', 'T', 'H']), fig = geoMedFig(nm, { rot, t: 0.5, ang: 90, ticks: true, right: true, M: { lab: Mn, lenA: a + 3 + ' cm', lenB: '?' } });
+    return { q: L('Sur la figure ci-dessous, le point ' + Mn + ' appartient à la droite (d) et ' + Mn + A + ' = ' + (a + 3) + ' cm. D’après le codage, quelle est la longueur ' + Mn + B + ' ?', 'На рисунке ниже точка ' + Mn + ' лежит на прямой (d) и ' + Mn + A + ' = ' + (a + 3) + ' см. Чему равна длина ' + Mn + B + ', если верить отметкам?'), fig, ans: N(a + 3, { unit: 'cm' }),
+      sol: ['По отметкам прямая (d) проходит через середину отрезка [' + A + B + '] (одинаковые чёрточки) и перпендикулярна ему (квадратик): это серединный перпендикуляр — «médiatrice» отрезка [' + A + B + '].',
+        'Серединный перпендикуляр — ось симметрии отрезка: перегиб по (d) совмещает ' + A + ' с ' + B + ', а точка ' + Mn + ' остаётся на месте. Поэтому каждая точка этой прямой одинаково удалена от концов отрезка.', { t: 'Значит:', tex: Mn + B + '=' + Mn + A + '=' + (a + 3) + '\\text{ cm}' }] };
+  } });
+
+/* ===================== TRIANGLES SEMBLABLES, TRIANGLES ÉGAUX ===================== */
+/* triangles with three different angles, none too small: AB, AC, BC */
+const GEO_SIM_TRI = [[4, 5, 6], [5, 6, 7], [6, 7, 8], [5, 7, 8], [6, 8, 9], [3, 4, 5], [7, 8, 9], [6, 8, 10]];
+geoTopic({ id: 'ge.semblables', ch: 'ge', lvl: 2, calc: false, variants: 5,
+  ru: 'Подобные и равные треугольники', fr: 'Triangles semblables et triangles égaux',
+  hints: [
+    'Подобные треугольники («triangles semblables») — одной формы, но, возможно, разного размера: их углы попарно равны, а стороны пропорциональны. Достаточно найти две пары равных углов: третьи углы тогда тоже равны, ведь сумма углов всегда 180°.',
+    'У подобных треугольников соответственные стороны («côtés homologues») лежат напротив равных углов. Все длины одного треугольника получаются из длин другого умножением на одно и то же число — коэффициент увеличения или уменьшения («coefficient d’agrandissement ou de réduction»).',
+    'Равные треугольники («triangles égaux», «superposables») можно наложить друг на друга: у них попарно равны все три стороны. Это подобные треугольники с коэффициентом 1.'],
+  gen(r, vi) {
+    const n1 = r.pick(GEO_TRI), n2 = r.pick(GEO_TRI.filter(t => !t.some(x => n1.includes(x)))), t1 = n1.join(''), t2 = n2.join('');
+    const [A, B, C] = n1, [D, E, F] = n2;
+    if (vi === 0) {   /* two angles of each triangle are given: are the triangles similar? */
+      let a, b, c; do { a = 5 * r.ri(8, 16); b = 5 * r.ri(8, 16); c = 180 - a - b; } while (a === b || c < 40 || c === a || c === b);
+      const kind = r.pick(['direct', 'third', 'third', 'one', 'one']);
+      let d = 0; if (kind === 'one') { do d = 5 * r.ri(8, 16); while (d === b || d === c || d === a || 180 - a - d < 40 || 180 - a - d === b || 180 - a - d === c); }
+      /* angles of the second triangle at D, E, F, and the two that are shown */
+      const ang2 = kind === 'one' ? [d, a, 180 - a - d] : r.pick([[b, a, c], [c, b, a], [a, c, b]]), show2 = kind === 'direct' ? ang2.map(x => x === a || x === b) : kind === 'third' ? ang2.map(x => x === a || x === c) : [true, true, false];
+      const P1 = geoTurn(geoTriASA(1, a, b), r.pick([0, 0, 180, 15, -15])), P2 = geoTurn(geoTriASA(1, ang2[0], ang2[1]), r.pick([0, 180, 90, -90, 30]), r() < 0.5);
+      const lab2 = {}; n2.forEach((x, i) => { if (show2[i]) lab2[x] = ang2[i] + '°'; });
+      const fig = geoTri2(P1, n1, { ang: { [A]: a + '°', [B]: b + '°' } }, P2, n2, { ang: lab2 }, { W1: 140, W2: 140, H: 135, gap: 44 });
+      const sim = kind !== 'one', s2 = n2.filter((x, i) => show2[i]), h2 = n2.find((x, i) => !show2[i]), v2 = ang2[n2.indexOf(h2)];
+      const yes = L('Oui, car leurs angles sont deux à deux de même mesure.', 'Да: их углы попарно равны.'), no = L('Non, car leurs angles ne sont pas deux à deux de même mesure.', 'Нет: их углы не равны попарно.');
+      const unk = L('On ne peut pas savoir sans connaître les longueurs des côtés.', 'Нельзя узнать, не зная длин сторон.');
+      const opts = sim ? [yes, no, unk, L('Non, car leurs côtés n’ont pas les mêmes longueurs.', 'Нет: у них стороны разной длины.')] : [no, L('Oui, car ils ont chacun un angle de ' + a + '°.', 'Да: у каждого есть угол ' + a + '°.'), unk, yes];
+      return { q: L('Sur la figure ci-dessous, qui n’est pas en vraie grandeur, on connaît deux angles de chaque triangle. Les triangles ' + t1 + ' et ' + t2 + ' sont-ils semblables ?', 'На рисунке ниже (он не в масштабе) известны по два угла каждого треугольника. Подобны ли треугольники ' + t1 + ' и ' + t2 + '?'), fig, ans: MQ(r, opts, 0),
+        sol: [{ t: 'Сумма углов треугольника равна 180°, поэтому третий угол каждого треугольника находится сразу:', tex: '\\widehat{' + C + '}=180^\\circ-' + geoDg(a) + '-' + geoDg(b) + '=' + geoDg(c) + '\\qquad \\widehat{' + h2 + '}=180^\\circ-' + geoDg(ang2[n2.indexOf(s2[0])]) + '-' + geoDg(ang2[n2.indexOf(s2[1])]) + '=' + geoDg(v2) },
+          'Углы треугольника ' + t1 + ': ' + [a, b, c].sort((x, y) => x - y).join('°, ') + '°. Углы треугольника ' + t2 + ': ' + ang2.slice().sort((x, y) => x - y).join('°, ') + '°.',
+          sim ? 'Наборы углов одинаковые — треугольники подобны («semblables»): у них одна и та же форма. Длины сторон для этого знать не нужно, и равными стороны быть не обязаны — это требуется только для равных треугольников.'
+            : 'Наборы углов разные — треугольники не подобны. Одного общего угла ' + a + '° мало: нужны две пары равных углов (тогда и третьи углы равны).'] };
+    }
+    if (vi === 3) {   /* equal, similar or neither: the three sides of each triangle */
+      const kind = r.pick(['egal', 'sembl', 'sembl', 'ni', 'plus']), s = r.pick(GEO_SIM_TRI.concat([[3, 5, 6], [4, 6, 9]])), k = kind === 'sembl' ? r.pick([2, 3, 1.5, 0.5]) : 1;
+      const base = kind === 'sembl' && (k === 1.5 || k === 0.5) ? s.map(x => 2 * x) : s;
+      let s2 = kind === 'egal' ? base.slice() : kind === 'sembl' ? base.map(x => x * k) : kind === 'plus' ? base.map(x => x + 2) : [base[0] * 2, base[1] * 2, base[2] * 2 + r.pick([-1, 1])];
+      const ord = r.sh([0, 1, 2]), sd1 = [A + B, A + C, B + C], sd2 = [D + E, D + F, E + F];
+      const txt = (sd, v, u) => sd[0] + ' = ' + nf(v[0]) + ' ' + u + ', ' + sd[1] + ' = ' + nf(v[1]) + ' ' + u + ' et ' + sd[2] + ' = ' + nf(v[2]) + ' ' + u;
+      const v2 = ord.map(i => s2[i]);   /* the sides of the second triangle are given in another order */
+      const opts = [L('Ils sont égaux (superposables).', 'Они равны (их можно наложить друг на друга).'), L('Ils sont semblables, mais pas égaux.', 'Они подобны, но не равны.'), L('Ils ne sont ni égaux ni semblables.', 'Они не равны и не подобны.'), L('Ils sont égaux, mais pas semblables.', 'Они равны, но не подобны.')];
+      const srt = v => v.slice().sort((x, y) => x - y), a1 = srt(base), a2 = srt(s2), rat = a1.map((x, i) => a2[i] / x);
+      return { q: L('Dans le triangle ' + t1 + ', ' + txt(sd1, base, 'cm') + '. Dans le triangle ' + t2 + ', ' + txt(sd2, v2, 'cm') + '. Que peut-on dire de ces deux triangles ?', 'В треугольнике ' + t1 + ': ' + txt(sd1, base, 'см').replace(' et ', ' и ') + '. В треугольнике ' + t2 + ': ' + txt(sd2, v2, 'см').replace(' et ', ' и ') + '. Что можно сказать об этих двух треугольниках?'),
+        ans: MQ(r, opts, kind === 'egal' ? 0 : kind === 'sembl' ? 1 : 2),
+        sol: ['Расставим стороны каждого треугольника по возрастанию: ' + a1.map(x => nf(x)).join(' ; ') + ' и ' + a2.map(x => nf(x)).join(' ; ') + '.',
+          kind === 'egal' ? 'Длины совпадают: три стороны одного треугольника равны трём сторонам другого. Такие треугольники равны («égaux», «superposables»). Равные треугольники — это подобные с коэффициентом 1, поэтому «равны, но не подобны» быть не может.'
+            : { t: 'Делим соответственные стороны (самую короткую на самую короткую и так далее):', tex: a1.map((x, i) => '\\dfrac{' + geoT(a2[i]) + '}{' + geoT(x) + '}' + (Number.isInteger(rat[i] * 100) ? '=' : '\\approx ') + geoT(geoRound(rat[i], 2))).join('\\qquad ') },
+          kind === 'egal' ? 'Порядок, в котором перечислены стороны, роли не играет.' : kind === 'sembl' ? 'Все три отношения равны ' + nf(k) + ': стороны пропорциональны, треугольники подобны («semblables») с коэффициентом ' + nf(k) + '. Но длины разные — равными («égaux») они не являются.'
+            : 'Отношения разные — стороны не пропорциональны, треугольники не подобны (и тем более не равны).' + (kind === 'plus' ? ' Прибавить ко всем сторонам одно и то же число — не значит увеличить треугольник: при увеличении стороны умножают.' : '')] };
+    }
+    if (vi === 4) {   /* the proof, step by step: two parallel lines give two pairs of equal angles */
+      const pap = r() < 0.5, nm = r.pick(pap ? GEO_TH_PAP : GEO_TH_TRI), Dt = geoThData(r, pap), [O, P1, P3, P2, P4] = nm, fig = geoThFig(Dt.M, nm, {}, pap);
+      const T1 = O + P1 + P2, T2 = O + P3 + P4, a1 = geoHat(O + P1 + P2), a2 = geoHat(O + P3 + P4);
+      const intro = pap ? L('Les droites (' + P1 + P3 + ') et (' + P2 + P4 + ') sont sécantes en ' + O + ' et les droites (' + P1 + P2 + ') et (' + P3 + P4 + ') sont parallèles.', 'Прямые (' + P1 + P3 + ') и (' + P2 + P4 + ') пересекаются в точке ' + O + ', а прямые (' + P1 + P2 + ') и (' + P3 + P4 + ') параллельны.')
+        : L('Dans le triangle ' + T2 + ', le point ' + P1 + ' appartient au segment [' + O + P3 + '], le point ' + P2 + ' appartient au segment [' + O + P4 + '] et les droites (' + P1 + P2 + ') et (' + P3 + P4 + ') sont parallèles.', 'В треугольнике ' + T2 + ' точка ' + P1 + ' лежит на отрезке [' + O + P3 + '], точка ' + P2 + ' — на отрезке [' + O + P4 + '], а прямые (' + P1 + P2 + ') и (' + P3 + P4 + ') параллельны.');
+      const st = [pap ? L('Les angles ' + geoHat(P1 + O + P2) + ' et ' + geoHat(P3 + O + P4) + ' sont opposés par le sommet : ils ont la même mesure.', 'Углы ' + geoHat(P1 + O + P2) + ' и ' + geoHat(P3 + O + P4) + ' вертикальные: они равны.')
+        : L('L’angle ' + geoHat(P1 + O + P2) + ' est commun aux triangles ' + T1 + ' et ' + T2 + '.', 'Угол ' + geoHat(P1 + O + P2) + ' — общий для треугольников ' + T1 + ' и ' + T2 + '.'),
+        L('De plus, les droites (' + P1 + P2 + ') et (' + P3 + P4 + ') sont parallèles : les angles ' + (pap ? 'alternes-internes ' : 'correspondants ') + a1 + ' et ' + a2 + ' ont la même mesure.', 'Кроме того, прямые (' + P1 + P2 + ') и (' + P3 + P4 + ') параллельны: ' + (pap ? 'накрест лежащие' : 'соответственные') + ' углы ' + a1 + ' и ' + a2 + ' равны.'),
+        L('Les triangles ' + T1 + ' et ' + T2 + ' ont ainsi deux angles deux à deux de même mesure.', 'Итак, у треугольников ' + T1 + ' и ' + T2 + ' две пары равных углов.'),
+        L('Donc les triangles ' + T1 + ' et ' + T2 + ' sont semblables.', 'Значит, треугольники ' + T1 + ' и ' + T2 + ' подобны.')];
+      return { q: L(intro.fr + ' Remettre dans l’ordre les étapes de la démonstration : les triangles ' + T1 + ' et ' + T2 + ' sont semblables.', intro.ru + ' Расставь по порядку шаги доказательства того, что треугольники ' + T1 + ' и ' + T2 + ' подобны.'), fig, ans: ORD(r, st),
+        sol: ['Чтобы доказать подобие, достаточно двух пар равных углов. Первая пара — ' + (pap ? 'вертикальные углы при вершине ' + O : 'общий угол при вершине ' + O) + '; вторая появляется благодаря параллельным прямым («De plus…»): секущая (' + P1 + P3 + ') образует с ними равные ' + (pap ? 'накрест лежащие' : 'соответственные') + ' углы.',
+          'Потом подводим итог («ainsi») и делаем вывод («Donc»). Слова-связки подсказывают порядок шагов.'] };
+    }
+    /* vi 1 and 2: proportional sides */
+    const s = r.pick(GEO_SIM_TRI), k = r.pick([2, 3, 1.5, 2.5, 0.5]), b1 = k === 1.5 || k === 2.5 || k === 0.5 ? s.map(x => 2 * x) : s, b2 = b1.map(x => x * k);
+    if (vi === 2) {   /* the coefficient */
+      const i = r.ri(0, 2), sd1 = [A + B, A + C, B + C][i], sd2 = [D + E, D + F, E + F][i], big = k > 1;
+      return { q: L('Les triangles ' + t1 + ' et ' + t2 + ' sont semblables. Les côtés [' + sd1 + '] et [' + sd2 + '] sont homologues, avec ' + sd1 + ' = ' + nf(b1[i]) + ' cm et ' + sd2 + ' = ' + nf(b2[i]) + ' cm. Quel est le coefficient ' + (big ? 'd’agrandissement' : 'de réduction') + ' qui permet de passer du triangle ' + t1 + ' au triangle ' + t2 + ' ?',
+        'Треугольники ' + t1 + ' и ' + t2 + ' подобны. Стороны [' + sd1 + '] и [' + sd2 + '] соответственные, ' + sd1 + ' = ' + nf(b1[i]) + ' см и ' + sd2 + ' = ' + nf(b2[i]) + ' см. Чему равен коэффициент ' + (big ? 'увеличения' : 'уменьшения') + ', который переводит треугольник ' + t1 + ' в треугольник ' + t2 + '?'), ans: N(fx(k)),
+        sol: ['Коэффициент показывает, на какое число умножаются все длины первого треугольника, чтобы получились длины второго. Поэтому делим длину «куда» на длину «откуда»:', { t: '', tex: '\\dfrac{' + sd2 + '}{' + sd1 + '}=\\dfrac{' + geoT(b2[i]) + '}{' + geoT(b1[i]) + '}=' + geoT(k) },
+          big ? 'Коэффициент больше 1 — это увеличение («agrandissement»). Перевёрнутая дробь дала бы коэффициент обратного перехода, от ' + t2 + ' к ' + t1 + '.' : 'Коэффициент меньше 1 — это уменьшение («réduction»). Перевёрнутая дробь дала бы коэффициент обратного перехода, от ' + t2 + ' к ' + t1 + '.'] };
+    }
+    /* vi 1: a length. Given: two sides of one triangle and the side homologous to one of them */
+    const pr = r.pick([[0, 1], [1, 0], [0, 2], [2, 0], [1, 2], [2, 1]]), [i, j] = pr, askBig = r() < 0.6;
+    const sd1 = [A + B, A + C, B + C], sd2 = [D + E, D + F, E + F];
+    const P1 = geoTurn(geoTriSSS(b1[2], b1[1], b1[0]), r.pick([0, 0, 180, 20, -20])), P2 = geoTurn(geoTriSSS(b1[2], b1[1], b1[0]), r.pick([0, 180, 90, -90, 40]), r() < 0.5);
+    const big = k > 1 ? 2 : 1;   /* which triangle is drawn larger */
+    const L1 = { [sd1[i]]: nf(b1[i]) + ' cm' }, L2 = { [sd2[i]]: nf(b2[i]) + ' cm' }; let ask, val, giv;
+    if (askBig) { L1[sd1[j]] = nf(b1[j]) + ' cm'; L2[sd2[j]] = '?'; ask = sd2[j]; val = b2[j]; giv = [sd1[i] + ' = ' + nf(b1[i]) + ' cm', sd1[j] + ' = ' + nf(b1[j]) + ' cm', sd2[i] + ' = ' + nf(b2[i]) + ' cm']; }
+    else { L2[sd2[j]] = nf(b2[j]) + ' cm'; L1[sd1[j]] = '?'; ask = sd1[j]; val = b1[j]; giv = [sd2[i] + ' = ' + nf(b2[i]) + ' cm', sd2[j] + ' = ' + nf(b2[j]) + ' cm', sd1[i] + ' = ' + nf(b1[i]) + ' cm']; }
+    const fig = geoTri2(P1, n1, { arc: { [A]: 1, [B]: 2 }, side: L1, hl: askBig ? [] : [ask] }, P2, n2, { arc: { [D]: 1, [E]: 2 }, side: L2, hl: askBig ? [ask] : [] }, big === 2 ? { W1: 105, H1: 100, W2: 150, H: 140, gap: 66 } : { W1: 150, H1: 140, W2: 105, H: 140, gap: 66 });
+    return { q: L('Les triangles ' + t1 + ' et ' + t2 + ' sont semblables : les angles de même mesure sont codés de la même façon sur la figure, qui n’est pas en vraie grandeur. On donne ' + geoList(giv) + '. Calculer la longueur ' + ask + '.',
+      'Треугольники ' + t1 + ' и ' + t2 + ' подобны: равные углы отмечены на рисунке одинаково (рисунок не в масштабе). Известно: ' + geoList(giv.map(x => x.replace('cm', 'см')), true) + '. Найди длину ' + ask + '.'), fig, ans: N(fx(val), { unit: 'cm' }),
+      sol: ['Соответственные стороны («côtés homologues») соединяют одинаково отмеченные вершины: [' + sd1[i] + '] и [' + sd2[i] + '], [' + sd1[j] + '] и [' + sd2[j] + '].',
+        { t: 'У подобных треугольников стороны пропорциональны. Обе длины известны для пары [' + sd1[i] + '] и [' + sd2[i] + '] — получаем коэффициент перехода от ' + t1 + ' к ' + t2 + ':', tex: '\\dfrac{' + sd2[i] + '}{' + sd1[i] + '}=\\dfrac{' + geoT(b2[i]) + '}{' + geoT(b1[i]) + '}=' + geoT(k) },
+        askBig ? { t: 'Все длины первого треугольника умножаются на это число:', tex: ask + '=' + geoT(b1[j]) + '\\times ' + geoT(k) + '=' + geoT(val) + '\\text{ cm}' } : { t: 'Длины второго треугольника получены умножением на это число, значит, длину первого находим делением:', tex: ask + '=' + geoT(b2[j]) + '\\div ' + geoT(k) + '=' + geoT(val) + '\\text{ cm}' },
+        'Проверка: треугольник ' + (k > 1 ? t2 + ' крупнее' : t2 + ' мельче') + ', и найденная длина этому соответствует.'] };
+  } });
+
 /* ===================== FICHES ===================== */
 fiche({ ch: 'ge', id: 'ge.f-angles', ru: 'Углы, треугольники, четырёхугольники', fr: 'Angles, triangles et quadrilatères', body: [
+  'Виды углов: нулевой («nul») — 0°, острый («aigu») — меньше 90°, прямой («droit») — 90°, тупой («obtus») — между 90° и 180°, развёрнутый («plat») — 180°.',
+  'Пары углов: «opposés par le sommet» — вертикальные (они равны); «adjacents» — с общей вершиной и общей стороной, по разные стороны от неё; «supplémentaires» — в сумме 180°. Русские «смежные углы» — это «adjacents et supplémentaires» сразу.',
+  'Отметки на чертеже («codage»): одинаковые чёрточки — равные длины, квадратик — прямой угол; утверждать можно только то, что отмечено. Серединный перпендикуляр к отрезку («médiatrice») — прямая через его середину, перпендикулярная ему (нужны обе отметки); каждая её точка одинаково удалена от концов отрезка.',
   'Сумма углов треугольника — 180°. Почему: проведём через вершину прямую, параллельную противоположной стороне; три угла треугольника лягут рядом и составят развёрнутый угол.',
   'Прямоугольный треугольник: два острых угла вместе — 90°. Равнобедренный («isocèle»): углы при основании равны. Равносторонний («équilatéral»): все углы по 60°.',
   'Две параллельные прямые и секущая («sécante»): накрест лежащие («alternes-internes») и соответственные («correspondants») углы равны; и наоборот, если они равны, прямые параллельны. Вертикальные углы («opposés par le sommet») равны всегда, смежные дают в сумме 180°.',
   'Неравенство треугольника («inégalité triangulaire»): каждая сторона меньше суммы двух других. Достаточно проверить самую длинную; если она равна сумме двух других — точки на одной прямой, треугольник «сплющенный» («aplati»).',
   'Четырёхугольники: параллелограмм — диагонали делятся пополам; ромб («losange») — 4 равные стороны, диагонали перпендикулярны; прямоугольник — прямые углы, диагонали равны; квадрат — и ромб, и прямоугольник. На рисунке «à main levée» верь только отметкам («codages»).'],
-  ex: [['Третий угол треугольника', '180-48-67=65'], ['Равнобедренный, угол при вершине 40°', '(180-40)/2=70']] });
+  ex: [['Третий угол треугольника', '180-48-67=65'], ['Равнобедренный, угол при вершине 40°', '(180-40)/2=70']],
+  frs: [
+    'Dans un triangle, la somme des mesures des angles est égale à 180°.',
+    'Si un triangle est isocèle, alors ses angles à la base ont la même mesure. Si un triangle est équilatéral, alors chacun de ses angles mesure 60°.',
+    'Un angle droit mesure 90° ; un angle plat mesure 180°. Un angle aigu mesure moins de 90° ; un angle obtus mesure entre 90° et 180°.',
+    'Deux angles opposés par le sommet ont la même mesure.',
+    'Deux angles supplémentaires sont deux angles dont la somme des mesures est égale à 180°.',
+    'Si deux droites parallèles sont coupées par une sécante, alors les angles alternes-internes ont la même mesure et les angles correspondants ont la même mesure.',
+    'Si deux droites coupées par une sécante forment des angles alternes-internes (ou correspondants) de même mesure, alors ces deux droites sont parallèles.',
+    'Dans un triangle, la longueur de chaque côté est inférieure à la somme des longueurs des deux autres côtés.',
+    'La médiatrice d’un segment est la droite perpendiculaire à ce segment qui passe par son milieu.',
+    'Si un point appartient à la médiatrice d’un segment, alors il est équidistant des extrémités de ce segment.',
+    'Un parallélogramme qui a un angle droit est un rectangle. Un parallélogramme qui a deux côtés consécutifs de même longueur est un losange.',
+    'Si les diagonales d’un quadrilatère se coupent en leur milieu, alors ce quadrilatère est un parallélogramme.'] });
 fiche({ ch: 'ge', id: 'ge.f-pythagore', ru: 'Теорема Пифагора и обратная', fr: 'Théorème de Pythagore et sa réciproque', body: [
   'Если треугольник ABC прямоугольный в A, то $BC^2=AB^2+AC^2$: квадрат гипотенузы («hypoténuse» — сторона напротив прямого угла, самая длинная) равен сумме квадратов катетов. Только для прямоугольного треугольника: при тупом угле $BC^2$ больше суммы, при остром — меньше.',
   'Гипотенуза: сложить квадраты катетов и извлечь корень. Катет: из квадрата гипотенузы вычесть квадрат другого катета и извлечь корень. Точное значение пишут с корнем ($√13$), приближённое — с калькулятором, округляя в самом конце.',
   'Обратная теорема («réciproque»): если квадрат самой длинной стороны равен сумме квадратов двух других, треугольник прямоугольный, и прямой угол — напротив самой длинной стороны. Если не равен — треугольник не прямоугольный (иначе по самой теореме было бы равенство).',
   'На экзамене пишут: «Le triangle ABC est rectangle en A. D’après le théorème de Pythagore, BC² = AB² + AC².» или «… d’après la réciproque du théorème de Pythagore, le triangle est rectangle en A.»'],
-  ex: [['Гипотенуза', 'BC^2=6^2+8^2=100;BC=10'], ['Катет', 'AC^2=13^2-5^2=144;AC=12'], ['Проверка прямого угла', '5^2+12^2=169=13^2']] });
+  ex: [['Гипотенуза', 'BC^2=6^2+8^2=100;BC=10'], ['Катет', 'AC^2=13^2-5^2=144;AC=12'], ['Проверка прямого угла', '5^2+12^2=169=13^2']],
+  frs: [
+    'Théorème de Pythagore : si un triangle est rectangle, alors le carré de la longueur de l’hypoténuse est égal à la somme des carrés des longueurs des deux autres côtés.',
+    'Le triangle ABC est rectangle en A. D’après le théorème de Pythagore, on a : $BC^2=AB^2+AC^2$.',
+    'Réciproque du théorème de Pythagore : si, dans un triangle, le carré de la longueur du plus grand côté est égal à la somme des carrés des longueurs des deux autres côtés, alors ce triangle est rectangle.',
+    'Dans le triangle ABC, le plus grand côté est [BC]. D’une part, $BC^2=13^2=169$. D’autre part, $AB^2+AC^2=5^2+12^2=169$. Donc $BC^2=AB^2+AC^2$ : d’après la réciproque du théorème de Pythagore, le triangle ABC est rectangle en A.',
+    'Si le triangle ABC était rectangle, d’après le théorème de Pythagore, on aurait $BC^2=AB^2+AC^2$. Or $BC^2≠AB^2+AC^2$, donc le triangle ABC n’est pas rectangle.'] });
 fiche({ ch: 'ge', id: 'ge.f-thales', ru: 'Теорема Фалеса и обратная', fr: 'Théorème de Thalès et sa réciproque', body: [
   'Конфигурация: прямые (BM) и (CN) пересекаются в точке A, и (MN) ∥ (BC). Бывает «треугольник» (M на [AB], N на [AC]) и «бабочка» (M и N по другую сторону от A).',
   'Тогда $AM/AB=AN/AC=MN/BC$: треугольник AMN — копия треугольника ABC в другом масштабе. Все длины в отношениях — от точки пересечения A, а третья дробь — параллельные стороны.',
   'Неизвестное находим перекрёстным умножением («produit en croix»): из $AM/AB=AN/AC$ получаем $AN=AM*AC/AB$.',
   'Обратная теорема («réciproque»): если точки A, M, B и A, N, C идут в одном порядке и $AM/AB=AN/AC$, то (MN) ∥ (BC). Если отношения разные — прямые не параллельны (иначе по самой теореме отношения были бы равны).'],
-  ex: [['Пропорция', '4/6=5/x'], ['Перекрёстное умножение', 'x=6*5/4=7.5']] });
+  ex: [['Пропорция', '4/6=5/x'], ['Перекрёстное умножение', 'x=6*5/4=7.5']],
+  frs: [
+    'Théorème de Thalès : si les points A, M, B sont alignés, si les points A, N, C sont alignés et si les droites (MN) et (BC) sont parallèles, alors $$\\dfrac{AM}{AB}$$ = $$\\dfrac{AN}{AC}$$ = $$\\dfrac{MN}{BC}$$.',
+    'Les droites (BM) et (CN) sont sécantes en A et les droites (MN) et (BC) sont parallèles. D’après le théorème de Thalès, on a : $$\\dfrac{AM}{AB}$$ = $$\\dfrac{AN}{AC}$$ = $$\\dfrac{MN}{BC}$$.',
+    'Réciproque du théorème de Thalès : si les points A, M, B et les points A, N, C sont alignés dans le même ordre et si $$\\dfrac{AM}{AB}$$ = $$\\dfrac{AN}{AC}$$, alors les droites (MN) et (BC) sont parallèles.',
+    'D’une part, $$\\dfrac{AM}{AB}$$ = $$\\dfrac{2}{5}$$ = 0,4. D’autre part, $$\\dfrac{AN}{AC}$$ = $$\\dfrac{3}{7{,}5}$$ = 0,4. Donc $$\\dfrac{AM}{AB}$$ = $$\\dfrac{AN}{AC}$$. De plus, les points A, M, B et les points A, N, C sont alignés dans le même ordre. Donc, d’après la réciproque du théorème de Thalès, les droites (MN) et (BC) sont parallèles.',
+    'Si les droites (MN) et (BC) étaient parallèles, d’après le théorème de Thalès, les rapports $$\\dfrac{AM}{AB}$$ et $$\\dfrac{AN}{AC}$$ seraient égaux. Or ils ne le sont pas, donc les droites (MN) et (BC) ne sont pas parallèles.'] });
+fiche({ ch: 'ge', id: 'ge.f-semblables', ru: 'Подобные и равные треугольники', fr: 'Triangles semblables et triangles égaux', body: [
+  'Подобные треугольники («triangles semblables») — одной формы: их углы попарно равны. Достаточно двух пар равных углов — третьи углы тогда тоже равны, потому что сумма углов треугольника всегда 180°.',
+  'У подобных треугольников стороны пропорциональны: все длины одного получаются из длин другого умножением на одно и то же число — коэффициент увеличения («agrandissement», больше 1) или уменьшения («réduction», меньше 1). Соответственные стороны («côtés homologues») лежат напротив равных углов.',
+  'Коэффициент перехода от первого треугольника ко второму — длина стороны второго, делённая на длину соответственной стороны первого. Площади при этом умножаются на квадрат коэффициента.',
+  'Равные треугольники («triangles égaux», «superposables») можно наложить друг на друга: три стороны одного равны трём сторонам другого. Это подобные треугольники с коэффициентом 1.',
+  'Откуда берутся равные углы: вертикальные углы («opposés par le sommet»), накрест лежащие или соответственные углы при параллельных прямых, общий угол двух треугольников. Конфигурация Фалеса всегда даёт пару подобных треугольников.'],
+  ex: [['Коэффициент', '7.5/5=1.5'], ['Соответственная сторона', '4*1.5=6']],
+  frs: [
+    'Deux triangles sont semblables lorsque leurs angles sont deux à deux de même mesure.',
+    'Si deux triangles ont deux angles deux à deux de même mesure, alors ils sont semblables.',
+    'Si deux triangles sont semblables, alors les longueurs de leurs côtés homologues sont proportionnelles.',
+    'Si les longueurs des côtés de deux triangles sont proportionnelles, alors ces triangles sont semblables.',
+    'Deux triangles sont égaux lorsqu’ils sont superposables : leurs côtés sont deux à deux de même longueur.',
+    'Les angles $$\\widehat{ABC}$$ et $$\\widehat{ADE}$$ sont alternes-internes et les droites (BC) et (DE) sont parallèles, donc ils ont la même mesure.'] });
 fiche({ ch: 'ge', id: 'ge.f-trigo', ru: 'Тригонометрия в прямоугольном треугольнике', fr: 'Trigonométrie dans le triangle rectangle', body: [
   'Для острого угла прямоугольного треугольника: гипотенуза — напротив прямого угла; прилежащий катет («côté adjacent») — сторона угла, которая не гипотенуза; противолежащий катет («côté opposé») — напротив угла.',
   '$$\\cos\\widehat{B}=\\dfrac{\\text{adjacent}}{\\text{hypoténuse}}\\qquad \\sin\\widehat{B}=\\dfrac{\\text{opposé}}{\\text{hypoténuse}}\\qquad \\tan\\widehat{B}=\\dfrac{\\text{opposé}}{\\text{adjacent}}$$ Запоминалка: «CAH SOH TOA» (звучит как «casse-toi»).',
   'Почему отношения не зависят от размера треугольника: все прямоугольные треугольники с одним и тем же острым углом — копии друг друга в разном масштабе (как в теореме Фалеса). Все стороны растягиваются в одно и то же число раз, а их отношение не меняется. Поэтому, например, $$\\cos 60^\\circ=0{,}5$$ в любом таком треугольнике.',
   'Найти длину: запиши отношение с известной и искомой сторонами; неизвестное в числителе — умножаем, в знаменателе — делим. Найти угол: обратные функции $$\\cos^{-1}$$, $$\\sin^{-1}$$, $$\\tan^{-1}$$. Калькулятор — в режиме градусов.',
-  'Косинус и синус острого угла всегда меньше 1, потому что гипотенуза — самая длинная сторона и стоит в знаменателе. Тангенс может быть и больше 1.'] });
+  'Косинус и синус острого угла всегда меньше 1, потому что гипотенуза — самая длинная сторона и стоит в знаменателе. Тангенс может быть и больше 1.',
+  'В Partie 1 (без калькулятора) по официальному списку спрашивают только косинус: назвать стороны, выбрать отношение или формулу. Синус и тангенс нужны в задачах Partie 2, с калькулятором.'],
+  frs: [
+    'Dans un triangle rectangle, le cosinus d’un angle aigu est le quotient de la longueur du côté adjacent à cet angle par la longueur de l’hypoténuse.',
+    'Dans un triangle rectangle, le sinus d’un angle aigu est le quotient de la longueur du côté opposé à cet angle par la longueur de l’hypoténuse.',
+    'Dans un triangle rectangle, la tangente d’un angle aigu est le quotient de la longueur du côté opposé à cet angle par la longueur du côté adjacent à cet angle.',
+    'Dans le triangle ABC rectangle en A : $$\\cos\\widehat{ABC}=\\dfrac{AB}{BC}$$ ; $$\\sin\\widehat{ABC}=\\dfrac{AC}{BC}$$ ; $$\\tan\\widehat{ABC}=\\dfrac{AC}{AB}$$.',
+    'Le triangle ABC est rectangle en A, donc $$\\cos\\widehat{ABC}=\\dfrac{AB}{BC}$$, d’où $$AB=BC\\times\\cos\\widehat{ABC}$$.',
+    'Le triangle ABC est rectangle en A, donc $$\\tan\\widehat{ABC}=\\dfrac{AC}{AB}$$. À la calculatrice, on obtient la mesure de l’angle $$\\widehat{ABC}$$, arrondie au degré près.'] });
 fiche({ ch: 'ge', id: 'ge.f-transformations', ru: 'Преобразования фигур', fr: 'Les transformations', body: [
   'Осевая симметрия («symétrie axiale») — перегиб по прямой (d): точка и её образ на одном перпендикуляре к (d), на равных расстояниях от неё. Фигура переворачивается, как в зеркале.',
   'Центральная симметрия («symétrie centrale») с центром O — пол-оборота вокруг O: O — середина отрезка между точкой и её образом.',
   'Параллельный перенос («translation»), переводящий A в B: каждая точка сдвигается так же, как A в B. Фигура не поворачивается и не переворачивается.',
   'Поворот («rotation»): центр, угол и направление — против часовой стрелки («dans le sens inverse des aiguilles d’une montre») или по часовой. Расстояние до центра не меняется.',
-  'Эти четыре преобразования сохраняют длины, углы и площади. Гомотетия («homothétie») с центром O и коэффициентом k умножает длины на |k|, площади на k², объёмы на |k|³; при k < 0 образ по другую сторону от O, при k = −1 это центральная симметрия.'] });
+  'Эти четыре преобразования сохраняют длины, углы и площади. Гомотетия («homothétie») с центром O и коэффициентом k умножает длины на |k|, площади на k², объёмы на |k|³; при k < 0 образ по другую сторону от O, при k = −1 это центральная симметрия.'],
+  frs: [
+    'Le symétrique d’un point M par rapport à une droite (d) est le point M′ tel que (d) est la médiatrice du segment [MM′].',
+    'Le symétrique d’un point M par rapport à un point O est le point M′ tel que O est le milieu du segment [MM′].',
+    'La translation qui transforme A en B fait glisser chaque point dans la direction de la droite (AB), dans le sens de A vers B et d’une longueur égale à AB.',
+    'L’image d’un point M par la rotation de centre O et d’angle 90° est le point M′ tel que OM′ = OM et $$\\widehat{MOM\'}=90^\\circ$$, en tournant dans le sens indiqué.',
+    'L’image d’un point M par l’homothétie de centre O et de rapport k positif est le point M′ de la demi-droite [OM) tel que OM′ = k × OM.',
+    'Si le rapport k est négatif, les points M et M′ sont de part et d’autre du centre O.',
+    'Les symétries, les translations et les rotations conservent les longueurs, les mesures des angles, l’alignement et les aires.',
+    'Une homothétie de rapport k positif multiplie les longueurs par k et les aires par k² ; elle conserve les mesures des angles.'] });
 fiche({ ch: 'ge', id: 'ge.f-solides', ru: 'Тела, развёртки, сечения, координаты', fr: 'Solides, patrons, sections et repérage', body: [
   'Призма («prisme droit»): два одинаковых основания и боковые грани-прямоугольники (куб и «pavé droit» — тоже призмы). Пирамида: основание и треугольные грани с общей вершиной. Цилиндр, конус, шар («boule»); поверхность шара — сфера («sphère»).',
   'Развёртка («patron») цилиндра — два круга и прямоугольник: его длина — длина окружности основания $$2\\pi r$$, ширина — высота цилиндра.',
   'Сечения («sections»): параллелепипед плоскостью, параллельной грани, — прямоугольник, равный этой грани; цилиндр перпендикулярно оси — круг, параллельно оси — прямоугольник; конус и пирамида параллельно основанию — уменьшенная копия основания (коэффициент = расстояние от вершины ÷ высота); шар — круг, сфера — окружность.',
   'Шар радиуса R, плоскость на расстоянии d от центра: в сечении круг радиуса r, где $r^2+d^2=R^2$ (по Пифагору).',
-  'Координаты в параллелепипеде с началом в вершине A: (абсцисса ; ордината ; высота — «altitude»). На глобусе: (широта ; долгота), например (30° N ; 60° E); N/S — от экватора, E/O — от гринвичского меридиана.'],
-  ex: [['Сечение шара: R = 5, d = 3', 'r^2=5^2-3^2=16;r=4']] });
+  'Координаты в параллелепипеде с началом в вершине A: (абсцисса ; ордината ; высота — «altitude»). На глобусе: широта («latitude», N или S — от экватора) и долгота («longitude», E или O — от гринвичского меридиана), например (30° N ; 60° E). Порядок записи бывает разным — смотри на буквы.'],
+  ex: [['Сечение шара: R = 5, d = 3', 'r^2=5^2-3^2=16;r=4']],
+  frs: [
+    'Un prisme droit a deux bases superposables et parallèles ; ses faces latérales sont des rectangles.',
+    'Une pyramide a pour base un polygone ; ses faces latérales sont des triangles qui ont un sommet commun.',
+    'Le patron d’un cylindre est formé de deux disques et d’un rectangle dont la longueur est égale au périmètre de la base : $2*π*r$.',
+    'La section d’un pavé droit par un plan parallèle à une face est un rectangle de mêmes dimensions que cette face.',
+    'La section d’un cylindre par un plan perpendiculaire à son axe est un disque de même rayon que la base.',
+    'La section d’une pyramide ou d’un cône par un plan parallèle à la base est une réduction de la base.',
+    'La section d’une sphère par un plan est un cercle ; la section d’une boule par un plan est un disque.'] });
 
 /* ===================== DICTIONARY ===================== */
 gloss('l\'hypoténuse', 'гипотенуза', 'сторона напротив прямого угла, самая длинная');
@@ -1764,3 +2213,14 @@ gloss('le pavé droit', 'прямоугольный параллелепипед
 gloss('la sphère, la boule', 'сфера, шар', 'сфера — поверхность, шар — тело внутри неё');
 gloss('le losange', 'ромб', 'четырёхугольник с четырьмя равными сторонами');
 gloss('l\'altitude', 'высота (третья координата)', 'в пространстве: (abscisse ; ordonnée ; altitude)');
+gloss('la médiatrice', 'серединный перпендикуляр', 'прямая через середину отрезка, перпендикулярная ему');
+gloss('le codage', 'отметки на чертеже', 'чёрточки на равных отрезках, квадратик прямого угла');
+gloss('à main levée', 'от руки', 'рисунок без инструментов: верить можно только отметкам');
+gloss('les angles opposés par le sommet', 'вертикальные углы', 'они равны');
+gloss('les angles adjacents', 'прилежащие углы', 'общая вершина и общая сторона; по-русски «смежные» — это adjacents et supplémentaires');
+gloss('les angles supplémentaires', 'углы, дающие в сумме 180°');
+gloss('un angle aigu', 'острый угол', 'меньше 90°');
+gloss('un angle obtus', 'тупой угол', 'между 90° и 180°');
+gloss('des triangles semblables', 'подобные треугольники', 'углы попарно равны, стороны пропорциональны');
+gloss('des triangles égaux', 'равные треугольники', 'их можно наложить друг на друга («superposables»)');
+gloss('les côtés homologues', 'соответственные стороны', 'стороны двух подобных треугольников, лежащие напротив равных углов');
