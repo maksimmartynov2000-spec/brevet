@@ -141,5 +141,11 @@ const IDX = [
   'p2.perimetres-egaux',
   'p2.medaille-surf',
   'p2.scratch-carre-triangle',
-  'p2.scratch-blocs'
+  'p2.scratch-blocs',
+  'lg.consignes',
+  'lg.formes-reponse',
+  'lg.donnees',
+  'lg.connecteurs',
+  'lg.redaction',
+  'lg.questions'
 ];
