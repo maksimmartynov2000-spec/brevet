@@ -25,14 +25,25 @@ const PB_TY_U = new RegExp('(\\d) (?=(?:' + PB_UNITS + ')(?![A-Za-zА-Яа-яЁ�
 function pbTy(s) {
   return String(s).split(/(\$\$[^$]*\$\$|\$[^$]*\$)/).map((p, i) => i % 2 ? p : p.replace(/ ([?!:;])/g, '\u00a0$1').replace(PB_TY_U, '$1\u00a0').replace(/ ([=≈<>≤≥]) /g, '\u00a0$1\u00a0').replace(/(\d) (?=\d{3}(?!\d))/g, '$1\u00a0')).join('');
 }
-const pbTyT = o => (o && typeof o === 'object' && 'fr' in o ? { fr: pbTy(o.fr), ru: pbTy(o.ru) } : typeof o === 'string' ? pbTy(o) : o);
+const pbTyT = o => (o && typeof o === 'object' && 'fr' in o ? { fr: pbGl(pbTy(o.fr)), ru: pbGl(pbTy(o.ru)) } : typeof o === 'string' ? pbGl(pbTy(o)) : o);
 function pbTyA(a) { if (!a) return a; if (a.k === 'mcq') a.opts = a.opts.map(pbTyT); if (a.k === 'order') a.items = a.items.map(pbTyT); if (a.k === 'multi') a.parts.forEach(p => { if (p.lab) p.lab = pbTyT(p.lab); pbTyA(p.spec); }); return a; }
-function pbTyS(s) { if (typeof s === 'string') return pbTy(s); if (Array.isArray(s)) return [pbTy(s[0] || '')].concat(s.slice(1)); if (s && s.t != null) return Object.assign({}, s, { t: pbTy(s.t) }); return s; }
+function pbTyS(s) { if (typeof s === 'string') return pbGl(pbTy(s)); if (Array.isArray(s)) return [pbGl(pbTy(s[0] || ''))].concat(s.slice(1)); if (s && s.t != null) return Object.assign({}, s, { t: pbGl(pbTy(s.t)) }); return s; }
 /* probleme() with the typography applied to every text the generator returns */
 function pbProb(def) {
   const g = def.gen;
-  def.gen = function (r) { const p = g.call(this, r); if (p.ctx) p.ctx = pbTyT(p.ctx); p.qs.forEach(q => { q.q = pbTyT(q.q); pbTyA(q.ans); q.sol = (q.sol || []).map(pbTyS); if (q.redac) q.redac = [].concat(q.redac).map(pbTy); }); return p; };
+  def.gen = function (r) { const p = g.call(this, r); if (p.ctx) p.ctx = pbTyT(p.ctx); p.qs.forEach(q => { q.q = pbTyT(q.q); pbTyA(q.ans); q.sol = (q.sol || []).map(pbTyS); if (q.redac) q.redac = [].concat(q.redac).map(l => pbGl(pbTy(l))); }); return p; };
   return probleme(def);
+}
+/* A full stop or a comma that follows a formula must not start the next line alone on a narrow screen:
+   it is moved inside the formula (a formula in input syntax becomes TeX for that). Applied to every text of these problems. */
+function pbGl(s) {
+  return String(s).split(/(\$\$[^$]*\$\$|\$[^$]*\$)/).map((p, i, a) => {
+    if (!(i % 2)) return p;
+    const nx = a[i + 1] || '', pt = /^[.,](?!\d)/.test(nx) ? nx[0] : '';
+    if (!pt) return p;
+    a[i + 1] = nx.slice(1);
+    return p.startsWith('$$') ? p.slice(0, -2) + pt + '$$' : '$$' + mi(p.slice(1, -1)).replace(/\\dfrac/g, '\\frac') + pt + '$$';
+  }).join('');
 }
 /* ---------- « Comment l'écrire sur la copie » (redac) : pieces of TeX for $$…$$ ---------- */
 const pbT = v => { const [i, d] = fx(v).split('.'); return (i.replace('-', '').length > 4 ? i.replace(/\B(?=(\d{3})+(?!\d))/g, '\\,') : i) + (d ? '{,}' + d : ''); };   /* a number: 4{,}5 · 27\,700 */
@@ -42,6 +53,7 @@ const pbFE = (n, d) => (F(n, d).d === d ? pbDf(n, d) : pbDf(n, d) + '=' + pbFT(n
 const pbOrd = k => '$$' + k + '^{\\text{e}}$$';                                                                     /* 12e */
 /* a decimal value of a fraction for a comparison: « = 0,4 » when exact, « ≈ 0,36 » otherwise */
 const pbDecEq = (v, k = 2) => (pbIsD(v, k) ? '=' + pbT(v) : '\\approx ' + texNum(pbK(v, k)));
+const pbDS = (v, k = 2) => (pbIsD(v, k) ? fx(v) : pbK(v, k));                                                      /* the same value in input syntax: 0.4 · 0.36 */
 /* Pythagorean triples for right triangles with «nice» sides */
 const PB_TRIPLES = [[3, 4, 5], [5, 12, 13], [8, 15, 17], [7, 24, 25], [20, 21, 29], [12, 35, 37], [9, 40, 41], [28, 45, 53], [11, 60, 61], [33, 56, 65], [16, 63, 65], [48, 55, 73], [13, 84, 85], [36, 77, 85], [39, 80, 89], [65, 72, 97]];
 
@@ -148,7 +160,8 @@ pbProb({ id: 'p2.papillon', ch: 'ge', lvl: 2, pts: 4,
         ['Подставляем известные длины:', AD + '/' + AB + '=AE/' + AC + '=DE/' + BC],
         ['Из равенства первого и третьего отношений:', 'DE=' + BC + '*' + AD + '/' + AB + '=' + DE, 'см']] },
       { q: L('Calculer la longueur AE.', 'Вычисли длину AE.'), ans: pbNE(AE, 'cm'),
-        redac: ['D\'après le théorème de Thalès (question précédente) : $$' + pbDf('AD', 'AB') + '=' + pbDf('AE', 'AC') + '$$, soit $$' + pbDf(pbT(AD), pbT(AB)) + '=' + pbDf('AE', pbT(AC)) + '$$.',
+        redac: ['D\'après le théorème de Thalès (question précédente) : $$' + pbDf('AD', 'AB') + '=' + pbDf('AE', 'AC') + '$$',
+          'soit $$' + pbDf(pbT(AD), pbT(AB)) + '=' + pbDf('AE', pbT(AC)) + '$$.',
           'Donc $$AE=' + pbDf(pbT(AC) + '\\times ' + pbT(AD), pbT(AB)) + '=' + pbT(AE) + '$$.',
           'La longueur AE est de ' + nf(AE) + ' cm.'], sol: [
         'Используем те же равные отношения теоремы Фалеса, но теперь первое и второе.',
@@ -233,7 +246,8 @@ pbProb({ id: 'p2.terrain-tangente', ch: 'ge', lvl: 2, pts: 5,
       { q: L('Calculer la longueur DE.', 'Вычисли длину DE.'), ans: pbNE(DE, 'm'),
         redac: ['Les droites (BE) et (CD) sont sécantes en A et les droites (BC) et (DE) sont parallèles.',
           'D\'après le théorème de Thalès : $$' + pbDf('AB', 'AE') + '=' + pbDf('AC', 'AD') + '=' + pbDf('BC', 'DE') + '$$',
-          'soit $$' + pbDf(pbT(AC), pbT(AD)) + '=' + pbDf(pbT(BC), 'DE') + '$$, donc $$DE=' + pbDf(pbT(BC) + '\\times ' + pbT(AD), pbT(AC)) + '=' + pbT(DE) + '$$.',
+          'soit $$' + pbDf(pbT(AC), pbT(AD)) + '=' + pbDf(pbT(BC), 'DE') + '$$.',
+          'Donc $$DE=' + pbDf(pbT(BC) + '\\times ' + pbT(AD), pbT(AC)) + '=' + pbT(DE) + '$$.',
           'La longueur DE est de ' + nf(DE) + ' m.'], sol: [
         'Точки A, B, E лежат на одной прямой, точки A, C, D — тоже, и (BC) ∥ (DE). Это теорема Фалеса («théorème de Thalès»): треугольник AED — увеличенный треугольник ABC.',
         ['', 'AB/AE=AC/AD=BC/DE'],
@@ -241,7 +255,7 @@ pbProb({ id: 'p2.terrain-tangente', ch: 'ge', lvl: 2, pts: 5,
         ['Отсюда', 'DE=' + BC + '*' + AD + '/' + AC + '=' + DE, 'м']] },
       { q: L('Calculer la longueur EM. Arrondir au dixième de mètre.', 'Вычисли длину EM. Округли до десятых метра.'), ans: pbNR(EM, 1, 'm'),
         redac: ['Les points A, E et M sont alignés et le triangle ADE est rectangle en E, donc le triangle DEM est rectangle en E.',
-          'Dans le triangle DEM rectangle en E : $$\\tan\\widehat{DME}=' + pbDf('DE', 'EM') + '$$, soit $$\\tan ' + th + '^{\\circ}=' + pbDf(pbT(DE), 'EM') + '$$.',
+          'Dans ce triangle : $$\\tan\\widehat{DME}=' + pbDf('DE', 'EM') + '$$, soit $$\\tan ' + th + '^{\\circ}=' + pbDf(pbT(DE), 'EM') + '$$.',
           'Donc $$EM=' + pbDf(pbT(DE), '\\tan ' + th + '^{\\circ}') + '\\approx ' + texNum(pbK(EM, 1)) + '$$.',
           'La longueur EM est d\'environ ' + pbS(EM, 1) + ' m.'], sol: [
         'В треугольнике DEM угол E прямой: (DE) ⊥ (AM), а M лежит на прямой (AM). Известны угол M и катет DE, лежащий напротив него; EM — катет, прилежащий к углу M.',
@@ -249,7 +263,7 @@ pbProb({ id: 'p2.terrain-tangente', ch: 'ge', lvl: 2, pts: 5,
         { t: 'Отсюда', tex: 'EM=\\dfrac{DE}{\\tan ' + th + '^\\circ}=\\dfrac{' + texNum(DE) + '}{\\tan ' + th + '^\\circ}\\approx ' + texNum(pbK(EM, 3)) },
         'Округляем до десятых: EM ≈ ' + pbS(EM, 1) + ' м. Калькулятор должен быть в градусах (режим «DEG»).'] },
       { q: L('On prend EM ≈ ' + pbS(EM, 1) + ' m. Calculer l\'aire du triangle AMD.', 'Возьмём EM ≈ ' + pbS(EM, 1) + ' м. Вычисли площадь треугольника AMD.'), ans: pbNE(area, 'm²'),
-        redac: ['D\'après le théorème de Thalès (question 3) : $$' + pbDf('AB', 'AE') + '=' + pbDf('AC', 'AD') + '$$, donc $$AE=' + pbDf(pbT(AB) + '\\times ' + pbT(AD), pbT(AC)) + '=' + pbT(AE) + '$$.',
+        redac: ['D\'après l\'égalité de Thalès de la question 3 : $$AE=' + pbDf('AB\\times AD', 'AC') + '=' + pbDf(pbT(AB) + '\\times ' + pbT(AD), pbT(AC)) + '=' + pbT(AE) + '$$.',
           'Le point E appartient au segment [AM], donc AM = AE + EM ≈ ' + nf(AE) + ' + ' + pbS(EM, 1) + ' = ' + nf(AM) + ' m.',
           'La droite (DE) est perpendiculaire à (AM) : [DE] est la hauteur du triangle AMD relative au côté [AM].',
           '$$\\mathcal{A}=' + pbDf('AM\\times DE', 2) + '\\approx ' + pbDf(pbT(AM) + '\\times ' + pbT(DE), 2) + '=' + pbT(area) + '$$',
@@ -412,8 +426,8 @@ pbProb({ id: 'p2.panneaux', ch: 'ge', lvl: 2, pts: 5,
       { q: L('Calculer la longueur ST, en cm. Arrondir au millimètre.', 'Вычисли длину ST в см. Округли до миллиметра.'), ans: pbNR(ST, 1, 'cm'),
         redac: ['Les droites (UT) et (HP) sont toutes les deux perpendiculaires à la droite (PS), donc elles sont parallèles.',
           'Les droites (HU) et (PT) sont sécantes en S. D\'après le théorème de Thalès : $$' + pbDf('ST', 'SP') + '=' + pbDf('SU', 'SH') + '=' + pbDf('UT', 'HP') + '$$',
-          'soit $$' + pbDf('ST', PS) + '=' + pbDf(UT, HP) + '$$, donc $$ST=' + pbDf(PS + '\\times ' + UT, HP) + '\\approx ' + texNum(pbK(ST, 1)) + '$$.',
-          'La longueur ST est d\'environ ' + pbS(ST, 1) + ' cm.'], sol: [
+          'soit $$' + pbDf('ST', PS) + '=' + pbDf(UT, HP) + '$$.',
+          'Donc $$ST=' + pbDf(PS + '\\times ' + UT, HP) + '\\approx ' + texNum(pbK(ST, 1)) + '$$, soit environ ' + pbS(ST, 1) + ' cm.'], sol: [
         'Прямые (UT) и (HP) обе перпендикулярны (PS), значит, они параллельны.',
         'В треугольнике SHP точка U лежит на [SH], точка T — на [SP], и (UT) ∥ (HP). По теореме Фалеса («théorème de Thalès»):',
         ['', 'ST/SP=SU/SH=UT/PH'],
@@ -554,7 +568,8 @@ pbProb({ id: 'p2.gobelet', ch: 'gm', lvl: 2, pts: 5,
       { q: L('Calculer la longueur OB.', 'Вычисли длину OB.'), ans: pbNE(OB, 'cm'),
         redac: ['Les droites (AB) et (DC) sont sécantes en O et les droites (AD) et (BC) sont parallèles.',
           'D\'après le théorème de Thalès : $$' + pbDf('OA', 'OB') + '=' + pbDf('OD', 'OC') + '=' + pbDf('AD', 'BC') + '$$',
-          'soit $$' + pbDf(pbT(OA), 'OB') + '=' + pbDf(pbT(AD), pbT(BC)) + '$$, donc $$OB=' + pbDf(pbT(OA) + '\\times ' + pbT(BC), pbT(AD)) + '=' + pbT(OB) + '$$.',
+          'soit $$' + pbDf(pbT(OA), 'OB') + '=' + pbDf(pbT(AD), pbT(BC)) + '$$.',
+          'Donc $$OB=' + pbDf(pbT(OA) + '\\times ' + pbT(BC), pbT(AD)) + '=' + pbT(OB) + '$$.',
           'La longueur OB est de ' + nf(OB) + ' cm.'], sol: [
         'Точки O, A, B лежат на одной прямой, точки O, D, C — тоже, и (AD) ∥ (BC). По теореме Фалеса:',
         ['', 'OA/OB=OD/OC=AD/BC'],
@@ -807,7 +822,11 @@ pbProb({ id: 'p2.aquariums', ch: 'gm', lvl: 2, pts: 4,
         'Переводим объём в см³: ' + Vmin + ' л = ' + nf(Vmin * 1000) + ' см³. Объём воды = площадь дна × высота воды, поэтому высота = объём ÷ площадь дна.',
         { t: '', tex: 'h=\\dfrac{' + fmtBig(String(Vmin * 1000)) + '}{\\pi\\times ' + rr + '^2}\\approx ' + texNum(pbK(hx, 3)) + '\\text{ см}' },
         'Округляем до миллиметра (до десятых сантиметра): ≈ ' + pbS(hx, 1) + ' см. ' + (hx <= H1 ? 'Это не больше высоты аквариума (' + H1 + ' см): налить столько можно, но при обычном заполнении до ' + f[0] + '/' + f[1] + ' (' + nf(h1) + ' см) воды будет ' + (h1 >= hx ? 'достаточно.' : 'меньше нужного.') : 'Это больше высоты самого аквариума (' + H1 + ' см): столько воды в него вообще не поместится.')] },
-      { q: L('Un poisson combattant coûte ' + pf + ' €. Une famille achète un poisson et l\'aquarium ' + s + ', vendu ' + pa + ' €. Le vendeur fait une réduction de ' + red + ' % sur le prix total. Combien la famille va-t-elle payer ?', 'Рыбка стоит ' + pf + ' €. Семья покупает рыбку и аквариум ' + s + ' за ' + pa + ' €. Продавец делает скидку ' + red + ' % на всю покупку. Сколько заплатит семья?'), ans: pbNE(pay, '€'), sol: [
+      { q: L('Un poisson combattant coûte ' + pf + ' €. Une famille achète un poisson et l\'aquarium ' + s + ', vendu ' + pa + ' €. Le vendeur fait une réduction de ' + red + ' % sur le prix total. Combien la famille va-t-elle payer ?', 'Рыбка стоит ' + pf + ' €. Семья покупает рыбку и аквариум ' + s + ' за ' + pa + ' €. Продавец делает скидку ' + red + ' % на всю покупку. Сколько заплатит семья?'), ans: pbNE(pay, '€'),
+        redac: ['Prix total : $' + pf + ' + ' + pa + ' = ' + tot + '$, soit ' + tot + ' €.',
+          'Une réduction de ' + red + ' % revient à multiplier le prix par $1 - ' + red + '/100 = ' + fx((100 - red) / 100) + '$.',
+          '$' + tot + '*' + fx((100 - red) / 100) + ' = ' + fx(pay) + '$',
+          'La famille va payer ' + eur(r2(pay)) + '.'], sol: [
         ['Полная стоимость:', pf + '+' + pa + '=' + tot, '€'],
         'Скидка ' + red + ' % означает, что платят ' + (100 - red) + ' % цены, то есть умножают на ' + nf((100 - red) / 100) + '.',
         ['', tot + '*' + fx((100 - red) / 100) + '=' + fx(pay), '€'],
@@ -832,22 +851,30 @@ pbProb({ id: 'p2.playlist', ch: 'st', lvl: 1, pts: 4,
     const pr = PB_PRIMES.filter(p => p <= n), kp = pr.length;
     const ctx = L(nm + ' prépare pour son enfant une liste de ' + n + ' chansons : ' + a + ' chants de Noël, ' + b + ' comptines et des berceuses. Jouées à la suite, toutes ces chansons durent ' + T + ' minutes. Le lecteur est réglé en mode aléatoire : chaque chanson de la liste a la même chance d\'être jouée. Les chansons sont numérotées de 1 à ' + n + '.',
       nm + ' составляет для ребёнка список из ' + n + ' ' + pbRu(n, 'песни', 'песен', 'песен') + ': ' + a + ' ' + pbRu(a, 'рождественская песня', 'рождественские песни', 'рождественских песен') + ', ' + b + ' ' + pbRu(b, 'детская песенка', 'детские песенки', 'детских песенок') + ' и колыбельные. Если слушать подряд, все песни звучат ' + T + ' ' + pbRu(T, 'минуту', 'минуты', 'минут') + '. Плеер включён в режим случайного выбора: каждая песня списка может зазвучать с одинаковой вероятностью. Песни пронумерованы от 1 до ' + n + '.');
+    /* a decimal value for a comparison: « = 0.4 » when it is exact, « ≈ 0.36 » otherwise */
+    const dS = v => (pbIsD(v, 2) ? fx(v) : pbK(v, 2)), dv = v => (pbIsD(v, 2) ? ' = ' : ' ≈ ') + dS(v);
     /* the three ways to count the primes, and the verdict each one gives */
     const cmpTx = (k, fr) => { const x = k * thr[1], y = n * thr[0], f = pbFr(k, n);
       const frac = k + '/' + n + (f !== k + '/' + n ? ' = ' + f : '');
       if (x === y) return fr ? ['Non', '$' + frac + '$ : elle est égale à $' + thrT + '$, pas supérieure'] : ['Нет', '$' + frac + '$: она равна $' + thrT + '$, а не больше'];
-      const val = '$' + frac + ' ≈ ' + pbK(k / n, 2) + '$', tv = '$' + thrT + ' ≈ ' + pbK(thr[0] / thr[1], 2) + '$';
+      const val = '$' + frac + dv(k / n) + '$', tv = '$' + thrT + dv(thr[0] / thr[1]) + '$';
       return fr ? [x > y ? 'Oui' : 'Non', val + ' et ' + tv + ', donc elle est ' + (x > y ? 'supérieure' : 'inférieure') + ' à $' + thrT + '$']
         : [x > y ? 'Да' : 'Нет', val + ', а ' + tv + ', значит, она ' + (x > y ? 'больше' : 'меньше') + ' $' + thrT + '$']; };
+    const sup = kp * thr[1] > n * thr[0], same = kp * thr[1] === n * thr[0], thrX = pbDf(thr[0], thr[1]);
     const optP = (list) => { const k = list.length, f = cmpTx(k, true), g = cmpTx(k, false);
       return L(f[0] + ' : entre 1 et ' + n + ', les nombres premiers sont ' + pbList(list, 'et') + ', soit ' + k + ' nombres. La probabilité est ' + f[1] + '.',
         g[0] + ': от 1 до ' + n + ' простые числа — ' + pbList(list, 'и') + ', всего ' + k + '. Вероятность равна ' + g[1] + '.'); };
     return { ctx, qs: [
-      { q: L('Calculer le nombre de berceuses de la liste.', 'Вычисли, сколько в списке колыбельных.'), ans: N(c), sol: [
+      { q: L('Calculer le nombre de berceuses de la liste.', 'Вычисли, сколько в списке колыбельных.'), ans: N(c),
+        redac: ['$' + n + ' - ' + a + ' - ' + b + ' = ' + c + '$', 'Il y a ' + c + ' berceuses dans la liste.'], sol: [
         'Все песни, кроме рождественских и детских, — колыбельные.',
         ['', n + '-' + a + '-' + b + '=' + c]] },
       { q: L('Calculer la durée moyenne d\'une chanson de cette liste. Donner le résultat en minutes et secondes.', 'Вычисли среднюю длительность одной песни. Дай ответ в минутах и секундах.'),
-        ans: multi([null, N(mm, { unit: 'min' })], [null, N(ss, { unit: 's' })]), sol: [
+        ans: multi([null, N(mm, { unit: 'min' })], [null, N(ss, { unit: 's' })]),
+        redac: ['Durée totale en secondes : $' + T + '*60 = ' + (T * 60) + '$.',
+          'Durée moyenne d\'une chanson : $' + (T * 60) + '÷' + n + ' = ' + ms + '$, soit ' + ms + ' s.',
+          '$' + ms + ' = ' + mm + '*60 + ' + ss + '$',
+          'La durée moyenne d\'une chanson est de ' + mm + ' min ' + ss + ' s.'], sol: [
         'Средняя длительность («durée moyenne») — общее время, делённое на число песен. Удобнее сразу перевести минуты в секунды, чтобы не возиться с дробной частью минуты.',
         ['', T + '*60=' + (T * 60), 'с'],
         ['', (T * 60) + '/' + n + '=' + ms, 'с'],
@@ -855,10 +882,16 @@ pbProb({ id: 'p2.playlist', ch: 'st', lvl: 1, pts: 4,
         (() => { const q = T / n, dg = pbIsD(q, 2) ? String(+q.toFixed(2)).split('.')[1] : null, w = dg ? +dg.padEnd(2, '0') : 99;
           return w < 60 && w !== ss ? 'Частая ошибка: ' + T + ' ÷ ' + n + ' = ' + nf(q) + ' мин, и кажется, что это ' + mm + ' мин ' + w + ' с. Но цифры после запятой — доли минуты, а не секунды: ' + nf(q - mm) + ' мин = ' + nf(q - mm) + ' × 60 с = ' + ss + ' с.'
             : 'Если делить минуты, получится ' + nf(pbRd(q, 3)) + ' мин; дробная часть минуты — это доли от 60 секунд, её нужно умножить на 60, а не читать как секунды.'; })()] },
-      { q: L('Quelle est la probabilité que la chanson écoutée soit une comptine ? Donner le résultat sous forme de fraction irréductible.', 'Какова вероятность, что прозвучит детская песенка? Запиши ответ несократимой дробью.'), ans: FRA(F(b, n)), sol: [
+      { q: L('Quelle est la probabilité que la chanson écoutée soit une comptine ? Donner le résultat sous forme de fraction irréductible.', 'Какова вероятность, что прозвучит детская песенка? Запиши ответ несократимой дробью.'), ans: FRA(F(b, n)),
+        redac: ['Chaque chanson a la même probabilité d\'être jouée : c\'est une situation d\'équiprobabilité.',
+          'Il y a ' + b + ' comptines parmi les ' + n + ' chansons, donc $$p=' + pbFE(b, n) + '$$.',
+          'La probabilité que la chanson écoutée soit une comptine est $$' + pbFT(b, n) + '$$.'], sol: [
         'Все песни (их ' + n + ') выбираются с одинаковой вероятностью, поэтому вероятность — число благоприятных исходов, делённое на число всех исходов.',
         ['', b + '/' + n + (pbFr(b, n) !== b + '/' + n ? '=' + pbFr(b, n) : '')]] },
-      { q: L('Quelle est la probabilité que la chanson écoutée ne soit pas une berceuse ? Donner le résultat sous forme de fraction irréductible.', 'Какова вероятность, что прозвучит не колыбельная? Запиши ответ несократимой дробью.'), ans: FRA(F(n - c, n)), sol: [
+      { q: L('Quelle est la probabilité que la chanson écoutée ne soit pas une berceuse ? Donner le résultat sous forme de fraction irréductible.', 'Какова вероятность, что прозвучит не колыбельная? Запиши ответ несократимой дробью.'), ans: FRA(F(n - c, n)),
+        redac: ['Il y a ' + c + ' berceuses, donc $' + n + ' - ' + c + ' = ' + (n - c) + '$ chansons ne sont pas des berceuses.',
+          'Chaque chanson a la même probabilité d\'être jouée, donc $$p=' + pbFE(n - c, n) + '$$.',
+          'La probabilité que la chanson écoutée ne soit pas une berceuse est $$' + pbFT(n - c, n) + '$$.'], sol: [
         ['Способ 1 — посчитать подходящие песни: не колыбельные — это рождественские и детские, их ' + a + ' + ' + b + ' = ' + (a + b) + '.', (a + b) + '/' + n + (pbFr(a + b, n) !== (a + b) + '/' + n ? '=' + pbFr(a + b, n) : '')],
         ['Способ 2 — через противоположное событие («événement contraire»): вероятности события и его противоположного в сумме дают 1.', '1-' + c + '/' + n + '=' + pbFr(n - c, n)]] },
       { q: L('On considère l\'événement « Le numéro de la chanson écoutée est un nombre premier ». Sa probabilité est-elle supérieure à $' + thrT + '$ ? Choisir la réponse correctement justifiée.', 'Рассмотрим событие «номер прозвучавшей песни — простое число». Больше ли его вероятность, чем $' + thrT + '$? Выбери ответ с верным обоснованием.'), red: true,
@@ -867,7 +900,12 @@ pbProb({ id: 'p2.playlist', ch: 'st', lvl: 1, pts: 4,
         sol: ['Простое число («nombre premier») имеет ровно два делителя: 1 и само себя. Поэтому 1 — не простое (у него один делитель), а 2 — простое (единственное чётное простое).',
           'От 1 до ' + n + ' простые: ' + pbList(pr, 'и') + ' — всего ' + kp + '. Вероятность — ' + kp + '/' + n + '.',
           'Сравниваем две дроби через десятичные приближения (или приводя к общему знаменателю): ' + nf(pbRd(kp / n, 3)) + ' и ' + nf(pbRd(thr[0] / thr[1], 3)) + '.',
-          'Случайность не мешает посчитать вероятность: вероятность как раз и измеряет шансы случайного события.'] }] };
+          'Случайность не мешает посчитать вероятность: вероятность как раз и измеряет шансы случайного события.'],
+        redac: ['Les nombres premiers compris entre 1 et ' + n + ' sont : ' + pr.join(' ; ') + '. Il y en a ' + kp + '.',
+          'La probabilité de l\'événement est donc $$' + pbDf(kp, n) + (same ? '=' + thrX : pbDecEq(kp / n)) + '$$.',
+          same ? 'Cette probabilité est égale à $$' + thrX + '$$ : elle n\'est donc pas supérieure à $$' + thrX + '$$.'
+            : 'Or $$' + thrX + pbDecEq(thr[0] / thr[1]) + '$$ et $' + dS(kp / n) + (sup ? ' > ' : ' < ') + dS(thr[0] / thr[1]) + '$.',
+          same ? '' : 'Donc cette probabilité ' + (sup ? 'est' : 'n\'est pas') + ' supérieure à $$' + thrX + '$$.'].filter(Boolean) }] };
   } });
 
 /* ---------- p2.briques-jus : tableau d'effectifs, médiane, étendue, probabilité, pourcentage ---------- */
@@ -887,7 +925,7 @@ pbProb({ id: 'p2.briques-jus', ch: 'st', lvl: 2, pts: 4,
       med = Nt % 2 ? ser[(Nt - 1) / 2] : (ser[Nt / 2 - 1] + ser[Nt / 2]) / 2;
       const mx = Math.max(...cnt); mode = vals.filter((v, i) => cnt[i] === mx);
       mean = ser.reduce((s, v) => s + v, 0) / Nt;
-      if (!mode.includes(med) && Math.abs(mean - med) > 0.05 && cnt[vals.indexOf(350)] * 2 !== Nt) break;
+      if (!mode.includes(med) && Math.abs(mean - med) > 0.2 && cnt[vals.indexOf(350)] * 2 !== Nt) break;   /* the mean must differ clearly from the median: «En moyenne…» is a wrong option */
     }
     const lo = 345, hi = 355, okN = ser.filter(v => v >= lo && v <= hi).length, pct = okN * 100 / Nt, c350 = cnt[vals.indexOf(350)], et = vals[vals.length - 1] - vals[0];
     const half = Math.ceil(vals.length / 2), row = (a, b) => tbl([['Volume (mL)'].concat(vals.slice(a, b)), ['Effectif'].concat(cnt.slice(a, b))], 'side');
@@ -898,7 +936,12 @@ pbProb({ id: 'p2.briques-jus', ch: 'st', lvl: 2, pts: 4,
     const pos = Nt % 2 ? [(Nt + 1) / 2] : [Nt / 2, Nt / 2 + 1], at = k => vals[cums.findIndex(c => c >= k)];
     const medT = fx(med), modeT = mode.map(v => v + ' mL').join(' ou ');
     return { ctx, fig: row(0, half) + row(half, vals.length), qs: [
-      { q: L('Déterminer la médiane des volumes de cette série.', 'Найди медиану объёмов этого ряда.'), ans: N(medT, { unit: 'mL' }), sol: [
+      { q: L('Déterminer la médiane des volumes de cette série.', 'Найди медиану объёмов этого ряда.'), ans: N(medT, { unit: 'mL' }),
+        redac: ['La série comporte ' + Nt + ' valeurs rangées dans l\'ordre croissant. ' + (Nt % 2 ? Nt + ' est impair, donc la médiane est la ' + pbOrd(pos[0]) + ' valeur.' : Nt + ' est pair, donc la médiane est la moyenne de la ' + pbOrd(pos[0]) + ' et de la ' + pbOrd(pos[1]) + ' valeur.'),
+          'En additionnant les effectifs depuis le début du tableau, on obtient : ' + cums.slice(0, cums.findIndex(c => c >= pos[pos.length - 1]) + 1).join(' ; ') + '.',
+          Nt % 2 ? 'La ' + pbOrd(pos[0]) + ' valeur est donc ' + at(pos[0]) + '.' : at(pos[0]) === at(pos[1]) ? 'La ' + pbOrd(pos[0]) + ' et la ' + pbOrd(pos[1]) + ' valeur sont donc égales à ' + at(pos[0]) + '.'
+            : 'La ' + pbOrd(pos[0]) + ' valeur est donc ' + at(pos[0]) + ' et la ' + pbOrd(pos[1]) + ' valeur est ' + at(pos[1]) + ' : $(' + at(pos[0]) + ' + ' + at(pos[1]) + ')÷2 = ' + medT + '$.',
+          'La médiane de cette série est ' + nf(med) + ' mL.'], sol: [
         'Медиана («médiane») — значение посередине ряда, упорядоченного по возрастанию. Таблица уже упорядочена.',
         'Пакетов ' + Nt + (Nt % 2 ? ', это нечётное число: посередине стоит ' + pos[0] + '-е значение (до него и после него по ' + ((Nt - 1) / 2) + ' значений).' : ', это чётное число: посередине стоят ' + pos[0] + '-е и ' + pos[1] + '-е значения (по ' + (Nt / 2) + ' значений с каждой стороны).'),
         'Считаем накопленные количества: ' + vals.map((v, i) => 'до ' + v + ' мл — ' + cums[i]).slice(0, cums.findIndex(c => c >= pos[pos.length - 1]) + 1).join(', ') + '.',
@@ -912,13 +955,23 @@ pbProb({ id: 'p2.briques-jus', ch: 'st', lvl: 2, pts: 4,
         sol: ['Медиана делит упорядоченный ряд на две половины: значения не больше медианы и значения не меньше её.',
           'Это не среднее: среднее здесь ≈ ' + nf(pbRd(mean, 2)) + ' мл (сумма всех объёмов, делённая на ' + Nt + '). И не самое частое значение: чаще всего встречается ' + modeT.replace(/mL/g, 'мл').replace(' ou ', ' или ') + '.',
           'И медиана не говорит, сколько пакетов содержат ровно ' + nf(med) + ' мл' + (Number.isInteger(med) ? '' : ' — пакетов с таким объёмом нет вовсе') + '.'] },
-      { q: L('Calculer l\'étendue de cette série.', 'Вычисли размах этого ряда.'), ans: N(et, { unit: 'mL' }), sol: [
+      { q: L('Calculer l\'étendue de cette série.', 'Вычисли размах этого ряда.'), ans: N(et, { unit: 'mL' }),
+        redac: ['L\'étendue est la différence entre la plus grande et la plus petite valeur de la série.',
+          '$' + vals[vals.length - 1] + ' - ' + vals[0] + ' = ' + et + '$',
+          'L\'étendue de cette série est de ' + et + ' mL.'], sol: [
         'Размах («étendue») — наибольшее значение минус наименьшее.',
         ['', vals[vals.length - 1] + '-' + vals[0] + '=' + et, 'мл']] },
-      { q: L('On prélève au hasard une brique parmi celles contrôlées. Quelle est la probabilité qu\'elle contienne exactement 350 mL ? Donner le résultat sous forme de fraction irréductible.', 'Случайно берут один из проверенных пакетов. Какова вероятность, что в нём ровно 350 мл? Запиши ответ несократимой дробью.'), ans: FRA(F(c350, Nt)), sol: [
+      { q: L('On prélève au hasard une brique parmi celles contrôlées. Quelle est la probabilité qu\'elle contienne exactement 350 mL ? Donner le résultat sous forme de fraction irréductible.', 'Случайно берут один из проверенных пакетов. Какова вероятность, что в нём ровно 350 мл? Запиши ответ несократимой дробью.'), ans: FRA(F(c350, Nt)),
+        redac: ['Chaque brique a la même probabilité d\'être prélevée : c\'est une situation d\'équiprobabilité.',
+          (c350 > 1 ? c350 + ' briques contiennent' : 'Une seule brique contient') + ' exactement 350 mL parmi les ' + Nt + ' briques contrôlées, donc $$p=' + pbFE(c350, Nt) + '$$.',
+          'La probabilité que la brique contienne exactement 350 mL est $$' + pbFT(c350, Nt) + '$$.'], sol: [
         'Все ' + Nt + ' пакетов имеют одинаковые шансы. Ровно 350 мл — в ' + c350 + ' из них (смотрим в таблицу).',
         ['', c350 + '/' + Nt + (pbFr(c350, Nt) !== c350 + '/' + Nt ? '=' + pbFr(c350, Nt) : '')]] },
-      { q: L('Une brique peut être vendue si son volume est compris entre 345 mL et 355 mL (bornes incluses). Quel pourcentage des briques contrôlées peut être vendu ?', 'Пакет можно продавать, если в нём от 345 до 355 мл (включительно). Какой процент проверенных пакетов можно продавать?'), ans: N(fx(pct), { unit: '%' }), sol: [
+      { q: L('Une brique peut être vendue si son volume est compris entre 345 mL et 355 mL (bornes incluses). Quel pourcentage des briques contrôlées peut être vendu ?', 'Пакет можно продавать, если в нём от 345 до 355 мл (включительно). Какой процент проверенных пакетов можно продавать?'), ans: N(fx(pct), { unit: '%' }),
+        redac: ['Les briques qui contiennent moins de 345 mL ou plus de 355 mL ne peuvent pas être vendues : il y en a ' + (Nt - okN) + '.',
+          'Donc $' + Nt + ' - ' + (Nt - okN) + ' = ' + okN + '$ briques peuvent être vendues.',
+          '$$' + pbDf(okN, Nt) + '\\times 100=' + pbT(pct) + '$$',
+          'L\'entreprise peut vendre ' + nf(pct) + ' % des briques contrôlées.'], sol: [
         'Не годятся пакеты вне промежутка: ' + vals.filter(v => v < lo || v > hi).map(v => v + ' мл (' + cnt[vals.indexOf(v)] + ' шт.)').join(', ') + '. Годятся остальные пакеты — их ' + okN + '.',
         ['Процент — доля, умноженная на 100:', okN + '/' + Nt + '*100=' + fx(pct), '%']] }] };
   } });
@@ -950,16 +1003,29 @@ pbProb({ id: 'p2.deux-jeux', ch: 'st', lvl: 2, pts: 4,
     const ctx = L('Dans cet exercice, on étudie deux jeux. Jeu 1 : un sac contient ' + T + ' boules indiscernables au toucher : ' + g + ' portant la lettre G, ' + nN + ' portant la lettre N et ' + p + ' portant la lettre P. On pioche une boule au hasard ; on gagne si elle porte la lettre G. Jeu 2 : une roue est partagée en ' + s + ' secteurs identiques numérotés de 1 à ' + s + '. On fait tourner la roue ; on gagne si la flèche s\'arrête sur un nombre premier.',
       'В задаче две игры. Игра 1: в мешке ' + T + ' неразличимых на ощупь шаров: ' + g + ' с буквой G, ' + nN + ' с буквой N и ' + p + ' с буквой P. Наугад вытягивают шар; выигрыш — если на нём буква G. Игра 2: колесо разделено на ' + s + ' одинаковых секторов с номерами от 1 до ' + s + '. Колесо крутят; выигрыш — если стрелка остановится на простом числе.');
     return { ctx, fig: pbJeuFig(balls, s), qs: [
-      { q: L('Calculer la probabilité de gagner au jeu 1. Donner le résultat sous forme de fraction irréductible.', 'Вычисли вероятность выигрыша в игре 1. Запиши ответ несократимой дробью.'), ans: FRA(F(g, T)), sol: [
+      { q: L('Calculer la probabilité de gagner au jeu 1. Donner le résultat sous forme de fraction irréductible.', 'Вычисли вероятность выигрыша в игре 1. Запиши ответ несократимой дробью.'), ans: FRA(F(g, T)),
+        redac: ['Le sac contient ' + T + ' boules indiscernables au toucher : chaque boule a la même probabilité d\'être piochée.',
+          (g > 1 ? g + ' boules portent' : 'Une seule boule porte') + ' la lettre G, donc $$p=' + pbFE(g, T) + '$$.',
+          'La probabilité de gagner au jeu 1 est $$' + pbFT(g, T) + '$$.'], sol: [
         'Все ' + T + ' шаров вытягиваются с одинаковой вероятностью; благоприятных исходов — столько, сколько шаров с буквой G.',
         ['', g + '/' + T + (f1 !== g + '/' + T ? '=' + f1 : '')]] },
-      { q: L('Calculer la probabilité de gagner au jeu 2. Donner le résultat sous forme de fraction irréductible.', 'Вычисли вероятность выигрыша в игре 2. Запиши ответ несократимой дробью.'), ans: FRA(F(kp, s)), sol: [
+      { q: L('Calculer la probabilité de gagner au jeu 2. Donner le résultat sous forme de fraction irréductible.', 'Вычисли вероятность выигрыша в игре 2. Запиши ответ несократимой дробью.'), ans: FRA(F(kp, s)),
+        redac: ['Les nombres premiers compris entre 1 et ' + s + ' sont ' + pbList(lst, 'et') + ' : il y a ' + kp + ' secteurs gagnants.',
+          'Les ' + s + ' secteurs sont identiques, donc ils ont tous la même probabilité : $$p=' + pbFE(kp, s) + '$$.',
+          'La probabilité de gagner au jeu 2 est $$' + pbFT(kp, s) + '$$.'], sol: [
         'Простые числа от 1 до ' + s + ': ' + pbList(lst, 'и') + ' — их ' + kp + '. Число 1 не простое: у него только один делитель.',
         ['Секторы одинаковые, значит, все ' + s + ' номеров равновероятны:', kp + '/' + s + (f2 !== kp + '/' + s ? '=' + f2 : '')]] },
-      { q: L('Quel jeu présente la plus faible probabilité de gagner ?', 'В какой игре вероятность выигрыша меньше?'), ans: MQF([L('Le jeu 1', 'Игра 1'), L('Le jeu 2', 'Игра 2'), L('Les deux jeux ont la même probabilité de gagner', 'В обеих играх вероятность одинаковая')], P1 < P2 ? 0 : 1), sol: [
+      { q: L('Quel jeu présente la plus faible probabilité de gagner ?', 'В какой игре вероятность выигрыша меньше?'), ans: MQF([L('Le jeu 1', 'Игра 1'), L('Le jeu 2', 'Игра 2'), L('Les deux jeux ont la même probabilité de gagner', 'В обеих играх вероятность одинаковая')], P1 < P2 ? 0 : 1),
+        redac: ['Jeu 1 : $$' + pbFT(g, T) + pbDecEq(P1) + '$$. Jeu 2 : $$' + pbFT(kp, s) + pbDecEq(P2) + '$$.',
+          '$' + pbDS(Math.min(P1, P2)) + ' < ' + pbDS(Math.max(P1, P2)) + '$',
+          'C\'est le jeu ' + (P1 < P2 ? 1 : 2) + ' qui présente la plus faible probabilité de gagner.'], sol: [
         'Сравниваем ' + f1 + ' и ' + f2 + ', например в десятичных дробях: ' + nf(pbRd(P1, 3)) + ' и ' + nf(pbRd(P2, 3)) + '.',
         'Меньше вероятность в игре ' + (P1 < P2 ? '1' : '2') + '.'] },
-      { q: L('On ajoute dans le sac du jeu 1 des boules qui ne portent pas la lettre G. Combien de boules faut-il ajouter pour que la probabilité de gagner au jeu 1 soit égale à $1/' + q + '$ ?', 'В мешок игры 1 добавляют шары без буквы G. Сколько шаров нужно добавить, чтобы вероятность выигрыша в игре 1 стала равна $1/' + q + '$?'), ans: N(add), sol: [
+      { q: L('On ajoute dans le sac du jeu 1 des boules qui ne portent pas la lettre G. Combien de boules faut-il ajouter pour que la probabilité de gagner au jeu 1 soit égale à $1/' + q + '$ ?', 'В мешок игры 1 добавляют шары без буквы G. Сколько шаров нужно добавить, чтобы вероятность выигрыша в игре 1 стала равна $1/' + q + '$?'), ans: N(add),
+        redac: ['Le nombre de boules portant la lettre G ne change pas : il y en a toujours ' + g + '.',
+          'Pour que la probabilité de gagner soit $$' + pbDf(1, q) + '$$, il faut $' + g + '*' + q + ' = ' + T2 + '$ boules en tout' + (g > 1 ? ', car $$' + pbDf(g, T2) + '=' + pbDf(1, q) + '$$.' : '.'),
+          '$' + T2 + ' - ' + T + ' = ' + add + '$',
+          'Il faut ajouter ' + add + ' boule' + (add > 1 ? 's' : '') + ' qui ne porte' + (add > 1 ? 'nt' : '') + ' pas la lettre G.'], sol: [
         'Шаров с буквой G по-прежнему ' + g + '. Вероятность 1/' + q + ' означает, что шары G составляют одну ' + (q === 3 ? 'треть' : q === 4 ? 'четверть' : q === 5 ? 'пятую часть' : 'шестую часть') + ' всех шаров.',
         ['Значит, всего шаров должно быть', g + '*' + q + '=' + T2],
         ['Сейчас их ' + T + ', поэтому добавить нужно', T2 + '-' + T + '=' + add],
@@ -972,7 +1038,10 @@ pbProb({ id: 'p2.deux-jeux', ch: 'st', lvl: 2, pts: 4,
         sol: ['Опыт из двух этапов удобно изобразить деревом: сначала шар (G или нет), потом колесо (простое или нет). Выигрыш — одна ветка: «G», затем «простое».',
           ['Вероятность ветки — произведение вероятностей на ней:', '(' + f1 + ')*(' + f2 + ')=' + fp],
           'Проверка подсчётом: исходов (шар; сектор) всего ' + T + ' × ' + s + ' = ' + (T * s) + ', выигрышных — ' + g + ' × ' + kp + ' = ' + (g * kp) + ' (каждый шар G с каждым простым номером), ' + (g * kp) + '/' + (T * s) + ' = ' + fp + '. Складывать ' + g + ' + ' + kp + ' нельзя: пары образуются умножением.',
-          'Сумма вероятностей отвечала бы на вопрос «выиграть хотя бы где-то» (и то не точно), а меньшая из вероятностей — вообще не вероятность этого события: выиграть в обеих играх труднее, чем в каждой по отдельности.'] }] };
+          'Сумма вероятностей отвечала бы на вопрос «выиграть хотя бы где-то» (и то не точно), а меньшая из вероятностей — вообще не вероятность этого события: выиграть в обеих играх труднее, чем в каждой по отдельности.'],
+        redac: ['L\'expérience comporte deux épreuves : on la représente par un arbre. Le joueur gagne s\'il suit le chemin « G, puis nombre premier ».',
+          'On multiplie les probabilités rencontrées le long de ce chemin : $$' + pbFT(g, T) + '\\times ' + pbFT(kp, s) + '=' + pbFT(g * kp, T * s) + '$$.',
+          'La probabilité de gagner est $$' + pbFT(g * kp, T * s) + '$$.'] }] };
   } });
 
 /* ---------- p2.festival : diagramme en barres, pourcentage d'évolution, moyenne et médiane, valeur manquante ---------- */
@@ -1010,14 +1079,22 @@ pbProb({ id: 'p2.festival', ch: 'st', lvl: 2, pts: 4,
     const ctx = L('Un festival de musique a lieu chaque année. Le graphique ci-dessous compare, pour les éditions de ' + years[0] + ' à ' + years[5] + ', le coût prévisionnel (les dépenses prévues avant le festival) et le coût réel (les dépenses réellement nécessaires), en milliers d\'euros (k€).',
       'Музыкальный фестиваль проходит каждый год. На диаграмме для фестивалей с ' + years[0] + ' по ' + years[5] + ' год сравниваются плановая стоимость (расходы, запланированные до фестиваля) и реальная стоимость (сколько потратили на самом деле), в тысячах евро (k€).');
     return { ctx, fig: pbFesFig(years, P, R), qs: [
-      { q: L('Combien d\'éditions ont eu un coût réel supérieur ou égal à ' + thr + ' k€ ?', 'У скольких фестивалей реальная стоимость была не меньше ' + thr + ' k€?'), ans: N(nThr), sol: [
+      { q: L('Combien d\'éditions ont eu un coût réel supérieur ou égal à ' + thr + ' k€ ?', 'У скольких фестивалей реальная стоимость была не меньше ' + thr + ' k€?'), ans: N(nThr),
+        redac: ['Coûts réels supérieurs ou égaux à ' + thr + ' k€ : ' + R.map((v, i) => (v >= thr ? v + ' k€ (' + years[i] + ')' : '')).filter(Boolean).join(' ; ') + '.',
+          'Il y a ' + nThr + ' édition' + (nThr > 1 ? 's' : '') + ' dont le coût réel est supérieur ou égal à ' + thr + ' k€.'], sol: [
         'Смотрим на вторые (реальные) столбцы и подписи к ним: ' + R.join(', ') + '.',
         '«Supérieur ou égal» — больше или равно, поэтому значение, равное ' + thr + ', тоже считаем. Подходят: ' + R.filter(v => v >= thr).join(', ') + ' — всего ' + nThr + '.'] },
-      { q: L('Calculer le pourcentage d\'augmentation entre le coût prévisionnel et le coût réel de l\'édition ' + years[e] + '. Arrondir à l\'unité.', 'Вычисли, на сколько процентов реальная стоимость фестиваля ' + years[e] + ' года больше плановой. Округли до целых.'), ans: pbNR(inc, 0, '%'), sol: [
+      { q: L('Calculer le pourcentage d\'augmentation entre le coût prévisionnel et le coût réel de l\'édition ' + years[e] + '. Arrondir à l\'unité.', 'Вычисли, на сколько процентов реальная стоимость фестиваля ' + years[e] + ' года больше плановой. Округли до целых.'), ans: pbNR(inc, 0, '%'),
+        redac: ['Augmentation du coût : $' + R[e] + ' - ' + P[e] + ' = ' + (R[e] - P[e]) + '$ (en k€).',
+          'On la compare au coût prévisionnel : $$' + pbDf(R[e] - P[e], P[e]) + '\\times 100' + (pbIsD(inc, 0) ? '=' : '\\approx ') + pbRd(inc) + '$$.',
+          'Le pourcentage d\'augmentation est ' + (pbIsD(inc, 0) ? 'de ' : 'd\'environ ') + pbRd(inc) + ' %.'], sol: [
         'Процент увеличения считают от начального (планового) значения: (новое − старое) ÷ старое × 100.',
         ['', '(' + R[e] + '-' + P[e] + ')/' + P[e] + '*100≈' + pbK(inc, 2), '%'],
         'Округляем до целых: ≈ ' + pbRd(inc) + ' %. (Делить на реальную стоимость ' + R[e] + ' — частая ошибка: тогда получится уменьшение от реальной к плановой, другое число.)'] },
-      { q: L('Calculer le coût réel moyen de ces six éditions, en k€. Arrondir au dixième si nécessaire.', 'Вычисли среднюю реальную стоимость этих шести фестивалей в k€. Если нужно, округли до десятых.'), ans: meanAns, sol: [
+      { q: L('Calculer le coût réel moyen de ces six éditions, en k€. Arrondir au dixième si nécessaire.', 'Вычисли среднюю реальную стоимость этих шести фестивалей в k€. Если нужно, округли до десятых.'), ans: meanAns,
+        redac: ['Somme des six coûts réels : $' + R.join(' + ') + ' = ' + R.reduce((s, v) => s + v, 0) + '$ (en k€).',
+          'On divise par le nombre d\'éditions : $$' + pbDf(R.reduce((s, v) => s + v, 0), 6) + (meanEx ? '=' + pbT(mean) : '\\approx ' + texNum(pbK(mean, 1))) + '$$.',
+          'Le coût réel moyen est ' + (meanEx ? 'de ' : 'd\'environ ') + meanT + ' k€.'], sol: [
         'Среднее («moyenne») — сумма всех значений, делённая на их количество.',
         ['', '(' + R.join('+') + ')/6=' + (R.reduce((s, v) => s + v, 0)) + '/6' + (meanEx ? '=' + fx(mean) : '≈' + pbK(mean, 2))],
         meanEx ? 'Средняя реальная стоимость — ' + nf(mean) + ' k€.' : 'Округляем до десятых: ≈ ' + pbS(mean, 1) + ' k€.'] },
@@ -1029,7 +1106,11 @@ pbProb({ id: 'p2.festival', ch: 'st', lvl: 2, pts: 4,
         sol: ['Проверяем прямо по данным: больше ' + meanT + ' k€ стоили ' + R.filter(v => v > mean).join(', ') + ' — это ' + above + ' из 6, а не половина.',
           'Причина — один очень дорогой фестиваль (' + bigY + ', ' + Math.max(...R) + ' k€): он «тянет» среднее вверх, и большинство значений оказываются ниже среднего.',
           'Половину ряда отделяет медиана («médiane»): здесь (' + sorted[2] + ' + ' + sorted[3] + ') ÷ 2 = ' + nf(med) + ' k€. Среднее и медиана совпадают только в особых случаях. Плановая стоимость к вопросу не относится.'] },
-      { q: L('Le coût prévisionnel moyen des sept éditions de ' + years[0] + ' à ' + yNew + ' est de ' + nf(mNew) + ' k€. Quel est le coût prévisionnel de l\'édition ' + yNew + ' ?', 'Средняя плановая стоимость семи фестивалей с ' + years[0] + ' по ' + yNew + ' год — ' + nf(mNew) + ' k€. Какова плановая стоимость фестиваля ' + yNew + ' года?'), ans: N(xNew, { unit: 'k€' }), sol: [
+      { q: L('Le coût prévisionnel moyen des sept éditions de ' + years[0] + ' à ' + yNew + ' est de ' + nf(mNew) + ' k€. Quel est le coût prévisionnel de l\'édition ' + yNew + ' ?', 'Средняя плановая стоимость семи фестивалей с ' + years[0] + ' по ' + yNew + ' год — ' + nf(mNew) + ' k€. Какова плановая стоимость фестиваля ' + yNew + ' года?'), ans: N(xNew, { unit: 'k€' }),
+        redac: ['Somme des sept coûts prévisionnels : $7*' + mNew + ' = ' + (7 * mNew) + '$ (en k€).',
+          'Somme des six coûts prévisionnels connus : $' + P.join(' + ') + ' = ' + sumP + '$ (en k€).',
+          '$' + (7 * mNew) + ' - ' + sumP + ' = ' + xNew + '$',
+          'Le coût prévisionnel de l\'édition ' + yNew + ' est de ' + xNew + ' k€.'], sol: [
         'Если среднее семи значений равно ' + nf(mNew) + ', то их сумма равна 7 × ' + nf(mNew) + ' — так определяется среднее.',
         ['', '7*' + mNew + '=' + (7 * mNew)],
         ['Сумма шести известных плановых стоимостей:', P.join('+') + '=' + sumP],
@@ -1064,33 +1145,53 @@ pbProb({ id: 'p2.agrandissement', ch: 'gm', lvl: 2, pts: 5,
       'На рисунке (масштаб не соблюдён): точки S, M и A лежат на одной прямой; точки H, M и T лежат на одной прямой; углы ' + pbAng('MHS') + ' и ' + pbAng('MTA') + ' прямые; MH = ' + nf(MH) + ' см; MS = ' + nf(MS) + ' см и MT = ' + nf(MT) + ' см.');
     const kT = nf(k), k2T = nf(k2), opt = (fr, ru) => L(fr, ru);
     return { ctx, fig: pbAgrFig(d), qs: [
-      { q: L('Calculer la longueur HS.', 'Вычисли длину HS.'), ans: pbNE(HS, 'cm'), sol: [
+      { q: L('Calculer la longueur HS.', 'Вычисли длину HS.'), ans: pbNE(HS, 'cm'),
+        redac: ['Le triangle MHS est rectangle en H. D\'après le théorème de Pythagore : $MS^2 = MH^2 + HS^2$.',
+          '$HS^2 = MS^2 - MH^2 = ' + fx(MS) + '^2 - ' + fx(MH) + '^2$',
+          '$HS^2 = ' + fx(MS * MS) + ' - ' + fx(MH * MH) + ' = ' + fx(HS * HS) + '$',
+          '$HS = √' + fx(HS * HS) + ' = ' + fx(HS) + '$',
+          'La longueur HS est de ' + nf(HS) + ' cm.'], sol: [
         'Треугольник MHS прямоугольный с прямым углом H, гипотенуза — [MS]. По теореме Пифагора («théorème de Pythagore») MS² = MH² + HS².',
         ['', 'HS^2=' + MS + '^2-' + MH + '^2=' + fx(MS * MS) + '-' + fx(MH * MH) + '=' + fx(HS * HS)],
         ['', 'HS=√' + fx(HS * HS) + '=' + HS, 'см']] },
-      { q: L('Calculer la longueur AT.', 'Вычисли длину AT.'), ans: pbNE(AT, 'cm'), sol: [
+      { q: L('Calculer la longueur AT.', 'Вычисли длину AT.'), ans: pbNE(AT, 'cm'),
+        redac: ['Les droites (HS) et (AT) sont toutes les deux perpendiculaires à la droite (HT), donc elles sont parallèles.',
+          'Les droites (HT) et (SA) sont sécantes en M. D\'après le théorème de Thalès : $$' + pbDf('MT', 'MH') + '=' + pbDf('MA', 'MS') + '=' + pbDf('AT', 'HS') + '$$',
+          'soit $$' + pbDf(pbT(MT), pbT(MH)) + '=' + pbDf('AT', pbT(HS)) + '$$.',
+          'Donc $$AT=' + pbDf(pbT(HS) + '\\times ' + pbT(MT), pbT(MH)) + '=' + pbT(AT) + '$$, soit ' + nf(AT) + ' cm.'], sol: [
         'Прямые (HS) и (TA) обе перпендикулярны прямой (HT), значит, они параллельны.',
         'Точки S, M, A и H, M, T лежат на двух прямых, пересекающихся в M, и (HS) ∥ (AT) — это «бабочка» теоремы Фалеса («théorème de Thalès»):',
         ['', 'MT/MH=MA/MS=AT/HS'],
         ['', 'AT=' + HS + '*' + MT + '/' + MH + '=' + fx(AT), 'см']] },
-      { q: L('Calculer la mesure de l\'angle ' + pbAng('HMS') + '. Arrondir au degré.', 'Вычисли угол ' + pbAng('HMS') + '. Округли до градуса.'), ans: pbNR(ang, 0, '°'), sol: [
+      { q: L('Calculer la mesure de l\'angle ' + pbAng('HMS') + '. Arrondir au degré.', 'Вычисли угол ' + pbAng('HMS') + '. Округли до градуса.'), ans: pbNR(ang, 0, '°'),
+        redac: ['Dans le triangle MHS rectangle en H : $$\\cos\\widehat{HMS}=' + pbDf('MH', 'MS') + '=' + pbDf(pbT(MH), pbT(MS)) + '$$.',
+          'Avec la calculatrice : $$\\widehat{HMS}=\\arccos\\left(' + pbDf(pbT(MH), pbT(MS)) + '\\right)\\approx ' + pbRd(ang) + '^{\\circ}$$.',
+          'L\'angle ' + pbAng('HMS') + ' mesure environ ' + pbRd(ang) + '°.'], sol: [
         'В прямоугольном треугольнике MHS для угла M известны прилежащий катет MH и гипотенуза MS — это косинус.',
         { t: '', tex: '\\cos\\widehat{HMS}=\\dfrac{MH}{MS}=\\dfrac{' + texNum(MH) + '}{' + texNum(MS) + '}' },
         'arccos(' + nf(MH) + ' ÷ ' + nf(MS) + ') ≈ ' + pbS(ang, 2) + '°, то есть ≈ ' + pbRd(ang) + '°.'] },
       { q: L('Quelle transformation permet d\'obtenir le triangle MAT à partir du triangle MHS ?', 'Какое преобразование переводит треугольник MHS в треугольник MAT?'),
         ans: MQ(r, [L('L\'homothétie de centre M et de rapport ' + nf(-k), 'Гомотетия с центром M и коэффициентом ' + nf(-k)), L('L\'homothétie de centre M et de rapport ' + kT, 'Гомотетия с центром M и коэффициентом ' + kT),
-          L('La symétrie centrale de centre M', 'Центральная симметрия с центром M'), L('Une translation', 'Параллельный перенос')], 0), sol: [
+          L('La symétrie centrale de centre M', 'Центральная симметрия с центром M'), L('Une translation', 'Параллельный перенос')], 0),
+        redac: ['Le triangle MAT est un agrandissement du triangle MHS, et les points H et T sont de part et d\'autre du point M : c\'est une homothétie de centre M et de rapport négatif.',
+          '$$' + pbDf('MT', 'MH') + '=' + pbDf(pbT(MT), pbT(MH)) + '=' + pbT(k) + '$$',
+          'C\'est l\'homothétie de centre M et de rapport ' + nf(-k) + '.'], sol: [
         'Треугольник MAT больше треугольника MHS в MT / MH = ' + nf(MT) + ' / ' + nf(MH) + ' = ' + kT + ' раза, а симметрия и перенос размеров не меняют. Значит, это гомотетия с центром M.',
         'H и его образ T лежат по разные стороны от центра M, поэтому коэффициент отрицательный: ' + nf(-k) + '.'] },
-      { q: L('MT est ' + kT + ' fois plus grande que MH. Un élève affirme : « L\'aire du triangle MAT est ' + kT + ' fois plus grande que l\'aire du triangle MHS. » Choisir la réponse correctement justifiée.', 'MT в ' + kT + ' раза больше MH. Ученик утверждает: «Площадь треугольника MAT в ' + kT + ' раза больше площади треугольника MHS». Выбери ответ с верным обоснованием.'), red: true,
+      { q: L('La longueur MT est ' + kT + ' fois plus grande que la longueur MH. Un élève affirme : « L\'aire du triangle MAT est ' + kT + ' fois plus grande que l\'aire du triangle MHS. » Choisir la réponse correctement justifiée.', 'MT в ' + kT + ' раза больше MH. Ученик утверждает: «Площадь треугольника MAT в ' + kT + ' раза больше площади треугольника MHS». Выбери ответ с верным обоснованием.'), red: true,
         ans: MQ(r, [opt('Faux : dans un agrandissement de rapport ' + kT + ', les longueurs sont multipliées par ' + kT + ' et les aires par $' + fx(k) + '^2 = ' + fx(k2) + '$.', 'Неверно: при увеличении с коэффициентом ' + kT + ' длины умножаются на ' + kT + ', а площади — на $' + fx(k) + '^2 = ' + fx(k2) + '$.'),
           opt('Vrai : toutes les longueurs sont multipliées par ' + kT + ', donc l\'aire aussi.', 'Верно: все длины умножаются на ' + kT + ', значит, и площадь тоже.'),
           opt('Faux : un triangle a deux dimensions, donc l\'aire est multipliée par $2*' + fx(k) + ' = ' + fx(2 * k) + '$.', 'Неверно: у треугольника два измерения, значит, площадь умножается на $2*' + fx(k) + ' = ' + fx(2 * k) + '$.'),
           opt('Faux : l\'aire est multipliée par $' + fx(k) + '^3 = ' + fx(pbRd(k * k * k, 3)) + '$.', 'Неверно: площадь умножается на $' + fx(k) + '^3 = ' + fx(pbRd(k * k * k, 3)) + '$.')], 0),
         sol: ['Площадь треугольника — основание × высота ÷ 2. При увеличении и основание, и высота умножаются на ' + kT + ', поэтому площадь умножается на ' + kT + ' × ' + kT + ' = ' + k2T + '.',
           'Проверка числами: площадь MHS = ' + nf(MH) + ' × ' + nf(HS) + ' ÷ 2 = ' + nf(A1) + ' см², площадь MAT = ' + nf(MT) + ' × ' + nf(AT) + ' ÷ 2 = ' + nf(pbRd(A2, 4)) + ' см² — это в ' + k2T + ' раза больше, а не в ' + kT + '.',
-          'Умножать на 2k — путать «квадрат» с «удвоением»; k³ — это множитель для объёмов, а не для площадей.'] },
-      { q: L('Calculer l\'aire du triangle MAT.', 'Вычисли площадь треугольника MAT.'), ans: pbNE(pbRd(A2, 4), 'cm²'), sol: [
+          'Умножать на 2k — путать «квадрат» с «удвоением»; k³ — это множитель для объёмов, а не для площадей.'],
+        redac: ['L\'affirmation est fausse.',
+          'Dans un agrandissement de rapport k, les longueurs sont multipliées par k et les aires sont multipliées par $k^2$.',
+          'Ici, le rapport est ' + kT + ' : l\'aire du triangle MAT est $' + fx(k) + '^2 = ' + fx(k2) + '$ fois plus grande que l\'aire du triangle MHS.'] },
+      { q: L('Calculer l\'aire du triangle MAT.', 'Вычисли площадь треугольника MAT.'), ans: pbNE(pbRd(A2, 4), 'cm²'),
+        redac: ['Le triangle MAT est rectangle en T, donc son aire est $$' + pbDf('MT\\times AT', 2) + '=' + pbDf(pbT(MT) + '\\times ' + pbT(AT), 2) + '=' + pbT(pbRd(A2, 4)) + '$$.',
+          'L\'aire du triangle MAT est de ' + nf(pbRd(A2, 4)) + ' cm².'], sol: [
         ['Площадь прямоугольного треугольника MHS — половина произведения катетов:', MH + '*' + HS + '/2=' + fx(A1), 'см²'],
         ['Площадь MAT больше в k² раз:', fx(A1) + '*' + fx(k) + '^2=' + fx(pbRd(A2, 4)), 'см²'],
         ['Или напрямую по катетам MT и AT:', MT + '*' + fx(AT) + '/2=' + fx(pbRd(A2, 4)), 'см²']] }] };

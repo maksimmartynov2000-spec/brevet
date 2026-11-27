@@ -160,7 +160,7 @@ const go = h => { if (location.hash === h) route(); else location.hash = h; };
 function route() {
   closeSheet(); stopTimer(); swStop(); closeWord();
   const h = location.hash || '#/';
-  if (!DB && !/^#\/(login|install)/.test(h)) return viewLogin();
+  if (!DB && !/^#\/(login|install|eleves)/.test(h)) return viewLogin();
   for (const [re, fn] of ROUTES) { const m = re.exec(h); if (m) return fn(m); }
   return go('#/');
 }

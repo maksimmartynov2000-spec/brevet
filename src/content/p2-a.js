@@ -36,6 +36,9 @@ const paHM = mn => { const h = Math.floor(mn / 60), m = mn % 60; return { fr: (h
 const paEqs = s => String(s).split(';').map(e => '$' + e + '$').join(' ; ');
 /* a prime factorisation written out: '$140=2*70$ ; $70=2*35$ ; $35=5*7$, donc $140=2^2*5*7$.' */
 function paDecFr(n) { const ch = paChain(n), d = n + '=' + paDec(n); return ch === d ? '$' + d + '$.' : paEqs(ch) + ', donc $' + d + '$.'; }
+/* an intermediate result written before it is rounded to the unit: '≈212.9', '=254.5' — with as many decimals as needed
+   for the written value to round to the same whole number (175.4545 is written 175.45, not 175.5) */
+function paMid(v) { let k = 1; while (k < 4 && !paExact(v, k) && paR(+paK(v, k), 0) !== paR(v, 0)) k++; return paEq(v, k) + paKz(v, k); }
 /* a number with a regular French noun: paS(1, 'aubergine') → '1 aubergine', paS(3, 'aubergine') → '3 aubergines' */
 const paS = (n, w) => n + ' ' + w + (n > 1 ? 's' : '');
 
@@ -45,6 +48,9 @@ const PA_TYU = new RegExp('(\\d) (?=(?:' + PA_UNITS + ')(?![A-Za-zÀ-ÿА-Яа-�
 function paTy(s) {
   return String(s).split(/(\$\$[^$]*\$\$|\$[^$]*\$)/).map((p, i) => i % 2 ? p : p.replace(/ ([?!:;])/g, ' $1').replace(PA_TYU, '$1 ').replace(/(\d) (?=\d{3}(?!\d))/g, '$1 ')).join('');
 }
+/* in a write-up (redac) a short formula is never cut at the end of a line: «39 = 3 × 13» stays whole and the line breaks between
+   formulas. The formula is turned into TeX inside a group {…}, where KaTeX does not break; a fraction is one piece already. */
+const paNb = s => String(s).replace(/\$\$[^$]*\$\$|\$([^$]*)\$/g, (m, f) => (f == null || f.length > 18 || f.includes('/') ? m : '$${' + mi(f, true) + '}$$'));
 const paTyT = o => (o && typeof o === 'object' && 'fr' in o ? { fr: paTy(o.fr), ru: paTy(o.ru) } : typeof o === 'string' ? paTy(o) : o);
 function paTyA(a) { if (!a) return a; if (a.k === 'mcq') a.opts = a.opts.map(paTyT); if (a.k === 'order') a.items = a.items.map(paTyT); if (a.k === 'multi') a.parts.forEach(p => { if (p.lab) p.lab = paTyT(p.lab); paTyA(p.spec); }); return a; }
 function paTyS(s) { if (typeof s === 'string') return paTy(s); if (Array.isArray(s)) return [paTy(s[0] || '')].concat(s.slice(1)); return s; }
@@ -52,7 +58,7 @@ const paTbl = (rows, cls) => tbl(rows.map(r => r.map(c => paTy(c))), cls);
 /* probleme() with the typography applied to every text the generator returns */
 function paProb(def) {
   const g = def.gen;
-  def.gen = function (r) { const p = g.call(this, r); if (p.ctx) p.ctx = paTyT(p.ctx); p.qs.forEach(q => { q.q = paTyT(q.q); paTyA(q.ans); q.sol = (q.sol || []).map(paTyS); if (q.redac) q.redac = [].concat(q.redac).map(paTy); }); return p; };
+  def.gen = function (r) { const p = g.call(this, r); if (p.ctx) p.ctx = paTyT(p.ctx); p.qs.forEach(q => { q.q = paTyT(q.q); paTyA(q.ans); q.sol = (q.sol || []).map(paTyS); if (q.redac) q.redac = [].concat(q.redac).map(l => paNb(paTy(l))); }); return p; };
   return probleme(def);
 }
 
@@ -163,7 +169,7 @@ paProb({ id: 'p2.sachets', ch: 'nc', lvl: 2, pts: 4,
     let g, a, b, A, B;
     do { g = r.pick([12, 14, 18, 20, 21, 24, 28, 30, 36]); a = r.ri(2, 9); b = r.ri(2, 9); A = g * a; B = g * b; }
     while (a === b || gcd(a, b) !== 1 || Math.min(A, B) < 60 || Math.max(A, B) > 400);
-    const yesK = factorsOf(g).filter(d => d > 2 && d < g), noK = factorsOf(A).filter(d => d >= 4 && d <= 60 && B % d);
+    const yesK = factorsOf(g).filter(d => d > 2 && d < g), noK = factorsOf(A).filter(d => d >= 4 && d <= 60 && d < A && B % d);   /* d < A: «un sachet par bonbon» is not a question */
     const yes = !noK.length || r() < 0.45, k = r.pick(yes ? yesK : noK), q = Math.floor(B / k), rest = B % k;
     const nS = n => n + ' ' + paPl(n, ['пакетик', 'пакетика', 'пакетиков']);
     const com = paPf([A, B]);
@@ -298,8 +304,10 @@ paProb({ id: 'p2.ia-energie', ch: 'nc', lvl: 2, pts: 4,
   ru: 'Электричество для искусственного интеллекта', fr: 'L\'électricité de l\'intelligence artificielle',
   src: 'Amérique du Nord 2026 · exercice 3',
   gen(r) {
-    const X = r.pick([64000, 72000, 82000, 90000, 96000]), Y = r.pick([160000, 200000, 250000]), NFc = r.pick([6900, 7000, 7100, 7200]);
-    const ia = X * 1e9, co = Y * 1e3, nC = Math.round(X * 1e6 / Y), yrs = nC / NFc, yr = Math.round(yrs);
+    let X, Y, NFc, nC, yrs;
+    do { X = r.pick([64000, 72000, 82000, 90000, 96000]); Y = r.pick([160000, 200000, 250000]); NFc = r.pick([6900, 7000, 7100, 7200]); nC = Math.round(X * 1e6 / Y); yrs = nC / NFc; }
+    while (Math.abs(yrs - Math.floor(yrs) - 0.5) < 0.05);   /* never «62,5 ans» to round to the unit */
+    const ia = X * 1e9, co = Y * 1e3, yr = Math.round(yrs);
     const sa = stdParts(ia), sc = stdParts(co), sx = stdParts(X), sy = stdParts(Y);
     const ctx = L('Une entreprise développe une intelligence artificielle (IA) qui consomme beaucoup d\'électricité. L\'énergie consommée s\'exprime en wattheures (Wh). On estime que la consommation annuelle de cette IA est de ' + nf(X) + ' gigawattheures (GWh). En comparaison, un collège consomme en moyenne ' + nf(Y) + ' kilowattheures (kWh) par an. Rappels : 1 kWh = $10^3$ Wh ; 1 GWh = $10^9$ Wh.',
       'Компания разрабатывает искусственный интеллект (ИИ), который потребляет много электричества. Энергию измеряют в ватт-часах (Вт·ч). По оценкам, этот ИИ потребляет за год ' + nf(X) + ' гигаватт-часов (ГВт·ч). Для сравнения: один коллеж потребляет в среднем ' + nf(Y) + ' киловатт-часов (кВт·ч) в год. Напоминание: 1 кВт·ч = $10^3$ Вт·ч; 1 ГВт·ч = $10^9$ Вт·ч.');
@@ -344,7 +352,7 @@ paProb({ id: 'p2.ia-energie', ch: 'nc', lvl: 2, pts: 4,
           ['', nC + '÷' + NFc + (paExact(yrs, 2) ? '=' + fx(yrs) : '≈' + paK(yrs, 2))],
           (Number.isInteger(yrs) ? 'Получается ровно ' : 'Округляем до целых: примерно ') + yr + ' ' + paPl(yr, ['год', 'года', 'лет']) + '.'],
         redac: ['Avec la consommation annuelle de l\'IA, on peut alimenter ' + nf(nC) + ' collèges pendant un an (question précédente).',
-          'Pour ' + NFc + ' collèges : $' + nC + '÷' + NFc + (paExact(yrs, 0) ? '=' + yr : '≈' + paK(yrs, 1)) + '$.',
+          'Pour ' + NFc + ' collèges : $' + nC + '÷' + NFc + paMid(yrs) + '$.',
           'On pourrait alimenter tous les collèges français pendant ' + (paExact(yrs, 0) ? '' : 'environ ') + yr + ' ans.'] }] };
   } });
 
@@ -762,9 +770,13 @@ paProb({ id: 'p2.tarifs-bateau', ch: 'fn', lvl: 2, pts: 4,
           'Tarif P : après le ' + PA_ORD[k][0] + ' voyage, le prix n\'augmente plus et la courbe devient horizontale : c\'est ' + nameOf('P') + '.'] },
       { q: L('À partir de quel nombre de voyages dans l\'année le tarif P devient-il plus avantageux que les deux autres ?', 'Начиная с какого числа поездок за год тариф P становится выгоднее двух других?'), ans: N(xP), sol: [
           'После ' + k + '-й поездки тариф P стоит всегда ' + pP + ' × ' + k + ' = ' + Pm + ' € — на графике это горизонтальный участок ' + nameOf('P') + '. Он должен оказаться ниже обеих других линий.',
-          ['Тариф M дороже, когда $' + pM + 'x>' + Pm + '$:', 'x>' + Pm + '÷' + pM + (Pm % pM ? '≈' + paK(Pm / pM, 1) : '=' + (Pm / pM))],
-          ['Тариф N дороже, когда $' + gx + '>' + Pm + '$:', 'x>' + (Pm - cN) + '÷' + pN + ((Pm - cN) % pN ? '≈' + paK((Pm - cN) / pN, 1) : '=' + ((Pm - cN) / pN))],
-          'Наименьшее целое число поездок, при котором выполняются оба условия, — ' + xP + '. Начиная с ' + xP + '-й поездки тариф P самый выгодный' + (xP === xN && (Pm - cN) % pN === 0 ? ' (при ' + (xP - 1) + ' поездках P и N стоят одинаково — «выгоднее» ещё нет)' : xP === xM && Pm % pM === 0 ? ' (при ' + (xP - 1) + ' поездках P и M стоят одинаково — «выгоднее» ещё нет)' : '') + '.'] }] };
+          ['Тариф M дороже, когда $' + pM + 'x>' + Pm + '$:', 'x>' + Pm + '÷' + pM + paEq(Pm / pM, 1) + paKz(Pm / pM, 1)],
+          ['Тариф N дороже, когда $' + gx + '>' + Pm + '$:', 'x>' + (Pm - cN) + '÷' + pN + paEq((Pm - cN) / pN, 1) + paKz((Pm - cN) / pN, 1)],
+          'Наименьшее целое число поездок, при котором выполняются оба условия, — ' + xP + '. Начиная с ' + xP + '-й поездки тариф P самый выгодный' + (xP === xN && (Pm - cN) % pN === 0 ? ' (при ' + (xP - 1) + ' поездках P и N стоят одинаково — «выгоднее» ещё нет)' : xP === xM && Pm % pM === 0 ? ' (при ' + (xP - 1) + ' поездках P и M стоят одинаково — «выгоднее» ещё нет)' : '') + '.'],
+        redac: ['Graphiquement, la courbe ' + nameOf('P') + ' (tarif P) passe en dessous des deux autres à partir de ' + xP + ' voyages.',
+          'Vérification pour ' + (xP - 1) + ' voyages : le tarif M coûte ' + eur(pM * (xP - 1)) + ', le tarif N ' + eur(cN + pN * (xP - 1)) + ' et le tarif P ' + eur(Pm) + '.',
+          'Pour ' + xP + ' voyages : le tarif M coûte ' + eur(pM * xP) + ', le tarif N ' + eur(cN + pN * xP) + ' et le tarif P ' + eur(Pm) + '.',
+          'Le tarif P devient plus avantageux que les deux autres à partir de ' + xP + ' voyages dans l\'année.'] }] };
   } });
 
 /* ---------- p2.filtration : programme → fonction affine, proportionnalité, équation, coût de l'électricité ---------- */
@@ -772,7 +784,7 @@ paProb({ id: 'p2.filtration', ch: 'fn', lvl: 2, pts: 5,
   ru: 'Фильтр для бассейна', fr: 'La filtration d\'une piscine',
   src: 'Métropole septembre 2025 · exercice 4',
   gen(r) {
-    const nm = r.pick(PRENOMS_M), a = r.pick([2, 4, 6]), kf = r.pick([0.5, 0.5, 0.4]), T0 = r.pick([22, 24, 26, 28]), x1 = r.pick([10, 12, 14, 16, 18]), xs = r.pick([28, 30, 32]);
+    const nm = r.pick(PRENOMS_M), a = r.pick([2, 4, 6]), kf = r.pick([0.5, 0.5, 0.4]), T0 = r.pick([22, 24, 26, 28]), x1 = r.pick([10, 12, 14, 16, 18]), xs = r.pick([28, 30, 32].filter(v => v !== T0));   /* not the temperature of question 1: its answer would give this one away */
     const t0 = kf * (T0 + a), b0 = kf * a, y1 = kf * (xs + a), fxs = fx(kf) + 'x+' + fx(b0);
     const PER = r.pick([['du 1er juillet au 31 août inclus', 'с 1 июля по 31 августа включительно', 62], ['du 1er juin au 31 août inclus', 'с 1 июня по 31 августа включительно', 92], ['du 15 juin au 15 septembre inclus', 'с 15 июня по 15 сентября включительно', 93]]);
     const H = r.pick([12, 14, 15, 16]), Pw = r.pick([0.6, 0.75, 0.8, 1.1]), pr = r.pick([0.2, 0.21, 0.23, 0.25]);
@@ -782,32 +794,48 @@ paProb({ id: 'p2.filtration', ch: 'fn', lvl: 2, pts: 5,
       'У ' + nm + ' есть бассейн. Летом, чтобы вода оставалась чистой, насос-фильтр должен работать каждый день. Рекомендуемое время фильтрации (в часах) считают по температуре воды (в °C): взять температуру воды, прибавить ' + a + ', умножить результат на ' + nf(kf) + '.');
     return { ctx, fig, qs: [
       { q: L('Calculer le temps de filtration pour une eau à ' + T0 + ' °C.', 'Найди время фильтрации для воды температурой ' + T0 + ' °C.'), ans: N(fx(t0), { unit: 'h' }), sol: [
-          ['Следуем методу по шагам:', T0 + '+' + a + '=' + (T0 + a) + ';' + (T0 + a) + '*' + fx(kf) + '=' + fx(t0), 'ч']] },
+          ['Следуем методу по шагам:', T0 + '+' + a + '=' + (T0 + a) + ';' + (T0 + a) + '*' + fx(kf) + '=' + fx(t0), 'ч']],
+        redac: [paEqs(T0 + '+' + a + '=' + (T0 + a) + ';' + (T0 + a) + '*' + fx(kf) + '=' + fx(t0)) + '.',
+          'Pour une eau à ' + T0 + ' °C, le temps de filtration est de ' + nf(t0) + ' h.'] },
       { q: L('On note $x$ la température de l\'eau, en °C, et $f(x)$ le temps de filtration, en heures. Exprimer $f(x)$ en fonction de $x$, sous forme développée et réduite.', 'Обозначим температуру воды $x$ (в °C), а время фильтрации $f(x)$ (в часах). Запиши $f(x)$ через $x$ в раскрытом и упрощённом виде.'),
         ans: XP(fxs, { forms: ['expanded'] }), sol: [
           ['Шаги метода с буквой $x$: прибавить ' + a + ' и умножить весь результат на ' + nf(kf) + ':', 'f(x)=' + fx(kf) + '(x+' + a + ')'],
-          ['Раскрываем скобки:', 'f(x)=' + fx(kf) + '*x+' + fx(kf) + '*' + a + '=' + fxs]] },
+          ['Раскрываем скобки:', 'f(x)=' + fx(kf) + '*x+' + fx(kf) + '*' + a + '=' + fxs]],
+        redac: ['On ajoute ' + a + ' à $x$ : $x+' + a + '$ ; on multiplie le résultat par ' + nf(kf) + ' : $' + fx(kf) + '(x+' + a + ')$.',
+          'Donc $f(x)=' + fx(kf) + '(x+' + a + ')$, soit $f(x)=' + fx(kf) + '*x+' + fx(kf) + '*' + a + '=' + fxs + '$.'] },
       { q: L('Le temps de filtration est-il proportionnel à la température de l\'eau ? Choisir la réponse correctement justifiée.', 'Пропорционально ли время фильтрации температуре воды? Выбери ответ с верным обоснованием.'), red: true,
         ans: MQ(r, [
-          L('Non : $f$ est une fonction affine qui n\'est pas linéaire ; par exemple $f(0)=' + fx(b0) + '$, alors qu\'une situation de proportionnalité donnerait 0.', 'Нет: $f$ — аффинная, но не линейная функция; например, $f(0)=' + fx(b0) + '$, а при пропорциональности было бы 0.'),
+          L('Non : $f$ est une fonction affine qui n\'est pas linéaire ; par exemple $f(0)=' + fx(b0) + '$, alors qu\'une situation de proportionnalité donnerait 0.', 'Нет: $f$ — «fonction affine», но не «fonction linéaire» (не прямая пропорциональность); например, $f(0)=' + fx(b0) + '$, а при пропорциональности было бы 0.'),
           L('Oui, car la représentation graphique de $f$ est une droite.', 'Да, потому что график $f$ — прямая.'),
           L('Oui, car plus l\'eau est chaude, plus le temps de filtration est long.', 'Да, потому что чем теплее вода, тем дольше фильтрация.'),
           L('Non, car le coefficient ' + nf(kf) + ' est plus petit que 1.', 'Нет, потому что коэффициент ' + nf(kf) + ' меньше 1.')], 0), sol: [
-          'Пропорциональность — это $f(x)=ax$: график — прямая через начало координат, и при $x=0$ получается 0.',
-          'Здесь $f(x)=' + fxs + '$ — есть слагаемое ' + nf(b0) + ', поэтому $f(0)=' + fx(b0) + '≠0$: пропорциональности нет. Другая проверка: удвоим температуру — время не удвоится.',
-          'График — прямая, но не через начало координат, поэтому «прямая» ещё не значит «пропорциональность». «Обе величины растут вместе» — тоже не признак пропорциональности. А величина коэффициента здесь ни при чём.'] },
+          'Пропорциональность — это $f(x)=ax$ (по-французски «fonction linéaire»): график — прямая через начало координат, и при $x=0$ получается 0.',
+          'Здесь $f(x)=' + fxs + '$ — есть слагаемое ' + nf(b0) + ', поэтому $f(0)=' + fx(b0) + '≠0$: пропорциональности нет. Такая функция по-французски — «fonction affine», но не «linéaire» (осторожно: по-русски «линейной» называют и её). Другая проверка: удвоим температуру — время не удвоится.',
+          'График — прямая, но не через начало координат, поэтому «прямая» ещё не значит «пропорциональность». «Обе величины растут вместе» — тоже не признак пропорциональности. А величина коэффициента здесь ни при чём.'],
+        redac: ['Une situation de proportionnalité est représentée par une fonction linéaire.',
+          'Or $f(x)=' + fxs + '$ : $f$ est une fonction affine qui n\'est pas linéaire, car $f(0)=' + fx(b0) + '$ et non 0.',
+          'Le temps de filtration n\'est donc pas proportionnel à la température de l\'eau.'] },
       { q: L('Calculer l\'image de ' + x1 + ' par la fonction $f$.', 'Вычисли образ числа ' + x1 + ' при функции $f$.'), ans: N(fx(kf * x1 + b0)), sol: [
           ['Подставляем ' + x1 + ' вместо $x$:', 'f(' + x1 + ')=' + fx(kf) + '*' + x1 + '+' + fx(b0) + '=' + fx(kf * x1 + b0)],
-          'По смыслу: при воде ' + x1 + ' °C фильтр должен работать ' + nf(kf * x1 + b0) + ' ч в сутки.'] },
-      { q: L('Résoudre l\'équation $f(x)=' + fx(y1) + '$. Que représente la solution ?', 'Реши уравнение $f(x)=' + fx(y1) + '$. Что означает решение?'), ans: N(xs, { unit: '°C' }), sol: [
+          'По смыслу: при воде ' + x1 + ' °C фильтр должен работать ' + nf(kf * x1 + b0) + ' ч в сутки.'],
+        redac: ['$f(' + x1 + ')=' + fx(kf) + '*' + x1 + '+' + fx(b0) + '=' + fx(kf * x1 + b0) + '$',
+          'L\'image de ' + x1 + ' par la fonction $f$ est ' + nf(kf * x1 + b0) + '.'] },
+      { q: L('Résoudre l\'équation $f(x)=' + fx(y1) + '$, puis interpréter la solution dans le contexte de l\'exercice.', 'Реши уравнение $f(x)=' + fx(y1) + '$ и объясни, что означает решение в этой задаче.'), ans: N(xs, { unit: '°C' }), sol: [
           ['', fxs + '=' + fx(y1) + ';' + fx(kf) + 'x=' + fx(y1 - b0) + ';x=' + fx(y1 - b0) + '÷' + fx(kf) + '=' + xs],
-          'Смысл: время фильтрации ' + nf(y1) + ' ч соответствует температуре воды ' + xs + ' °C.'] },
+          'Смысл: $x$ — температура воды, а $f(x)$ — время фильтрации. Значит, время фильтрации ' + nf(y1) + ' ч соответствует температуре воды ' + xs + ' °C.'],
+        redac: ['$' + fxs + '=' + fx(y1) + '$',
+          '$' + fx(kf) + 'x=' + fx(y1 - b0) + '$, donc $x=' + fx(y1 - b0) + '÷' + fx(kf) + '=' + xs + '$.',
+          'La solution est ' + xs + ' : le temps de filtration est de ' + nf(y1) + ' h lorsque la température de l\'eau est de ' + xs + ' °C.'] },
       { q: L(nm + ' décide de filtrer sa piscine ' + H + ' h par jour, tous les jours ' + PER[0] + '. La pompe a une puissance de ' + nf(Pw) + ' kW et le prix d\'un kWh est de ' + eur(pr) + '. La consommation de la pompe (en kWh) est égale à : puissance (en kW) × nombre d\'heures d\'utilisation par jour × nombre de jours. Calculer la dépense liée à la filtration sur cette période.' + cn.fr,
           nm + ' решил включать фильтр на ' + H + ' ч в день каждый день ' + PER[1] + '. Мощность насоса ' + nf(Pw) + ' кВт, 1 кВт·ч стоит ' + eur(pr) + '. Потребление насоса (в кВт·ч) = мощность (кВт) × число часов работы в день × число дней. Найди расходы на фильтрацию за этот период.' + cn.ru),
         ans: cn.ans, sol: [
           'Считаем дни: ' + (PER[2] === 62 ? 'июль — 31 день, август — 31 день: 62 дня.' : PER[2] === 92 ? 'июнь — 30 дней, июль и август — по 31: 92 дня.' : 'с 15 по 30 июня — 16 дней, июль и август — по 31, с 1 по 15 сентября — 15: 93 дня.'),
           ['Потребление:', fx(Pw) + '*' + H + '*' + PER[2] + '=' + fx(kwh), 'кВт·ч'],
-          ['Расходы: потребление × цена одного кВт·ч:', fx(kwh) + '*' + fx(pr) + cn.eq + (cn.eq === '=' ? fx(cost) : paK(cost, 2)), '€']] }] };
+          ['Расходы: потребление × цена одного кВт·ч:', fx(kwh) + '*' + fx(pr) + cn.eq + (cn.eq === '=' ? fx(cost) : paK(cost, 2)), '€']],
+        redac: ['Nombre de jours ' + PER[0] + ' : $' + (PER[2] === 62 ? '31+31' : PER[2] === 92 ? '30+31+31' : '16+31+31+15') + '=' + PER[2] + '$.',
+          'Consommation de la pompe : $' + fx(Pw) + '*' + H + '*' + PER[2] + '=' + fx(kwh) + '$ kWh.',
+          'Dépense : $' + fx(kwh) + '*' + fx(pr) + cn.eq + (cn.eq === '=' ? fx(cost) : paK(cost, 2)) + '$ €.',
+          'La dépense liée à la filtration sur cette période est ' + (cn.eq === '=' ? 'de ' : 'd\'environ ') + eur(paR(cost, 2)) + '.'] }] };
   } });
 
 /* ---------- p2.vidange : volume d'un cylindre, débit, fonction affine décroissante ---------- */
@@ -826,7 +854,7 @@ paProb({ id: 'p2.vidange', ch: 'fn', lvl: 2, pts: 4,
   gen(r) {
     let R, H, Q, V0, q, W;
     do { R = r.pick([3, 3.2, 3.5, 3.6, 3.8, 4]); H = r.pick([1.2, 1.4, 1.5]); Q = r.pick([12, 12.6, 13.2, 13.8, 14.1, 14.4, 15]); V0 = paR(Math.PI * R * R * H, 1); q = +(Q / 60).toFixed(4); W = r.pick([10, 15, 20, 25, 30]); }
-    while (V0 - 2 * Q < 5 || W > V0 - 8 || Math.round(V0 * 10) % 10 === 0);
+    while (V0 - 2 * Q < 5 || W > V0 - 8 || Math.round(V0 * 10) % 10 === 0 || paR(3.14 * R * R * H, 1) !== V0);   /* the last condition: the answer is the same with the π key and with 3,14 */
     const tW = (V0 - W) / q, tE = V0 / q, rW = paR(tW, 0), rE = paR(tE, 0), hE = paHM(rE);
     const vt = '$$V : t \\mapsto ' + texNum(fx(V0)) + '-' + texNum(fx(q)) + 't$$';   /* the French notation t ↦ … */
     const ctx = L('La piscine d\'un camping possède un bassin en forme de cylindre de rayon ' + nf(R) + ' m et de hauteur ' + nf(H) + ' m. En fin de saison, on vide ce bassin avec une pompe dont le débit est de ' + nf(Q) + ' m³ par heure. Rappel : volume d\'un cylindre = π × rayon² × hauteur.',
@@ -835,11 +863,16 @@ paProb({ id: 'p2.vidange', ch: 'fn', lvl: 2, pts: 4,
     return { ctx, fig, qs: [
       { q: L('Calculer le volume du bassin, en m³. Arrondir au dixième.', 'Вычисли объём бассейна в м³. Округли до десятых.'), ans: N(paK(V0, 1), { dp: 1, unit: 'm³' }), sol: [
           { t: 'Объём цилиндра = π × радиус² × высота (в м³):', tex: '\\pi\\times ' + texNum(fx(R)) + '^{2}\\times ' + texNum(fx(H)) + '\\approx ' + texNum(paK(V0, 1)) },
-          'Сначала возводим в квадрат только радиус, потом умножаем на π и на высоту.'] },
-      { q: L('Le bassin est plein et on met la pompe en route. Au bout de 2 heures, quel volume d\'eau reste-t-il à vider ? (Utiliser le volume arrondi.)', 'Бассейн полон, насос включили. Какой объём воды останется откачать через 2 часа? (Используй округлённый объём.)'),
+          'Сначала возводим в квадрат только радиус, потом умножаем на π и на высоту. На экзамене бери π клавишей калькулятора, а не 3,14: с 3,14 последняя цифра округлённого ответа иногда получается другой.'],
+        redac: ['$V=π*' + fx(R) + '^2*' + fx(H) + '≈' + paK(V0, 1) + '$',
+          'Le volume du bassin est d\'environ ' + nf(V0) + ' m³.'] },
+      { q: L('Le bassin est plein et on met la pompe en route. Au bout de 2 heures, quel volume d\'eau reste-t-il à vider ? On utilisera la valeur arrondie du volume du bassin.', 'Бассейн полон, насос включили. Какой объём воды останется откачать через 2 часа? Возьми округлённое значение объёма бассейна.'),
         ans: N(fx(V0 - 2 * Q), { unit: 'm³' }), sol: [
           ['За 2 часа насос откачивает:', '2*' + fx(Q) + '=' + fx(2 * Q), 'м³'],
-          ['Остаётся:', fx(V0) + '-' + fx(2 * Q) + '=' + fx(V0 - 2 * Q), 'м³']] },
+          ['Остаётся:', fx(V0) + '-' + fx(2 * Q) + '=' + fx(V0 - 2 * Q), 'м³']],
+        redac: ['En 2 heures, la pompe vide $2*' + fx(Q) + '=' + fx(2 * Q) + '$ m³.',
+          '$' + fx(V0) + '-' + fx(2 * Q) + '=' + fx(V0 - 2 * Q) + '$',
+          'Au bout de 2 heures, il reste ' + nf(V0 - 2 * Q) + ' m³ d\'eau à vider.'] },
       { q: L('On considère la fonction ' + vt + ', où $t$ est la durée de fonctionnement de la pompe, en minutes. Pourquoi $V(t)$ donne-t-il le volume d\'eau, en m³, qui reste à vider ? Choisir la bonne justification.', 'Рассмотрим функцию ' + vt + ', где $t$ — время работы насоса в минутах. Почему $V(t)$ — это объём воды (в м³), который осталось откачать? Выбери верное обоснование.'), red: true,
         ans: MQ(r, [
           L('Chaque minute, la pompe vide ' + nf(Q) + ' ÷ 60 = ' + nf(q) + ' m³ ; en $t$ minutes, elle vide $' + fx(q) + 't$ m³, qu\'on retire aux ' + nf(V0) + ' m³ du départ.', 'Каждую минуту насос откачивает ' + nf(Q) + ' ÷ 60 = ' + nf(q) + ' м³; за $t$ минут — $' + fx(q) + 't$ м³, их вычитаем из ' + nf(V0) + ' м³ в начале.'),
@@ -847,17 +880,26 @@ paProb({ id: 'p2.vidange', ch: 'fn', lvl: 2, pts: 4,
           L('Car le volume d\'eau diminue de ' + nf(q) + ' % chaque minute.', 'Потому что объём воды уменьшается на ' + nf(q) + ' % каждую минуту.'),
           L('Car le volume d\'eau qui reste est proportionnel à la durée $t$.', 'Потому что оставшийся объём пропорционален времени $t$.')], 0), sol: [
           'Расход ' + nf(Q) + ' м³ в час — это ' + nf(Q) + ' м³ за 60 минут, значит, за минуту ' + nf(Q) + ' ÷ 60 = ' + nf(q) + ' м³. За $t$ минут откачано ' + nf(q) + ' × t м³, и это вычитают из начального объёма.',
-          nf(q) + ' м³ — это за минуту, а не за час. Это не проценты: каждую минуту уходит один и тот же объём, а не одна и та же доля. И остаток не пропорционален времени: при $t=0$ он равен ' + nf(V0) + ', а не 0 (это аффинная убывающая функция).'] },
+          nf(q) + ' м³ — это за минуту, а не за час. Это не проценты: каждую минуту уходит один и тот же объём, а не одна и та же доля. И остаток не пропорционален времени: при $t=0$ он равен ' + nf(V0) + ', а не 0 (это убывающая функция вида $at+b$, по-французски «fonction affine»).'],
+        redac: ['La pompe vide ' + nf(Q) + ' m³ en 60 minutes, soit $' + fx(Q) + '÷60=' + fx(q) + '$ m³ par minute.',
+          'En $t$ minutes, elle vide donc $' + fx(q) + 't$ m³.',
+          'Le bassin contient ' + nf(V0) + ' m³ au départ : il reste $' + fx(V0) + '-' + fx(q) + 't$ m³ à vider, c\'est-à-dire $V(t)$.'] },
       { q: L('Calculer le temps nécessaire, en minutes, pour qu\'il ne reste plus que ' + W + ' m³ d\'eau à vider. Arrondir à la minute.', 'Найди время (в минутах), через которое останется откачать только ' + W + ' м³ воды. Округли до минуты.'),
         ans: N(paK(tW, 0), { dp: 0, unit: 'min' }), sol: [
           ['Решаем уравнение $V(t)=' + W + '$:', fx(V0) + '-' + fx(q) + 't=' + W],
-          ['Переносим: ' + fx(q).replace('.', ',') + 't = ' + fx(V0).replace('.', ',') + ' − ' + W + ', затем делим на ' + fx(q).replace('.', ',') + ':', fx(q) + 't=' + fx(V0 - W) + ';t=' + fx(V0 - W) + '÷' + fx(q) + paEq(tW, 1) + paKz(tW, 1)],
-          paExact(tW, 0) ? 'Ровно ' + rW + ' мин.' : 'Округляем до минуты: примерно ' + rW + ' мин.'] },
+          ['Переносим: ' + fx(q).replace('.', ',') + 't = ' + fx(V0).replace('.', ',') + ' − ' + W + ', затем делим на ' + fx(q).replace('.', ',') + ':', fx(q) + 't=' + fx(V0 - W) + ';t=' + fx(V0 - W) + '÷' + fx(q) + paMid(tW)],
+          paExact(tW, 0) ? 'Ровно ' + rW + ' мин.' : 'Округляем до минуты: примерно ' + rW + ' мин.'],
+        redac: ['On cherche $t$ tel que $V(t)=' + W + '$, c\'est-à-dire $' + fx(V0) + '-' + fx(q) + 't=' + W + '$.',
+          '$' + fx(q) + 't=' + fx(V0 - W) + '$, donc $t=' + fx(V0 - W) + '÷' + fx(q) + paMid(tW) + '$.',
+          'Il faut ' + (paExact(tW, 0) ? '' : 'environ ') + rW + ' minutes pour qu\'il ne reste plus que ' + W + ' m³ d\'eau à vider.'] },
       { q: L('Combien de temps faut-il pour vider complètement le bassin ? Donner la réponse en minutes, arrondie à la minute.', 'Сколько времени нужно, чтобы полностью слить бассейн? Ответ дай в минутах, округлив до минуты.'),
         ans: N(paK(tE, 0), { dp: 0, unit: 'min' }), sol: [
-          ['Бассейн пуст, когда $V(t)=0$:', fx(V0) + '-' + fx(q) + 't=0;t=' + fx(V0) + '÷' + fx(q) + paEq(tE, 1) + paKz(tE, 1)],
+          ['Бассейн пуст, когда $V(t)=0$:', fx(V0) + '-' + fx(q) + 't=0;t=' + fx(V0) + '÷' + fx(q) + paMid(tE)],
           (paExact(tE, 0) ? 'Ровно ' : 'Примерно ') + rE + ' мин, то есть ' + hE.ru + '.',
-          'Можно и без функции: ' + nf(V0) + ' м³ ÷ ' + nf(Q) + ' м³/ч ' + paEq(V0 / Q, 2) + ' ' + paFz(V0 / Q, 2) + ' ч — то же время.'] }] };
+          'Можно и без функции: ' + nf(V0) + ' м³ ÷ ' + nf(Q) + ' м³/ч ' + paEq(V0 / Q, 2) + ' ' + paFz(V0 / Q, 2) + ' ч — то же время.'],
+        redac: ['Le bassin est vide lorsque $V(t)=0$, c\'est-à-dire $' + fx(V0) + '-' + fx(q) + 't=0$.',
+          '$' + fx(q) + 't=' + fx(V0) + '$, donc $t=' + fx(V0) + '÷' + fx(q) + paMid(tE) + '$.',
+          'Il faut ' + (paExact(tE, 0) ? '' : 'environ ') + rE + ' minutes, soit ' + hE.fr + ', pour vider complètement le bassin.'] }] };
   } });
 
 /* =====================================================================================================
@@ -895,34 +937,53 @@ paProb({ id: 'p2.photos', ch: 'al', lvl: 2, pts: 5,
     return { ctx, fig, qs: [
       { q: L('Quel est le prix à payer pour ' + n1 + ' photos ?', 'Сколько стоят ' + n1 + ' фото?'), ans: N(fx(P1), { unit: '€' }), sol: [
           n1 + ' фото — не больше 100, значит, каждое по ' + eur(u1) + '.',
-          ['', n1 + '*' + fx(u1) + '=' + fx(P1), '€']] },
+          ['', n1 + '*' + fx(u1) + '=' + fx(P1), '€']],
+        redac: [n1 + ' photos, c\'est moins de 100 photos : chaque photo coûte ' + eur(u1) + '.',
+          '$' + n1 + '*' + fx(u1) + '=' + fx(P1) + '$',
+          'Le prix à payer pour ' + n1 + ' photos est de ' + eur(P1) + '.'] },
       { q: L('Quel est le prix à payer pour ' + n2 + ' photos ?', 'Сколько стоят ' + n2 + ' фото?'), ans: N(fx(Pv), { unit: '€' }), sol: [
           'Больше 100 фото: первые 100 стоят вместе ' + eur(F) + ', а остальные ' + n2 + ' − 100 = ' + (n2 - 100) + ' — по ' + eur(u2) + '.',
           ['', F + '+' + (n2 - 100) + '*' + fx(u2) + '=' + fx(Pv), '€'],
-          'Ошибка — умножить все ' + n2 + ' фото на ' + eur(u2) + ': дешёвая цена действует только для фото после сотой.'] },
+          'Ошибка — умножить все ' + n2 + ' фото на ' + eur(u2) + ': дешёвая цена действует только для фото после сотой.'],
+        redac: ['Les 100 premières photos coûtent ' + eur(F) + ' ; il reste $' + n2 + '-100=' + (n2 - 100) + '$ photos à ' + eur(u2) + ' chacune.',
+          '$' + F + '+' + (n2 - 100) + '*' + fx(u2) + '=' + fx(Pv) + '$',
+          'Le prix à payer pour ' + n2 + ' photos est de ' + eur(Pv) + '.'] },
       { q: L('On dispose d\'un budget de ' + Bg + ' €. Combien de photos peut-on commander au maximum ?', 'Бюджет — ' + Bg + ' €. Какое наибольшее число фото можно заказать?'), ans: N(nMax), sol: [
           Bg + ' € меньше, чем ' + eur(F) + ' за 100 фото, значит, заказ меньше 100 фото и каждое стоит ' + eur(u1) + '.',
           ['Сколько раз ' + eur(u1) + ' помещается в ' + Bg + ' €:', Bg + '÷' + fx(u1) + paEq(Bg / u1, 2) + paKz(Bg / u1, 2)],
-          'Число фото — целое, и превышать бюджет нельзя, поэтому округляем вниз: ' + nMax + ' фото (' + nMax + ' × ' + nf(u1) + ' = ' + eur(nMax * u1c / 100) + ', а ' + (nMax + 1) + ' фото стоили бы ' + eur((nMax + 1) * u1c / 100) + ').'] },
+          'Число фото — целое, и превышать бюджет нельзя, поэтому округляем вниз: ' + nMax + ' фото (' + nMax + ' × ' + nf(u1) + ' = ' + eur(nMax * u1c / 100) + ', а ' + (nMax + 1) + ' фото стоили бы ' + eur((nMax + 1) * u1c / 100) + ').'],
+        redac: ['100 photos coûtent ' + eur(F) + ', ce qui dépasse le budget : on commande donc moins de 100 photos, à ' + eur(u1) + ' la photo.',
+          '$' + Bg + '÷' + fx(u1) + paEq(Bg / u1, 2) + paKz(Bg / u1, 2) + '$',
+          '$' + nMax + '*' + fx(u1) + '=' + fx(nMax * u1c / 100) + '$ et $' + (nMax + 1) + '*' + fx(u1) + '=' + fx((nMax + 1) * u1c / 100) + '$, ce qui dépasse ' + Bg + ' €.',
+          'On peut commander au maximum ' + nMax + ' photos.'] },
       { q: L('On a écrit le programme ci-dessous pour calculer le prix à payer. Il utilise trois variables : n (nombre de photos commandées), s (nombre de photos commandées au-delà des 100 premières) et prix (prix à payer, en euros). Par quels nombres faut-il remplacer A, B et C ?',
-          'Ниже — программа, которая считает цену заказа. В ней три переменные: n (число заказанных фото), s (число фото сверх первых 100) и prix (цена в евро). Какими числами нужно заменить A, B и C?'),
+          'Ниже — программа, которая считает цену заказа. В ней три переменные: n (число заказанных фото), s (число фото сверх первых 100) и prix (цена в евро). Какими числами нужно заменить A, B и C? Блоки программы: «quand … est cliqué» — когда нажат флажок; «demander … et attendre» — спросить и ждать ответа («réponse» — этот ответ); «mettre … à …» — присвоить переменной значение; «si … alors … sinon …» — если … то … иначе …; «dire» — сказать (показать).'),
         fig: prog, ans: multi(['A =', N(100)], ['B =', N(F)], ['C =', N(fx(u1))]), sol: [
           'Строка 5: s — число фото сверх первых 100, поэтому s = n − 100: A = 100.',
           'Строка 6: цена = ' + eur(F) + ' за первые 100 фото плюс по ' + eur(u2) + ' за каждое из s остальных: B = ' + F + '.',
-          'Строка 8 (ветка «sinon», то есть не больше 100 фото): цена = n × ' + nf(u1) + ': C = ' + nf(u1) + '. В Scratch десятичную дробь пишут с точкой: ' + u1 + '.'] },
+          'Строка 8 (ветка «sinon», то есть не больше 100 фото): цена = n × ' + nf(u1) + ': C = ' + nf(u1) + '. В Scratch десятичную дробь пишут с точкой: ' + u1 + '.'],
+        redac: ['A = 100 : s est le nombre de photos commandées au-delà des 100 premières, donc s = n − 100.',
+          'B = ' + F + ' : les 100 premières photos coûtent ' + eur(F) + '.',
+          'C = ' + nf(u1) + ' : jusqu\'à 100 photos, chaque photo coûte ' + eur(u1) + '.'] },
       { q: L('En période de soldes, le site offre une réduction de ' + rd + ' % sur le prix à payer, pour toute commande de plus de ' + S + ' €. Calculer le prix à payer pour ' + n2 + ' photos pendant les soldes.' + sn.fr,
           'Во время распродажи сайт даёт скидку ' + rd + ' % на заказы дороже ' + S + ' €. Сколько будут стоить ' + n2 + ' фото во время распродажи?' + sn.ru),
         ans: sn.ans, sol: [
           'Без скидки заказ стоит ' + eur(Pv) + ' (вопрос 2) — больше ' + S + ' €, значит, скидка действует.',
-          ['Скидка ' + rd + ' % — платим ' + (100 - rd) + ' % цены, то есть умножаем на ' + nf(coef) + ':', fx(Pv) + '*' + fx(coef) + sn.eq + (sn.eq === '=' ? fx(Ps) : paK(Ps, 2)), '€']] },
-      { q: L('Pour que le programme donne le prix pendant les soldes, on insère le bloc ci-dessous entre les lignes 8 et 9. Quel nombre faut-il écrire dans la case vide ? Choisir la réponse correctement justifiée.', 'Чтобы программа считала цену во время распродажи, между строками 8 и 9 вставляют блок ниже. Какое число нужно написать в пустую ячейку? Выбери ответ с верным обоснованием.'),
+          ['Скидка ' + rd + ' % — платим ' + (100 - rd) + ' % цены, то есть умножаем на ' + nf(coef) + ':', fx(Pv) + '*' + fx(coef) + sn.eq + (sn.eq === '=' ? fx(Ps) : paK(Ps, 2)), '€']],
+        redac: ['Sans réduction, le prix à payer est de ' + eur(Pv) + '. Comme $' + fx(Pv) + '>' + S + '$, la réduction s\'applique.',
+          'Diminuer un prix de ' + rd + ' %, c\'est le multiplier par $1-' + rd + '/100=' + fx(coef) + '$.',
+          '$' + fx(Pv) + '*' + fx(coef) + sn.eq + (sn.eq === '=' ? fx(Ps) : paK(Ps, 2)) + '$',
+          'Pendant les soldes, le prix à payer pour ' + n2 + ' photos est ' + (sn.eq === '=' ? 'de ' : 'd\'environ ') + eur(paR(Ps, 2)) + '.'] },
+      { q: L('Pour que le programme donne le prix pendant les soldes, on insère le bloc ci-dessous entre les lignes 8 et 9. Quel nombre faut-il écrire dans la case vide ? Choisir la réponse correctement justifiée.', 'Чтобы программа считала цену во время распродажи, между строками 8 и 9 вставляют блок ниже («если prix > ' + S + ', то заменить prix на prix × …»). Какое число нужно написать в пустую ячейку? Выбери ответ с верным обоснованием.'),
         fig: soldes, red: true, ans: MQ(r, [
           L(nf(coef) + ' : baisser un prix de ' + rd + ' %, c\'est garder ' + (100 - rd) + ' % du prix, donc le multiplier par 1 − ' + nf(rd / 100) + ' = ' + nf(coef) + '.', nf(coef) + ': снизить цену на ' + rd + ' % — значит оставить ' + (100 - rd) + ' % цены, то есть умножить на 1 − ' + nf(rd / 100) + ' = ' + nf(coef) + '.'),
           L(nf(rd / 100) + ' : pour enlever ' + rd + ' % d\'un prix, on le multiplie par ' + rd + '/100.', nf(rd / 100) + ': чтобы убрать ' + rd + ' % цены, умножаем её на ' + rd + '/100.'),
           L(rd + ' : une réduction de ' + rd + ' % se traduit par le nombre ' + rd + '.', rd + ': скидка ' + rd + ' % записывается числом ' + rd + '.'),
-          L(nf(coef) + ' : car ' + nf(coef) + ' € est la réduction accordée sur chaque photo.', nf(coef) + ': потому что ' + nf(coef) + ' € — скидка на каждое фото.')], 0), sol: [
+          L(nf(coef) + ' : c\'est la réduction, en euros, accordée sur chaque photo.', nf(coef) + ': это скидка в евро на каждое фото.')], 0), sol: [
           'Блок заменяет prix на prix × (число). После скидки ' + rd + ' % остаётся ' + (100 - rd) + ' % цены, а взять ' + (100 - rd) + ' % — значит умножить на ' + nf(coef) + '.',
-          'Умножение на ' + nf(rd / 100) + ' даёт размер скидки, а не новую цену. Число ' + rd + ' увеличило бы цену в ' + rd + ' раз. А ' + nf(coef) + ' — не скидка в евро, а доля цены, которая остаётся.'] }] };
+          'Умножение на ' + nf(rd / 100) + ' даёт размер скидки, а не новую цену. Число ' + rd + ' увеличило бы цену в ' + rd + ' раз. А ' + nf(coef) + ' — не скидка в евро, а доля цены, которая остаётся. В самом блоке Scratch число пишут с точкой: ' + fx(coef) + '.'],
+        redac: ['Diminuer un prix de ' + rd + ' %, c\'est le multiplier par $1-' + rd + '/100=' + fx(coef) + '$.',
+          'Il faut donc écrire ' + nf(coef) + ' dans la case vide : le prix est multiplié par ' + nf(coef) + '.'] }] };
   } });
 
 /* ---------- p2.tableur-prog : programme à deux branches, formule de tableur, forme factorisée, équation produit ---------- */
@@ -931,7 +992,7 @@ paProb({ id: 'p2.tableur-prog', ch: 'al', lvl: 2, pts: 4,
   src: 'Asie 2026 · exercice 3',
   gen(r) {
     const nm = r.pick(PRENOMS_M);
-    let p, q, s, b; do { p = r.pick([2, 3]); q = r.pick([1, 2, 3, 4, 5, 7]); s = r.ri(1, 5); b = p * s - q; } while (q % p === 0 || b < 2 || b > 9);
+    let p, q, s, b; do { p = r.pick([2, 3]); q = r.pick([1, 2, 3, 4, 5, 7]); s = r.ri(1, 5); b = p * s - q; } while (q % p === 0 || b < 2 || b > 9 || 35 * p === 10 * b + 2 * q * s);   /* the last condition: the wrong formula «…*A2*2-…» must not give the right number in B2 */
     const c = q * s, A = x => p * x * x + b * x - c, x0 = r.ri(4, 6), ex = quad(p, b, -c), root = Fr.str(F(q, p));
     const figA = paFlow('Choisir un nombre', ['Calculer son carré', 'Multiplier par ' + p], ['Multiplier par ' + b], ['Additionner les deux nombres', 'Soustraire ' + c], 'Programme A');
     const figB = paFlow('Choisir un nombre', ['Multiplier par ' + p, 'Soustraire ' + q], ['Ajouter ' + s], ['Multiplier les deux nombres'], 'Programme B');
@@ -944,17 +1005,26 @@ paProb({ id: 'p2.tableur-prog', ch: 'al', lvl: 2, pts: 4,
       { q: L('Appliquer le programme A au nombre ' + x0 + '.', 'Примени программу A к числу ' + x0 + '.'), ans: N(A(x0)), sol: [
           ['Левая ветка: квадрат, потом умножить на ' + p + ':', x0 + '^2=' + (x0 * x0) + ';' + (x0 * x0) + '*' + p + '=' + (p * x0 * x0)],
           ['Правая ветка:', x0 + '*' + b + '=' + (b * x0)],
-          ['Складываем и вычитаем ' + c + ':', (p * x0 * x0) + '+' + (b * x0) + '-' + c + '=' + A(x0)]] },
-      { q: L('On utilise un tableur pour obtenir les résultats du programme A pour quelques nombres (voir ci-dessous). Parmi les formules suivantes, laquelle a été saisie dans la cellule B2, puis étirée vers le bas ?', 'В электронной таблице посчитали результаты программы A для нескольких чисел (см. ниже). Какая из формул была введена в ячейку B2 и протянута вниз?'),
+          ['Складываем и вычитаем ' + c + ':', (p * x0 * x0) + '+' + (b * x0) + '-' + c + '=' + A(x0)]],
+        redac: [paEqs(x0 + '^2=' + (x0 * x0) + ';' + (x0 * x0) + '*' + p + '=' + (p * x0 * x0) + ';' + x0 + '*' + b + '=' + (b * x0)) + '.',
+          paEqs((p * x0 * x0) + '+' + (b * x0) + '=' + (p * x0 * x0 + b * x0) + ';' + (p * x0 * x0 + b * x0) + '-' + c + '=' + A(x0)) + '.',
+          'Avec le nombre ' + x0 + ', le programme A donne ' + nf(A(x0)) + '.'] },
+      { q: L('On utilise un tableur pour obtenir les résultats du programme A pour quelques nombres (voir ci-dessous). Parmi les formules suivantes, laquelle a été saisie dans la cellule B2, puis étirée vers le bas ?', 'В электронной таблице посчитали результаты программы A для нескольких чисел (см. ниже: в столбце A — выбранное число, «Nombre choisi», в столбце B — результат, «Résultat»). Какая из формул была введена в ячейку B2 и протянута вниз?'),
         fig: tab, ans: MQ(r, [F0, '=' + p + '*A2*2+' + b + '*A2-' + c, '=' + p + '*(-5)*(-5)+' + b + '*(-5)-' + c, '=' + p + '*A2*2-' + b + '*A2+' + c], 0), sol: [
           'Нужная формула должна ссылаться на ячейку A2 (где стоит выбранное число), чтобы при протягивании вниз ссылка менялась на A3, A4, … Формула с числом −5 всегда давала бы один и тот же результат.',
-          'Квадрат числа — это A2*A2, а не A2*2 (это удвоение). Затем + ' + b + ' × A2 и − ' + c + ' — в том же порядке, что в программе. Подходит «' + F0 + '».'] },
+          'Квадрат числа — это A2*A2, а не A2*2 (это удвоение). Затем + ' + b + ' × A2 и − ' + c + ' — в том же порядке, что в программе. Подходит «' + F0 + '».'],
+        redac: ['Le nombre choisi se trouve dans la cellule A2 ; son carré s\'écrit A2*A2.',
+          'La formule saisie dans la cellule B2 est : ' + F0] },
       { q: L('À l\'aide du tableau, donner un nombre pour lequel le programme A donne 0.', 'По таблице найди число, для которого программа A даёт 0.'), ans: N(-s), sol: [
           'В столбце B ищем 0: он стоит в строке ' + (7 - s) + ', где в столбце A число ' + nf(-s) + '.',
-          ['Проверка:', p + '*' + np(-s) + '^2+' + b + '*' + np(-s) + '-' + c + '=' + A(-s)]] },
-      { q: L('On note $x$ le nombre de départ. Donner une expression du résultat du programme A en fonction de $x$.', 'Обозначим исходное число $x$. Запиши результат программы A через $x$.'), ans: XP(ex, { forms: ['expanded'] }), sol: [
-          ['Левая ветка даёт $' + p + 'x^2$, правая — $' + b + 'x$; складываем и вычитаем ' + c + ':', ex]] },
-      { q: L('On considère maintenant le programme B ci-dessous. ' + nm + ' affirme que, quel que soit le nombre choisi au départ, les programmes A et B donnent le même résultat. A-t-il raison ? Choisir la réponse correctement justifiée.', 'Теперь рассмотрим программу B (ниже). ' + nm + ' утверждает, что при любом исходном числе программы A и B дают одинаковый результат. Прав ли он? Выбери ответ с верным обоснованием.'),
+          ['Проверка:', p + '*' + np(-s) + '^2+' + b + '*' + np(-s) + '-' + c + '=' + A(-s)]],
+        redac: ['Dans le tableau, le résultat 0 se trouve sur la ligne ' + (7 - s) + ', en face du nombre $' + (-s) + '$.',
+          'Le programme A donne 0 pour le nombre $' + (-s) + '$.'] },
+      { q: L('On note $x$ le nombre de départ. Donner une expression du résultat du programme A en fonction de $x$.', 'Обозначим исходное число $x$. Запиши результат программы A через $x$.'), ans: XP(ex), sol: [
+          ['Левая ветка даёт $' + p + 'x^2$, правая — $' + b + 'x$; складываем и вычитаем ' + c + ':', ex]],
+        redac: ['Le carré de $x$ multiplié par ' + p + ' donne $' + p + 'x^2$ ; $x$ multiplié par ' + b + ' donne $' + b + 'x$.',
+          'On additionne ces deux nombres, puis on soustrait ' + c + ' : le résultat du programme A est $' + ex + '$.'] },
+      { q: L('On considère maintenant le programme B ci-dessous. ' + nm + ' affirme que, quel que soit le nombre choisi au départ, les programmes A et B donnent le même résultat. A-t-il raison ? Choisir la réponse correctement justifiée.', 'Теперь рассмотрим программу B (ниже): выбрать число; с одной стороны — умножить его на ' + p + ' и вычесть ' + q + '; с другой — прибавить к числу ' + s + '; перемножить два результата. ' + nm + ' утверждает, что при любом исходном числе программы A и B дают одинаковый результат. Прав ли он? Выбери ответ с верным обоснованием.'),
         fig: figB, red: true, ans: MQ(r, [
           L('Oui : le programme B donne $(' + lin(p, -q) + ')(x+' + s + ')$ et, en développant, on obtient $' + ex + '$, l\'expression du programme A.', 'Да: программа B даёт $(' + lin(p, -q) + ')(x+' + s + ')$, а после раскрытия скобок получается $' + ex + '$ — выражение программы A.'),
           L('Oui, car les deux programmes donnent ' + A(x0) + ' pour le nombre ' + x0 + '.', 'Да, потому что обе программы дают ' + A(x0) + ' для числа ' + x0 + '.'),
@@ -962,13 +1032,21 @@ paProb({ id: 'p2.tableur-prog', ch: 'al', lvl: 2, pts: 4,
           L('Non, car on ne peut pas tester tous les nombres.', 'Нет, потому что все числа проверить невозможно.')], 0), sol: [
           ['Программа B с буквой $x$: левая ветка $' + lin(p, -q) + '$, правая $x+' + s + '$, их произведение. Раскрываем скобки:', '(' + lin(p, -q) + ')(x+' + s + ')=' + S(cf(p, 'x^2'), cf(p * s, 'x'), cf(-q, 'x'), String(-c)) + '=' + ex],
           'Получилось то же выражение, что у программы A, — значит, результаты совпадают при любом числе. Это доказательство «для всех чисел сразу».',
-          'Один пример (' + x0 + ') ничего не доказывает. Разные шаги могут давать одинаковый результат. А перебирать все числа и не нужно — хватает буквенного вычисления.'] },
+          'Один пример (' + x0 + ') ничего не доказывает. Разные шаги могут давать одинаковый результат. А перебирать все числа и не нужно — хватает буквенного вычисления.'],
+        redac: ['Avec le programme B, on obtient $(' + lin(p, -q) + ')(x+' + s + ')$.',
+          'On développe : $(' + lin(p, -q) + ')(x+' + s + ')=' + S(cf(p, 'x^2'), cf(p * s, 'x'), cf(-q, 'x'), String(-c)) + '$, soit $' + ex + '$.',
+          'C\'est l\'expression obtenue avec le programme A : les deux programmes donnent donc le même résultat quel que soit le nombre choisi. ' + nm + ' a raison.'] },
       { q: L('Résoudre l\'équation $(' + lin(p, -q) + ')(x+' + s + ')=0$. En déduire les nombres pour lesquels les programmes A et B donnent 0.', 'Реши уравнение $(' + lin(p, -q) + ')(x+' + s + ')=0$. Найди числа, для которых программы A и B дают 0.'),
         ans: SOL(root + ', ' + (-s)), sol: [
           'Произведение равно 0, когда хотя бы один множитель равен 0 (уравнение-произведение, «équation produit»).',
           ['Первый множитель:', lin(p, -q) + '=0;' + p + 'x=' + q + ';x=' + root],
           ['Второй множитель:', 'x+' + s + '=0;x=' + (-s)],
-          'Ответ: ' + (q % p ? '$' + root + '$' : root) + ' и ' + nf(-s) + '. Число ' + nf(-s) + ' мы уже видели в таблице, а ' + (q % p ? '$' + root + '$' : root) + ' там не было: таблица показывает только целые числа.'] }] };
+          'Ответ: ' + (q % p ? '$' + root + '$' : root) + ' и ' + nf(-s) + '. Число ' + nf(-s) + ' мы уже видели в таблице, а ' + (q % p ? '$' + root + '$' : root) + ' там не было: таблица показывает только целые числа.'],
+        redac: ['Un produit de facteurs est nul si, et seulement si, l\'un au moins de ses facteurs est nul.',
+          '$' + lin(p, -q) + '=0$ ou $x+' + s + '=0$',
+          '$' + p + 'x=' + q + '$ ou $x=' + (-s) + '$',
+          '$x=' + root + '$ ou $x=' + (-s) + '$',
+          'Les solutions sont $' + root + '$ et $' + (-s) + '$ : ce sont les nombres pour lesquels les programmes A et B donnent 0.'] }] };
   } });
 
 /* ===================== DICTIONARY ===================== */

@@ -10,7 +10,8 @@ const APP = {
   id: 'brevet', title: 'Brevet',
   exam: '2027-06-28', examLabel: 'понедельник, 28 июня 2027, 10:00–12:00',
   tableur: 'https://maksimmartynov2000-spec.github.io/Knights/',
-  tutorTo: 'Максиму Николаевичу'                /* to whom the progress code is sent (dative) */
+  tutorTo: 'Максиму Николаевичу',               /* to whom the progress code is sent (dative) */
+  tutorBy: 'Максим Николаевич'
 };
 const DBV = 2;                     /* version of the progress format; bump it together with migrate() */
 const LS = {
@@ -71,9 +72,9 @@ function migrate(db) {
 }
 
 /* ---------- saving ---------- */
-let SAVE_FAIL = false, saveT = 0;
+let SAVE_FAIL = false, saveT = 0, READONLY = false;      /* READONLY: another student's progress is being looked at (the tutor's overview) */
 function save() {
-  if (!DB) return true;
+  if (!DB || READONLY) return true;
   clearTimeout(saveT); saveT = 0;
   const day = ymd(new Date());
   if (DB.snapDay !== day) { snapshot('день ' + dateRu(DB.snapDay || day)); DB.snapDay = day; }
@@ -85,7 +86,7 @@ function save() {
   return ok;
 }
 /* typing in a test: save a moment later, and for sure when the app is hidden */
-function saveSoon() { clearTimeout(saveT); saveT = setTimeout(save, 500); }
+function saveSoon() { if (READONLY) return; clearTimeout(saveT); saveT = setTimeout(save, 500); }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && saveT) save(); });
 window.addEventListener('pagehide', () => { if (saveT) save(); });
 

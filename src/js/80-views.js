@@ -9,7 +9,7 @@ function viewLogin() {
   let h = '<section class="card login"><div class="logo">' + LOGO + '</div><h2>Brevet · математика</h2><p class="muted">Подготовка к бревету 2027: ' + esc(APP.examLabel) + '.</p></section>';
   if (ps.length) {
     h += '<section class="card"><h3>Кто занимается?</h3><div class="lst">' + ps.map(p => '<button class="lrow" data-prof="' + p.id + '"><span class="lic">' + esc((p.name || '?')[0].toUpperCase()) + '</span><span class="lt"><b>' + esc(p.name) + '</b><span class="muted">' + (p.pin ? 'вход по PIN' : 'без PIN') + '</span></span>' + (p.pin ? ico('lock') : '') + '</button>').join('') + '</div></section>';
-    h += '<div class="row"><button class="btn" id="bNew">' + ico('plus') + 'Новый ученик</button><button class="btn ghost" id="bMove">' + ico('load') + 'Вставить код</button></div>';
+    h += '<div class="row">' + (ps.length > 1 ? '<a class="btn primary" href="#/eleves">' + ico('list') + 'Ученики: обзор</a>' : '') + '<button class="btn" id="bNew">' + ico('plus') + 'Новый ученик</button><button class="btn ghost" id="bMove">' + ico('load') + 'Вставить код</button></div>';
   } else h += newProfileForm();
   shell(h);
   $$('[data-prof]').forEach(b => b.onclick = () => enterProfile(b.dataset.prof));
@@ -76,11 +76,14 @@ function forgotPin(p) {
    Progress lives only on the device. The code carries all of it: the tutor pastes it on his device,
    continues with the student at the lesson, then sends his code back — the student pastes it and goes on.
    A code always finds «its» student by the id (or the name) and only adds to the progress, never wipes it. */
-async function codeSheet() {
+function codeText() { return 'Brevet · ' + DB.name + ' · ' + new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }) + '\n' + progressCode(); }
+/* forTutor: the tutor sends the student's progress back after a lesson (the words on the sheet differ, the code is the same) */
+function codeSheet(forTutor) {
   if (!DB) return;
-  const code = await progressCode();
-  const text = 'Brevet · ' + DB.name + ' · ' + new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }) + '\n' + code;
-  const sh = openSheet('<h3>Код прогресса</h3><p class="muted">В коде весь твой прогресс. Отправь его ' + esc(APP.tutorTo) + ' в Telegram или WhatsApp: так прогресс сохранится у него, и на уроке он продолжит его вместе с тобой. Потом он пришлёт код обратно — вставь его здесь же, «Я → Вставить код».</p>' +
+  const text = codeText();
+  const sh = openSheet('<h3>Код прогресса</h3><p class="muted">' + (forTutor === true
+    ? 'В коде весь прогресс ученика «' + esc(DB.name) + '» вместе с домашним заданием. Отправьте его ученику: он вставит код у себя («Я → Вставить код») — ничего не сотрётся, прогресс объединится.'
+    : 'В коде весь твой прогресс. Отправь его ' + esc(APP.tutorTo) + ' в Telegram или WhatsApp: так прогресс сохранится у него, и на уроке он продолжит его вместе с тобой. Потом он пришлёт код обратно — вставь его здесь же, «Я → Вставить код».') + '</p>' +
     '<textarea class="inp plain code" rows="4" readonly aria-label="код прогресса">' + esc(text) + '</textarea><div class="row">' +
     (navigator.share ? '<button class="btn primary" id="cShare">' + ico('share') + 'Отправить</button>' : '') + '<button class="btn' + (navigator.share ? '' : ' primary') + '" id="cCopy">Скопировать</button></div>');
   const done = () => { DB.bk = { at: Date.now(), n: totalTasks() }; save(); };
@@ -88,10 +91,17 @@ async function codeSheet() {
   if ($('#cShare', sh)) $('#cShare', sh).onclick = () => navigator.share({ text }).then(() => { done(); closeSheet(); toast('Код отправлен'); route(); }).catch(() => { /* closed the share sheet */ });
 }
 function pasteSheet() {
-  const sh = openSheet('<h3>Вставить код</h3><p class="muted">Скопируй сообщение с кодом целиком (код начинается с BRV) и вставь сюда. Прогресс ученика из кода добавится к тому, что уже есть, — ничего не сотрётся.</p>' +
-    '<textarea class="inp plain" id="mvCode" rows="4" placeholder="BRV2.…" autocomplete="off" autocapitalize="off" spellcheck="false"></textarea>' +
-    '<div class="row"><button class="btn primary" id="mvGo">Загрузить</button><label class="btn" for="mvFile">' + ico('load') + 'Файл копии</label><input type="file" id="mvFile" accept=".json,application/json" hidden></div>');
-  $('#mvGo', sh).onclick = async () => { try { takeProgress(await readCode($('#mvCode').value)); } catch (e) { toast(e.message || 'Код не читается'); } };
+  const canRead = !!(navigator.clipboard && navigator.clipboard.readText);
+  const sh = openSheet('<h3>Вставить код</h3><p class="muted">Скопируй сообщение с кодом целиком (код начинается с BRV) и вставь сюда. Прогресс из кода добавится к тому, что уже есть, — ничего не сотрётся.</p>' +
+    '<textarea class="inp plain" id="mvCode" rows="4" placeholder="BRV3.…" autocomplete="off" autocapitalize="off" spellcheck="false"></textarea>' +
+    '<div class="row">' + (canRead ? '<button class="btn primary" id="mvClip">Вставить из буфера</button>' : '') + '<button class="btn' + (canRead ? '' : ' primary') + '" id="mvGo">Загрузить</button><label class="btn ghost" for="mvFile">' + ico('load') + 'Файл копии</label><input type="file" id="mvFile" accept=".json,application/json" hidden></div>');
+  const load = async txt => { try { takeProgress(await readCode(txt)); } catch (e) { toast(e.message || 'Код не читается', 4000); } };
+  $('#mvGo', sh).onclick = () => load($('#mvCode').value);
+  if (canRead) $('#mvClip', sh).onclick = async () => {
+    let txt = ''; try { txt = await navigator.clipboard.readText(); } catch (e) { return toast('Не получилось прочитать буфер — вставь код в поле вручную', 4000); }
+    if (!/BRV\d\./.test(txt)) { $('#mvCode').value = txt; return toast('В буфере нет кода: скопируй сообщение с кодом целиком', 4000); }
+    $('#mvCode').value = txt; load(txt);
+  };
   $('#mvFile', sh).onchange = e => { const f = e.target.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => { try { takeProgress(readBackup(JSON.parse(rd.result))); } catch (er) { toast(er.message || 'Это не файл прогресса'); } }; rd.readAsText(f); };
 }
 const moveInSheet = pasteSheet;
@@ -115,8 +125,10 @@ function takeProgress(inc) {
 function previewRestore(inc) {
   const a = dbSummary(DB), b = dbSummary(inc);
   const row = (t, x, y) => '<tr><td>' + t + '</td><td>' + x + '</td><td>' + y + '</td></tr>';
-  const sh = openSheet('<h3>' + esc(DB.name) + ': добавить прогресс?</h3><table class="tbl"><tr><th></th><th>Сейчас</th><th>В коде</th></tr>' + row('Заданий решено', a.tasks, b.tasks) + row('Тем освоено', a.topics, b.topics) + row('Пробников', a.exams, b.exams) + '</table>' +
-    '<p class="muted">Ничего не сотрётся: по каждой теме останется лучший результат, а нынешнее состояние сохранится копией в «Я → Данные и копии».</p><div class="row"><button class="btn primary" id="rsGo">Объединить</button><button class="btn ghost" id="rsNo">Отмена</button></div>');
+  const newHw = inc.hw && (!DB.hw || inc.hw.id > DB.hw.id);
+  const sh = openSheet('<h3>' + esc(DB.name) + ': добавить прогресс?</h3><table class="tbl"><tr><th></th><th>Сейчас</th><th>В коде</th></tr>' + row('Заданий решено', a.tasks, b.tasks) + row('Тем освоено', a.topics, b.topics) + row('Задач Partie 2', a.probs, b.probs) + row('Пробников', a.exams, b.exams) + '</table>' +
+    (newHw ? '<p><b>В коде новое домашнее задание</b>: ' + inc.hw.items.length + ' ' + plural(inc.hw.items.length, 'пункт', 'пункта', 'пунктов') + (inc.hw.due ? ', ' + hwDueText(inc.hw) : '') + '.</p>' : '') +
+    '<p class="muted">Ничего не сотрётся: по каждой теме останется то состояние, которое новее, счёт решённого не уменьшится, а нынешний прогресс сохранится копией в «Я → Данные и копии».</p><div class="row"><button class="btn primary" id="rsGo">Объединить</button><button class="btn ghost" id="rsNo">Отмена</button></div>');
   $('#rsGo', sh).onclick = () => { applyIncoming(inc, 'перед загрузкой кода'); closeSheet(); toast('Готово: прогресс объединён'); go('#/'); route(); };
   $('#rsNo', sh).onclick = () => { closeSheet(); route(); };
 }
@@ -125,59 +137,113 @@ function previewRestore(inc) {
 function greet() { const h = new Date().getHours(); return h < 5 ? 'Доброй ночи' : h < 12 ? 'Доброе утро' : h < 18 ? 'Добрый день' : 'Добрый вечер'; }
 function viewToday() {
   chrome({ title: 'Сегодня', tab: 0 });
-  const n = todayN(), G = GOAL(), stk = streak(), ids = todayPlan(), pd = planDone(), nx = planNext();
+  const n = todayN(), G = GOAL(), stk = streak(), wu = warmup(), ids = todayPlan(), pd = planDone(), nx = planNext();
   const d = new Date();
   let h = '<div class="hello"><div class="hi">' + greet() + ', ' + esc(DB.name) + '!</div><div class="muted">' + WDAY[d.getDay()] + ', ' + d.getDate() + ' ' + MON[d.getMonth()] + '</div></div>';
   h += warnHtml();
   if (isIOS() && !isStandalone()) h += '<a class="card rcard late" href="#/install"><span class="lic">' + ico('phone') + '</span><span class="lt"><b>Добавь Brevet на экран «Домой»</b><span class="muted">В Safari прогресс может стереться, если неделю не открывать сайт. С экрана «Домой» — надёжнее.</span></span></a>';
   if (DB.cur) { const md = MODES[DB.cur.mode]; h += '<a class="card rcard late" href="#/exam/run"><span class="lic">' + ico('timer') + '</span><span class="lt"><b>Продолжить: ' + esc(md.ru) + '</b><span class="muted">' + (DB.cur.parts[DB.cur.part].end ? 'Время идёт: осталось ' + mmss((DB.cur.parts[DB.cur.part].end - Date.now()) / 1000) : 'Без таймера') + '</span></span></a>'; }
+  h += hwCard();
+  /* what «Заниматься» starts with: the warm-up, then the homework, then the plan */
+  const step = wuLeft() ? 'Сначала разминка: ' + (wu.i ? 'осталось ' + wuLeft() + ' из ' + wu.items.length : wu.items.length + ' коротких ' + plural(wu.items.length, 'вопрос', 'вопроса', 'вопросов') + ' без калькулятора')
+    : hwOpen() ? 'Дальше — домашнее задание' : nx && TP(nx) ? 'Сейчас по плану: ' + TP(nx).ru : 'План на сегодня выполнен';
   h += '<section class="card focus"><div class="frow">' + ring(n, G, 76, n) + '<div class="gtx"><b>Цель дня: ' + G + ' ' + plural(G, 'задание', 'задания', 'заданий') + '</b><span class="muted">' + (n >= G ? 'Цель выполнена — можно ещё, если хочется.' : n ? 'Осталось ' + (G - n) + '.' : 'Начни — и день пойдёт в серию.') + '</span></div><div class="streak' + (stk ? ' on' : '') + '">' + ico('flame') + '<b>' + stk + '</b><span>' + plural(stk, 'день', 'дня', 'дней') + '<br>подряд</span></div></div>' +
-    '<a class="btn big wide" href="#/t/plan">' + ico('play') + (n ? 'Продолжить' : 'Заниматься') + '</a>' +
-    '<a class="fplan" href="#/plan"><span>План на сегодня: ' + pd + ' из ' + ids.length + ' ' + plural(ids.length, 'темы', 'тем', 'тем') + (nx && TP(nx) ? ' · сейчас: ' + esc(TP(nx).ru) : '') + '</span><span class="pdots">' + ids.map(id => '<i class="' + (isM(id) || doneToday(id) ? 'on' : '') + '"></i>').join('') + '</span></a></section>';
+    '<a class="btn big wide" href="#/go" id="bGo">' + ico('play') + (n ? 'Продолжить' : 'Заниматься') + '</a>' +
+    '<a class="fplan" href="#/plan"><span>' + esc(step) + '</span><span class="pdots">' + wu.items.map((x, i) => '<i class="wu' + (i < wu.i ? ' on' : '') + '"></i>').join('') + ids.map(id => '<i class="' + (doneToday(id) ? 'on' : '') + '"></i>').join('') + '</span></a></section>';
   if (!DB.diag) h += '<section class="card guide"><div class="cont"><span class="lic">' + ico('list') + '</span><span class="lt"><b>Стартовая проверка</b><span class="muted">16 вопросов, 15–20 минут. Что знаешь — засчитается, и план не будет тратить на это время.</span></span></div><button class="btn primary" id="bDiag">Пройти</button></section>';
   const days = daysTo(APP.exam), r = ready();
   h += '<a class="card count" href="#/me"><span class="cbig"><span class="num">' + Math.max(0, days) + '</span><span class="lab">' + plural(days, 'день', 'дня', 'дней') + ' до бревета</span></span><span class="ctx"><b>Математика · DNB</b><span class="muted">' + esc(APP.examLabel) + '</span><span class="bar"><i style="width:' + r.p + '%"></i></span><span class="muted">готовность ' + r.p + '%</span></span></a>';
   const weak = TOPICS.filter(t => isWeak(t.id)).length;
   if (weak) h += '<a class="card rcard" href="#/t/err"><span class="lic">' + ico('redo') + '</span><span class="lt"><b>Работа над ошибками</b><span class="muted">' + weak + ' ' + plural(weak, 'тема', 'темы', 'тем') + ' с недавними ошибками</span></span></a>';
-  if (backupDue()) h += '<section class="card guide"><div class="cont"><span class="lic">' + ico('shield') + '</span><span class="lt"><b>' + (DB.bk.at ? 'Пора отправить код прогресса' : 'Прогресс хранится только на этом телефоне') + '</b><span class="muted">' +
-    (DB.bk.at ? 'Последний раз — ' + new Date(DB.bk.at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }) + ', с тех пор решено ' + (totalTasks() - (DB.bk.n || 0)) + '. ' : 'Если телефон потеряется или приложение удалится, всё решённое пропадёт. ') +
+  if (backupDue()) h += '<section class="card guide"><div class="cont"><span class="lic">' + ico('shield') + '</span><span class="lt"><b>' + (DB.bk.at ? 'Пора отправить код прогресса' : 'Прогресс хранится только на этом устройстве') + '</b><span class="muted">' +
+    (DB.bk.at ? 'Последний раз — ' + new Date(DB.bk.at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }) + ', с тех пор решено ' + (totalTasks() - (DB.bk.n || 0)) + '. ' : 'Если устройство потеряется или приложение удалится, всё решённое пропадёт. ') +
     'Отправь код ' + esc(APP.tutorTo) + ' — это 10 секунд, и прогресс сохранится у него.</span></span></div><button class="btn primary" id="bCode">' + ico('share') + 'Отправить код</button></section>';
-  h += '<div class="exrow"><a class="exchip" href="#/exam">' + ico('nocalc') + '<span><b>Partie 1</b><small>20 минут</small></span></a><a class="exchip" href="#/prog">' + ico('pen') + '<span><b>Задачи</b><small>Partie 2</small></span></a><a class="exchip" href="#/dico">' + ico('dico') + '<span><b>Словарик</b><small>FR → RU</small></span></a></div>';
+  const wd = vcDue().length;
+  h += '<div class="exrow"><a class="exchip" href="#/exam">' + ico('nocalc') + '<span><b>Partie 1</b><small>20 минут</small></span></a><a class="exchip" href="#/prog">' + ico('pen') + '<span><b>Задачи</b><small>Partie 2</small></span></a>' +
+    '<a class="exchip" href="' + (wd ? '#/mots/rev' : '#/mots') + '">' + ico('dico') + '<span><b>Мои слова</b><small>' + (wd ? 'повторить: ' + wd : 'FR → RU') + '</small></span></a></div>';
   shell(h);
   if ($('#bDiag')) $('#bDiag').onclick = () => { newExam('diag'); go('#/exam/run'); };
-  if ($('#bCode')) $('#bCode').onclick = codeSheet;
+  if ($('#bCode')) $('#bCode').onclick = () => codeSheet();
+  if ($('#bHwCode')) $('#bHwCode').onclick = () => codeSheet();
+}
+/* «Заниматься»: the warm-up first, then the homework, then the plan of the day */
+function goStudy() {
+  const next = wuLeft() ? '#/t/wu' : (hwOpen() && hwNextStep()) || '#/t/plan';
+  location.replace(location.pathname + location.search + next);
+}
+/* the homework on «Сегодня»: what is left, or «send the code» when it is done */
+function hwCard() {
+  const hw = DB.hw; if (!hw || !hw.items.length) return '';
+  const tot = hwTotals(hw);
+  if (hw.doneAt) {
+    if ((DB.bk.at || 0) >= hw.doneAt) return '';
+    return '<section class="card guide hwc"><div class="cont"><span class="lic">' + ico('check') + '</span><span class="lt"><b>Домашнее задание выполнено</b><span class="muted">Отправь код ' + esc(APP.tutorTo) + ' — он увидит, что всё сделано: ' + tot.done + ' из ' + tot.n + ', верно с первой попытки ' + tot.ok + '.</span></span></div><button class="btn primary" id="bHwCode">' + ico('share') + 'Отправить код</button></section>';
+  }
+  const left = hw.items.filter(it => hwItemAlive(it) && !hwItemDone(it));
+  return '<section class="card hwc' + (hw.due && daysTo(hw.due) < 0 ? ' late' : '') + '"><div class="cont"><span class="lic">' + ico('book') + '</span><span class="lt"><b>Домашнее задание</b><span class="muted">' + (hwDueText(hw) || 'без срока') + ' · примерно ' + hwMinutes(left) + ' мин</span></span></div>' +
+    '<div class="bar"><i style="width:' + pct(tot.done, tot.n) + '%"></i></div><div class="hwl">' + left.slice(0, 3).map(it => '<span>' + esc(hwItemTitle(it)) + (it.k === 't' ? ' · ' + (it.done || 0) + '/' + it.n : '') + '</span>').join('') + (left.length > 3 ? '<span>и ещё ' + (left.length - 3) + '</span>' : '') + '</div>' +
+    '<div class="row"><a class="btn primary" href="' + hwNextStep() + '">' + ico('play') + (tot.done ? 'Продолжить' : 'Начать') + '</a><a class="btn ghost" href="#/hw">Всё задание</a></div></section>';
 }
 /* the reminder: first after 10 answers, then once a week if 30 more answers were added */
-function backupDue() { const n = totalTasks(); return DB.bk.at ? n - (DB.bk.n || 0) >= 30 && Date.now() - DB.bk.at > 7 * 864e5 : n >= 10; }
+function backupDue() { const n = totalTasks(); if (DB.hw && DB.hw.doneAt && (DB.bk.at || 0) < DB.hw.doneAt) return false; return DB.bk.at ? n - (DB.bk.n || 0) >= 30 && Date.now() - DB.bk.at > 7 * 864e5 : n >= 10; }
 function warnHtml() { return SAVE_FAIL ? '<section class="card warnc"><b>Не получается сохранить прогресс</b><p class="muted">Память браузера переполнена. Сохрани копию файлом («Я → Данные и копии») и освободи место на устройстве.</p></section>' : ''; }
 function syncWarn() { const a = $('#app'); if (a && SAVE_FAIL && !$('.warnc')) a.insertAdjacentHTML('afterbegin', warnHtml()); }
 
-/* ---------- Programme: chapters ---------- */
+/* ---------- Programme: chapters, search ---------- */
+const plainKey = x => String(x).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/ё/g, 'е');
 function viewProg() {
   chrome({ title: 'Программа', tab: 1 });
-  const r = ready();
-  let h = '<section class="card hero"><div class="hrow"><span class="stile big">' + ico('books') + '</span><div class="htx"><b class="h2">Математика · бревет</b><span class="muted">Освоено тем: ' + r.m + ' из ' + r.n + ' · задачи Partie 2: ' + PROBLEMS.filter(p => (DB.pb[p.id] || {}).best >= 0.6).length + ' из ' + PROBLEMS.length + '</span></div></div><div class="bar"><i style="width:' + pct(r.m, r.n) + '%"></i></div></section>';
-  h += '<div class="lst2">' + CHAPTERS.map((c, i) => {
-    const [m, n] = chProgress(c.id); const np = PROBLEMS.filter(p => p.ch === c.id).length;
+  const r = ready(), due = TOPICS.filter(t => isDue(t.id)).length;
+  let h = '<section class="card hero"><div class="hrow"><span class="stile big">' + ico('books') + '</span><div class="htx"><b class="h2">Математика · бревет</b><span class="muted">Освоено тем: ' + r.m + ' из ' + r.n + ' · задачи Partie 2: ' + PROBLEMS.filter(p => (DB.pb[p.id] || {}).best >= 0.6).length + ' из ' + PROBLEMS.length + (due ? ' · ждут повторения: ' + due : '') + '</span></div></div><div class="bar"><i style="width:' + pct(r.m, r.n) + '%"></i></div>' +
+    '<input class="inp plain" id="pq" type="search" placeholder="Найти тему или задачу: дроби, Thalès…" autocomplete="off" inputmode="search" aria-label="поиск темы"></section>';
+  h += '<div id="pfound" class="skills" hidden></div>';
+  h += '<div class="lst2" id="pchs">' + CHAPTERS.map((c, i) => {
+    const [m, n] = chProgress(c.id); const np = PROBLEMS.filter(p => p.ch === c.id).length; if (!n && !np) return '';
     return '<a class="card chcard" href="#/ch/' + c.id + '"><span class="chtop"><span class="chnum">Глава ' + (i + 1) + '</span><span class="chtitle">' + esc(c.ru) + '</span><span class="chru" lang="fr">' + esc(c.fr) + '</span></span><span class="bar"><i style="width:' + pct(m, n) + '%"></i></span><span class="meta">тем освоено ' + m + ' из ' + n + (np ? ' · задач: ' + np : '') + '</span></a>';
   }).join('') + '</div>';
-  h += '<a class="card rcard" href="#/dico"><span class="lic">' + ico('dico') + '</span><span class="lt"><b>Словарик FR → RU</b><span class="muted">' + GLOSS.length + ' ' + plural(GLOSS.length, 'слово', 'слова', 'слов') + ' из заданий бревета</span></span></a>';
+  if (AUTOS.length) { const a = autosDone(); h += '<a class="card rcard" href="#/officiel"><span class="lic">' + ico('list') + '</span><span class="lt"><b>Автоматизмы: список министерства</b><span class="muted">' + AUTOS.length + ' умений для Partie 1 — освоено ' + a + '</span></span></a>'; }
+  h += '<a class="card rcard" href="#/dico"><span class="lic">' + ico('dico') + '</span><span class="lt"><b>Словарик FR → RU</b><span class="muted">' + GLOSS.length + ' ' + plural(GLOSS.length, 'термин', 'термина', 'терминов') + ' из заданий бревета</span></span></a>';
   h += '<a class="card rcard" href="' + APP.tableur + '" target="_blank" rel="noopener"><span class="lic">' + ico('grid') + '</span><span class="lt"><b>Tableur Brevet</b><span class="muted">Отдельный тренажёр по таблицам (tableur): формулы, растягивание, функции</span></span>' + ico('link') + '</a>';
   shell(h);
+  const all = TOPICS.map(t => ({ k: plainKey(t.ru + ' ' + t.fr + ' ' + CH(t.ch).ru), html: topicRow(t) })).concat(PROBLEMS.map(p => ({ k: plainKey(p.ru + ' ' + p.fr + ' ' + p.src + ' задача'), html: probRow(p) })));
+  $('#pq').addEventListener('input', e => {
+    const q = plainKey(e.target.value.trim()), box = $('#pfound');
+    if (q.length < 2) { box.hidden = true; $('#pchs').hidden = false; return; }
+    const ws = q.split(/\s+/), found = all.filter(x => ws.every(w => x.k.includes(w))).slice(0, 30);
+    box.innerHTML = found.length ? found.map(x => x.html).join('') : '<p class="muted">Ничего не нашлось. Попробуй другое слово — по-русски или по-французски.</p>';
+    box.hidden = false; $('#pchs').hidden = true;
+  });
 }
+function topicRow(t) { const s = skOf(t.id); return '<a class="skill" href="#/t/' + t.id + '"><span class="nm"><b>' + esc(t.ru) + '</b><span class="frn" lang="fr">' + esc(t.fr) + '</span></span>' + (isDue(t.id) ? '<span class="pill y">повторить</span>' : '') + (t.calc ? '' : '<span class="nc" title="без калькулятора">' + ico('nocalc') + '</span>') + dotsHtml(s) + '</a>'; }
+function probRow(p) { const s = DB.pb[p.id]; return '<a class="skill" href="#/pb/' + p.id + '"><span class="nm"><b>' + esc(p.ru) + '</b><span class="frn">' + esc(p.src) + '</span></span>' + (s ? '<span class="pill ' + (s.best >= 0.8 ? 'g' : s.best >= 0.5 ? 'y' : 'r') + '">' + Math.round(100 * s.best) + '%</span>' : '<span class="pill b">' + p.pts + ' б.</span>') + '</a>'; }
 function viewChapter(id) {
   const c = CH(id); if (!c) return go('#/prog');
   chrome({ title: c.ru, back: '#/prog', tab: 1 });
   const [m, n] = chProgress(id);
   let h = '<section class="card hero"><div class="htx"><span class="chnum">Глава ' + chNum(id) + '</span><b class="h2">' + esc(c.ru) + '</b><span class="frn" lang="fr">' + esc(c.fr) + '</span></div><div class="bar"><i style="width:' + pct(m, n) + '%"></i></div>' +
     '<div class="row"><a class="btn primary" href="#/t/mix:' + id + '">' + ico('play') + 'Вперемешку</a>' + (FICHES.some(f => f.ch === id) ? '<a class="btn" href="#/fiche/' + id + '">' + ico('book') + 'Шпаргалка</a>' : '') + '</div></section>';
-  [[1, 'База', 'то, на чём держится всё остальное'], [2, 'Уровень бревета', 'как в Partie 1'], [3, 'Сверх', 'сложнее экзамена — для тех, кто хочет больше']].forEach(([l, nm, sub]) => {
+  [[1, 'База', 'то, на чём держится всё остальное'], [2, 'Уровень бревета', 'как на экзамене']].forEach(([l, nm, sub]) => {
     const ts = TOPICS.filter(t => t.ch === id && t.lvl === l); if (!ts.length) return;
-    h += '<div class="sechead">' + nm + '<span class="secsub">' + sub + '</span></div><div class="skills">' + ts.map(t => { const s = skOf(t.id); return '<a class="skill' + (l === 3 ? ' ext' : '') + '" href="#/t/' + t.id + '"><span class="nm"><b>' + esc(t.ru) + '</b><span class="frn" lang="fr">' + esc(t.fr) + '</span></span>' + (t.calc ? '' : '<span class="nc" title="без калькулятора">' + ico('nocalc') + '</span>') + dotsHtml(s) + '</a>'; }).join('') + '</div>';
+    h += '<div class="sechead">' + nm + '<span class="secsub">' + sub + '</span></div><div class="skills">' + ts.map(topicRow).join('') + '</div>';
   });
   const pbs = PROBLEMS.filter(p => p.ch === id);
-  if (pbs.length) h += '<div class="sechead">Задачи Partie 2<span class="secsub">с контекстом и обоснованиями</span></div><div class="skills">' + pbs.map(p => { const s = DB.pb[p.id]; return '<a class="skill" href="#/pb/' + p.id + '"><span class="nm"><b>' + esc(p.ru) + '</b><span class="frn">' + esc(p.src) + '</span></span>' + (s ? '<span class="pill ' + (s.best >= 0.8 ? 'g' : s.best >= 0.5 ? 'y' : 'r') + '">' + Math.round(100 * s.best) + '%</span>' : '<span class="pill b">' + p.pts + ' б.</span>') + '</a>'; }).join('') + '</div>';
+  if (pbs.length) h += '<div class="sechead">Задачи Partie 2<span class="secsub">с контекстом и обоснованиями</span></div><div class="skills">' + pbs.map(probRow).join('') + '</div>';
   shell(h);
+}
+/* ---------- the official list of automatismes (Partie 1): each skill with the topics that train it ---------- */
+const autoState = a => { const ts = (a.topics || []).filter(id => TP(id)); return !ts.length ? -1 : ts.every(isM) ? 2 : ts.some(id => DB.sk[id] && DB.sk[id].a) ? 1 : 0; };
+const autosDone = () => AUTOS.filter(a => autoState(a) === 2).length + ' из ' + AUTOS.length;
+function viewOfficiel() {
+  chrome({ title: 'Автоматизмы', back: '#/prog', tab: 1, words: true });
+  let h = '<section class="card"><p class="muted" style="margin:0">Partie 1 бревета — 9 коротких вопросов без калькулятора, 20 минут, 6 баллов. Министерство опубликовало ориентировочный список того, что там спрашивают: ' + AUTOS.length + ' умений. Ниже — каждое из них и темы приложения, которые его тренируют. Освоено: <b>' + autosDone() + '</b>.</p></section>';
+  const doms = []; AUTOS.forEach(a => { if (!doms.includes(a.dom)) doms.push(a.dom); });
+  doms.forEach(dm => {
+    h += '<div class="sechead" lang="fr">' + esc(dm) + '</div><div class="lst">' + AUTOS.filter(a => a.dom === dm).map(a => {
+      const st = autoState(a), ts = (a.topics || []).map(TP).filter(Boolean);
+      return '<div class="card auto' + (st === 2 ? ' ok' : '') + '"><div class="autoh"><span class="lic num">' + a.n + '</span><div class="instr">' + bt({ fr: a.fr, ru: a.ru }) + '</div>' + (st === 2 ? '<span class="pill g">освоено</span>' : st === 1 ? '<span class="pill y">в работе</span>' : '') + '</div><div class="autot">' + ts.map(t => '<a class="tlink" href="#/t/' + t.id + '">' + esc(t.ru) + dotsHtml(skOf(t.id)) + '</a>').join('') + '</div></div>';
+    }).join('') + '</div>';
+  });
+  shell(h, 'officiel');
 }
 
 /* ---------- mock exams ---------- */
@@ -201,15 +267,18 @@ function viewExam() {
 /* ---------- Me ---------- */
 function viewMe() {
   chrome({ title: 'Я', tab: 3 });
-  const r = ready(), stk = streak(), tt = totalTasks();
+  const r = ready(), stk = streak(), tt = totalTasks(), dl = readyDelta(7), words = vcList().length, wd = vcDue().length;
   let h = '<section class="card mehero"><span class="lic big">' + esc((DB.name || '?')[0].toUpperCase()) + '</span><span class="lt"><span class="mename">' + esc(DB.name) + '</span><span class="muted">Серия ' + dn(stk) + ' · лучшая ' + dn(Math.max(stk, bestStreak())) + '</span></span></section>';
-  h += '<section class="card"><div class="pstats"><div><b>' + tt + '</b><span>заданий решено</span></div><div><b>' + r.m + '</b><span>тем освоено из ' + r.n + '</span></div><div><b>' + r.p + '%</b><span>готовность</span></div></div>' + weekChart() + '<p class="meta" style="margin:6px 0 0">Готовность = 50 % темы + 25 % задачи Partie 2 + 25 % последний пробник (' + (r.ex == null ? 'ещё не было' : r.ex + '%') + ').</p></section>';
+  h += '<section class="card"><div class="pstats"><div><b>' + tt + '</b><span>заданий решено</span></div><div><b>' + r.m + '</b><span>тем освоено из ' + r.n + '</span></div><div><b>' + r.p + '%</b><span>готовность' + (dl ? ' · ' + (dl > 0 ? '+' : '−') + Math.abs(dl) + ' за неделю' : '') + '</span></div></div>' + weekChart() + '<p class="meta" style="margin:6px 0 0">Готовность = 50 % темы + 25 % задачи Partie 2 + 25 % последний пробник (' + (r.ex == null ? 'ещё не было' : r.ex + '%') + ').</p></section>';
   h += '<section class="card"><h3>Код прогресса</h3><p class="muted">Прогресс хранится только на этом устройстве. Отправляй код ' + esc(APP.tutorTo) + ' хотя бы раз в неделю — так он не пропадёт, а на уроке его можно продолжить на другом устройстве. ' + (DB.bk.at ? 'Последний раз: ' + new Date(DB.bk.at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }) + '.' : 'Ещё ни разу не отправлялся.') + '</p><div class="row"><button class="btn primary" id="bCode">' + ico('share') + 'Отправить код</button><button class="btn" id="bPaste">' + ico('load') + 'Вставить код</button></div></section>';
-  h += '<div class="lst">' + [['#/plan', 'cal', 'План до бревета', 'что и когда'], ['#/badges', 'trophy', 'Значки', Object.keys(DB.badges).length + ' из ' + badgeList().length], ['#/data', 'shield', 'Данные и копии', 'копии на устройстве, файл'], ['#/settings', 'gear', 'Настройки', 'имя, PIN, цель дня, тема'], ['#/dico', 'dico', 'Словарик', 'FR → RU']].map(([href, ic, t, s]) => '<a class="lrow" href="' + href + '"><span class="lic">' + ico(ic) + '</span><span class="lt"><b>' + t + '</b><span class="muted">' + esc(s) + '</span></span></a>').join('') + '</div>';
+  h += '<div class="lst">' + [['#/plan', 'cal', 'План до бревета', 'что и когда'], ['#/mots', 'dico', 'Мои слова', words ? words + ' ' + plural(words, 'слово', 'слова', 'слов') + (wd ? ' · повторить: ' + wd : '') : 'слова из заданий, которые стоит выучить'],
+    ['#/hw', 'book', 'Домашние задания', DB.hw ? (DB.hw.doneAt ? 'последнее выполнено' : 'есть задание' + (DB.hw.due ? ' ' + hwDueText(DB.hw) : '')) : 'пока не задавали'],
+    ['#/badges', 'trophy', 'Значки', Object.keys(DB.badges).length + ' из ' + badgeList().length], ['#/data', 'shield', 'Данные и копии', 'копии на устройстве, файл'], ['#/settings', 'gear', 'Настройки', 'имя, PIN, цель дня, тема'],
+    ['#/tutor', 'pen', 'Репетитору', 'домашнее задание, печать, режим урока, сводка']].map(([href, ic, t, s]) => '<a class="lrow" href="' + href + '"><span class="lic">' + ico(ic) + '</span><span class="lt"><b>' + t + '</b><span class="muted">' + esc(s) + '</span></span></a>').join('') + '</div>';
   h += '<div class="row"><button class="btn" id="bSwitch">' + ico('swap') + 'Сменить ученика</button></div>';
   shell(h);
   $('#bSwitch').onclick = () => { signOut(); go('#/login'); };
-  $('#bCode').onclick = codeSheet; $('#bPaste').onclick = pasteSheet;
+  $('#bCode').onclick = () => codeSheet(); $('#bPaste').onclick = pasteSheet;
 }
 function weekChart() {
   const days = []; const d = today0(); d.setDate(d.getDate() - 13);
@@ -219,10 +288,14 @@ function weekChart() {
 }
 function viewPlan() {
   chrome({ title: 'План', back: '#/', tab: 0 });
-  const ids = todayPlan(), order = planOrder().filter(id => !ids.includes(id)), days = Math.max(1, daysTo(APP.exam));
-  const per = Math.max(2, Math.round(GOAL() / 6)), left = MAIN().filter(t => !isM(t.id)).length;
+  const wu = warmup(), ids = todayPlan(), order = planOrder().filter(id => !ids.includes(id)), days = Math.max(1, daysTo(APP.exam));
+  const per = Math.max(2, Math.round(GOAL() / 6)), left = MAIN().filter(t => !isM(t.id)).length, due = TOPICS.filter(t => isDue(t.id)).length;
   const weeks = Math.ceil(left / (per * 5));
-  let h = '<section class="card"><h3>Сегодня</h3><div class="lst">' + ids.map(id => { const t = TP(id); if (!t) return ''; const ok = isM(id) || doneToday(id); return '<a class="lrow' + (ok ? ' done' : '') + '" href="#/t/' + id + '"><span class="lic">' + ico(ok ? 'check' : 'target') + '</span><span class="lt"><b>' + esc(t.ru) + '</b><span class="muted">' + esc(CH(t.ch).ru) + ' · ' + ['', 'база', 'бревет', 'сверх'][t.lvl] + '</span></span>' + dotsHtml(skOf(id)) + '</a>'; }).join('') + '</div></section>';
+  let h = '<section class="card"><h3>Сегодня</h3><div class="lst">' +
+    (wu.items.length ? '<a class="lrow' + (wuLeft() ? '' : ' done') + '" href="#/t/wu"><span class="lic">' + ico(wuLeft() ? 'timer' : 'check') + '</span><span class="lt"><b>Разминка</b><span class="muted">' + wu.items.length + ' коротких ' + plural(wu.items.length, 'вопрос', 'вопроса', 'вопросов') + ' без калькулятора, как в Partie 1' + (wu.i ? ' · сделано ' + Math.min(wu.i, wu.items.length) + ', верно ' + wu.ok : '') + '</span></span></a>' : '') +
+    (hwOpen() ? '<a class="lrow" href="#/hw"><span class="lic">' + ico('book') + '</span><span class="lt"><b>Домашнее задание</b><span class="muted">' + (hwDueText(DB.hw) || 'без срока') + '</span></span></a>' : '') +
+    ids.map(id => { const t = TP(id); if (!t) return ''; const ok = doneToday(id), rv = (DB.plan.rev || []).includes(id); return '<a class="lrow' + (ok ? ' done' : '') + '" href="#/t/' + id + '"><span class="lic">' + ico(ok ? 'check' : rv ? 'redo' : 'target') + '</span><span class="lt"><b>' + esc(t.ru) + '</b><span class="muted">' + esc(CH(t.ch).ru) + ' · ' + (rv ? 'повторение' : ['', 'база', 'бревет'][t.lvl]) + '</span></span>' + dotsHtml(skOf(id)) + '</a>'; }).join('') + '</div></section>';
+  h += '<section class="card"><h3>Повторение</h3><p class="muted">Освоенная тема возвращается одним заданием через 3, 10 и 30 дней — в разминке или в плане. Ответил верно — следующий срок; ошибся — тема снова в работе, пока не будет трёх верных ответов подряд. ' + (due ? 'Сейчас ждут повторения: <b>' + due + '</b>.' : 'Сейчас ничего не ждёт повторения.') + '</p></section>';
   h += '<section class="card"><h3>Дальше</h3><p class="muted">Осталось тем: ' + left + '. В таком темпе (' + per + ' ' + plural(per, 'тема', 'темы', 'тем') + ' в день, 5 дней в неделю) все темы будут пройдены примерно за ' + weeks + ' ' + plural(weeks, 'неделю', 'недели', 'недель') + ' — до бревета ' + dn(days) + '. Оставшееся время — задачи Partie 2 и пробники.</p>' +
     (order.length ? '<div class="lst">' + order.slice(0, 12).map(id => { const t = TP(id); return '<a class="lrow" href="#/t/' + id + '"><span class="lic">' + ico('target') + '</span><span class="lt"><b>' + esc(t.ru) + '</b><span class="muted">' + esc(CH(t.ch).ru) + '</span></span></a>'; }).join('') + '</div>' : '') + '</section>';
   h += '<section class="card"><h3>Пробники</h3><ul class="gsteps"><li>Раз в две недели — <b>Partie 1</b> (20 минут).</li><li>Раз в месяц — <b>Partie 2</b>, а с апреля — раз в неделю.</li><li>С мая — <b>Brevet blanc</b> раз в неделю, в то же время, что экзамен: с 10:00 до 12:00.</li></ul><a class="btn" href="#/exam">К пробникам</a></section>';
@@ -273,7 +346,7 @@ function viewData() {
   if (sn.length) h += '<section class="card"><h3>Копии на этом устройстве</h3><p class="muted">Делаются сами: одна в день и перед каждой загрузкой. Можно вернуть прогресс к такому состоянию — текущий тоже сохранится копией.</p><div class="lst">' + sn.map((s, i) => '<button class="lrow" data-snap="' + i + '"><span class="lic">' + ico('redo') + '</span><span class="lt"><b>' + new Date(s.at).toLocaleString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) + '</b><span class="muted">' + esc(s.why || '') + ' · заданий: ' + dbSummary(s.db).tasks + '</span></span></button>').join('') + '</div></section>';
   shell(h);
   $('#dSave').onclick = exportFile;
-  $('#dCode').onclick = codeSheet;
+  $('#dCode').onclick = () => codeSheet();
   $('#dPaste').onclick = pasteSheet;
   $('#dFile').onchange = e => { const f = e.target.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => { try { takeProgress(readBackup(JSON.parse(rd.result))); } catch (er) { toast(er.message || 'Это не файл прогресса'); } }; rd.readAsText(f); };
   $$('[data-snap]').forEach(b => b.onclick = () => {
@@ -323,6 +396,8 @@ function viewInstall(first) {
 /* ---------- routes ---------- */
 ROUTES.push(
   [/^#\/?$/, () => viewToday()],
+  [/^#\/go$/, () => goStudy()],
+  [/^#\/officiel$/, () => viewOfficiel()],
   [/^#\/login/, () => { if (DB) signOut(); viewLogin(); }],
   [/^#\/install/, () => viewInstall(!DB)],
   [/^#\/prog$/, () => viewProg()],

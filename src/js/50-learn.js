@@ -244,7 +244,11 @@ function newQuestion(keepTopic) {
   const t = TP(P.id); let it, vi, seed;
   if (fixed) { vi = fixed.vi % t.variants; seed = fixed.seed; try { it = t.gen(mkRng(seed), vi); } catch (e) { console.error(t.id, e); it = null; } }
   else ({ it, vi, seed } = makeItem(t));
-  Object.assign(P, { it, vi, seed, vals: {}, tries: 0, hint: 0, sol: false, step: 1, done: false, ok: null, fb: null, rec: false, tr: false, trc: false, due: isDue(P.id), t0: Date.now(), away: 0, hid: 0, sec: 0, marks: [] });
+  startItem(it, vi, seed);
+}
+/* a task on screen, from zero: nothing typed, no hints, French text, the stopwatch at 0:00 */
+function startItem(it, vi, seed) {
+  Object.assign(P, { it, vi, seed, vals: {}, tries: 0, hint: 0, sol: false, step: 1, done: false, ok: null, fb: null, rec: false, tr: false, trc: false, tip: null, due: isDue(P.id), t0: Date.now(), away: 0, hid: 0, sec: 0, marks: [] });
   renderPractice(true);
 }
 /* a set of questions is over: the plan of the day or the homework topics */
@@ -323,7 +327,7 @@ function renderPractice(fresh) {
   if (b('bReport')) b('bReport').onclick = () => reportIssue('Тема ' + t.id + ' («' + t.ru + '»), тип ' + P.vi + ', номер ' + P.seed, it, Object.keys(P.vals).sort().map(k => P.vals[k]));
   P.switched = null;
 }
-const lvlChip = l => '<span class="chip lvl' + l + '">' + (['', 'база', 'бревет'][l] || '') + '</span>';
+const lvlChip = l => (l === 1 || l === 2 ? '<span class="chip lvl' + l + '">' + ['', 'база', 'бревет'][l] + '</span>' : '');
 function dotsHtml(s) { const r = (s.r || '').slice(-3).padStart(3, '-'); return '<div class="dots" title="три верных подряд — тема освоена">' + [...r].map(c => '<i class="' + (c === '1' ? 'on' : c === '0' ? 'x' : '') + '"></i>').join('') + (s.m ? '<b>' + ico('check') + '</b>' : '') + '</div>'; }
 const partCls = i => P.marks && P.marks[i] ? ' ' + P.marks[i] : '';
 const fieldState = i => ({ mark: P.marks && P.marks[i], reveal: P.done && P.ok === false, lock: P.done });
@@ -386,9 +390,14 @@ function nextBox(t) {
   }
   return '';
 }
-/* one-time hints: shown until the student has used the thing they describe */
-function tipHtml(k, text) { return DB.tips[k] ? '' : '<div class="newtip" data-tip="' + k + '">' + ico('bulb') + '<span>' + text + '</span></div>'; }
-function tipOff(k) { if (!DB || DB.tips[k]) return; DB.tips[k] = 1; const t = $('.newtip[data-tip="' + k + '"]'); if (t) t.style.visibility = 'hidden'; saveSoon(); }
+/* one-time hints: shown until the student has used the thing they describe (or has seen the hint on five tasks).
+   On the task where it appeared a hint stays to the end, so nothing jumps when the student presses «Перевод» or «Проверить». */
+function tipHtml(k, text) {
+  if (DB.tips[k] && !(P && P.tip === k)) return '';
+  if (P && P.tip !== k) { P.tip = k; DB.tips[k + 'N'] = (DB.tips[k + 'N'] || 0) + 1; if (DB.tips[k + 'N'] >= 5) DB.tips[k] = 1; }
+  return '<div class="newtip" data-tip="' + k + '">' + ico('bulb') + '<span>' + text + '</span></div>';
+}
+function tipOff(k) { if (!DB || DB.tips[k]) return; DB.tips[k] = 1; saveSoon(); }
 /* on a computer the cursor goes straight into the answer field */
 function focusFirst() { if (window.matchMedia && matchMedia('(pointer: coarse)').matches) return; const i = $('#app input.inp:not([readonly])'); if (i) i.focus({ preventScroll: true }); }
 

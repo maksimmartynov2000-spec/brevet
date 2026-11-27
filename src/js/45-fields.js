@@ -173,6 +173,15 @@ function keyPress(k) {
   vib(5);
 }
 function enterKey() { if (ON_ENTER) ON_ENTER(); else hideKb(); }
+/* a computer keyboard: Enter — check or go on; the letters A–D choose an answer when the screen has one question with options */
+document.addEventListener('keydown', e => {
+  if (e.metaKey || e.ctrlKey || e.altKey || $('#sheet') || $('.cele')) return;
+  const t = e.target, typing = t && t.matches && t.matches('input, textarea, select, [contenteditable]');
+  if (e.key === 'Enter' && !typing && !(t && t.closest && t.closest('button, a, summary'))) { if (ON_ENTER && $('#app .q')) { e.preventDefault(); ON_ENTER(); } return; }
+  if (typing || !/^[a-h]$/i.test(e.key)) return;
+  const groups = $$('#app .opts'); if (groups.length !== 1) return;
+  const b = $$('[data-opt]', groups[0])[e.key.toLowerCase().charCodeAt(0) - 97]; if (b && !b.disabled) { e.preventDefault(); b.click(); }
+});
 
 /* typed answer → what the checker reads: French decimal comma, π, % sign */
 function tidyIn(spec, v) {
