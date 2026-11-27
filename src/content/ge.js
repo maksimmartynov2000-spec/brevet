@@ -895,6 +895,7 @@ geoTopic({ id: 'ge.thales', ch: 'ge', lvl: 2, calc: false, variants: 4,
     if (vi === 3) return geoThalesQ(r, false, true);
     /* which equality is true */
     const pap = r() < 0.4, nm = r.pick(pap ? GEO_TH_PAP : GEO_TH_TRI), D = geoThData(r, pap), [O, P1, P3, P2, P4] = nm;
+    if (Math.abs(D.s[2] * D.k - D.s[0] * (D.k + (pap ? 1 : -1))) < 0.06 * D.s[2] * D.k) return this.gen(r, vi);   /* a wrong option would be true on this figure */
     const fig = geoThFig(D.M, nm, {}, pap);
     const fr = (a, b) => '\\dfrac{' + a + '}{' + b + '}', T = s => '$$' + s + '$$';
     const good = fr(O + P1, O + P3) + '=' + fr(O + P2, O + P4) + '=' + fr(P1 + P2, P3 + P4);
@@ -1095,7 +1096,7 @@ geoTopic({ id: 'ge.trigo-calcul', ch: 'ge', lvl: 2, calc: true, variants: 5,
       /* vi 0: the unknown is in the numerator; vi 1: in the denominator */
       const pairs = vi === 0 ? [['hyp', 'adj'], ['hyp', 'opp'], ['adj', 'opp']] : [['adj', 'hyp'], ['opp', 'hyp'], ['opp', 'adj']];
       let kn, ask, al, kv, val, g = 0;
-      do { [kn, ask] = r.pick(pairs); al = r.ri(18, 72); kv = r() < 0.6 ? r.ri(3, 15) : geoD1(r, 2.5, 14); const c = Math.cos(geoRad(al)), s = Math.sin(geoRad(al)), t = Math.tan(geoRad(al));
+      do { [kn, ask] = r.pick(pairs); al = r.ri(28, 62); kv = r() < 0.6 ? r.ri(3, 15) : geoD1(r, 2.5, 14); const c = Math.cos(geoRad(al)), s = Math.sin(geoRad(al)), t = Math.tan(geoRad(al));
         val = { 'hyp>adj': kv * c, 'hyp>opp': kv * s, 'adj>opp': kv * t, 'adj>hyp': kv / c, 'opp>hyp': kv / s, 'opp>adj': kv / t }[kn + '>' + ask]; } while ((!geoSafe(val, 1) || val > 60) && g++ < 50);
       const fn = { 'hyp>adj': 'cos', 'hyp>opp': 'sin', 'adj>opp': 'tan', 'adj>hyp': 'cos', 'opp>hyp': 'sin', 'opp>adj': 'tan' }[kn + '>' + ask];
       const [num, den] = GEO_FN[fn], u = r.pick(['cm', 'cm', 'm']), key = geoRound(val, 1).toFixed(1);
@@ -1112,7 +1113,7 @@ geoTopic({ id: 'ge.trigo-calcul', ch: 'ge', lvl: 2, calc: true, variants: 5,
       const fn = r.pick(['cos', 'sin', 'tan']), [num, den] = GEO_FN[fn];
       let a, b, al, dp = r() < 0.5 ? 0 : 1, g = 0;
       do { const x = r.ri(2, 14); let y = r.ri(2, 14); if (y === x) y++; if (fn === 'tan') { a = x; b = y; } else { a = Math.min(x, y); b = Math.max(x, y) + r.ri(1, 4); }
-        al = geoDeg(fn === 'cos' ? Math.acos(a / b) : fn === 'sin' ? Math.asin(a / b) : Math.atan(a / b)); } while ((!geoSafe(al, dp) || al < 12 || al > 78) && g++ < 60);
+        al = geoDeg(fn === 'cos' ? Math.acos(a / b) : fn === 'sin' ? Math.asin(a / b) : Math.atan(a / b)); } while ((!geoSafe(al, dp) || al < 28 || al > 62) && g++ < 200);
       const len = { [num]: a, [den]: b }, legA = Math.cos(geoRad(al)), legO = Math.sin(geoRad(al));
       const key = geoRound(al, dp).toFixed(dp), u = 'cm';
       const fig = geoTri(geoTrigPts(r, T, legA, legO), T.nm, { right: R, ang: { [A]: '?' }, angHl: [A], side: { [T[num]]: a + ' cm', [T[den]]: b + ' cm' } });
@@ -1188,7 +1189,7 @@ function geoGrid(cols, rows, c) {
 /* labelled points on a grid: [[i, j, name], …] — dots first, then the names in a free corner of a cell */
 function geoGridPts(G, pts) {
   pts.forEach(([i, j]) => { const p = G.P(i, j); G.S.dot(p, 3); G.S.boxes.push([p.x - 3, p.y - 3, p.x + 3, p.y + 3]); });
-  pts.forEach(([i, j, t]) => geoPtLab(G.S, G.P(i, j), geoV(1, -1), t, { gap: 3 }));
+  pts.forEach(([i, j, t]) => geoPtLab(G.S, G.P(i, j), geoV(1, -1), t, { gap: 3, near: true }));   /* the name stays next to its own point */
 }
 const GEO_LETTERS = 'ABCDEFGHJKLMNPRSTUVWXYZ'.split('');
 const geoPl = (n, a, b, c) => { n = Math.abs(n); const m10 = n % 10, m100 = n % 100; return n + ' ' + (m10 === 1 && m100 !== 11 ? a : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? b : c); };
@@ -2010,7 +2011,7 @@ geoTopic({ id: 'ge.semblables', ch: 'ge', lvl: 2, calc: false, variants: 5,
       const ang2 = kind === 'one' ? [d, a, 180 - a - d] : r.pick([[b, a, c], [c, b, a], [a, c, b]]), show2 = kind === 'direct' ? ang2.map(x => x === a || x === b) : kind === 'third' ? ang2.map(x => x === a || x === c) : [true, true, false];
       const P1 = geoTurn(geoTriASA(1, a, b), r.pick([0, 0, 180, 15, -15])), P2 = geoTurn(geoTriASA(1, ang2[0], ang2[1]), r.pick([0, 180, 90, -90, 30]), r() < 0.5);
       const lab2 = {}; n2.forEach((x, i) => { if (show2[i]) lab2[x] = ang2[i] + '°'; });
-      const fig = geoTri2(P1, n1, { ang: { [A]: a + '°', [B]: b + '°' } }, P2, n2, { ang: lab2 });
+      const fig = geoTri2(P1, n1, { ang: { [A]: a + '°', [B]: b + '°' } }, P2, n2, { ang: lab2 }, { W1: 140, W2: 140, H: 135, gap: 44 });
       const sim = kind !== 'one', s2 = n2.filter((x, i) => show2[i]), h2 = n2.find((x, i) => !show2[i]), v2 = ang2[n2.indexOf(h2)];
       const yes = L('Oui, car leurs angles sont deux à deux de même mesure.', 'Да: их углы попарно равны.'), no = L('Non, car leurs angles ne sont pas deux à deux de même mesure.', 'Нет: их углы не равны попарно.');
       const unk = L('On ne peut pas savoir sans connaître les longueurs des côtés.', 'Нельзя узнать, не зная длин сторон.');

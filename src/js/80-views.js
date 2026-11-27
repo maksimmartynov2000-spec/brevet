@@ -233,8 +233,9 @@ function viewChapter(id) {
 /* ---------- the official list of automatismes (Partie 1): each skill with the topics that train it ---------- */
 const autoState = a => { const ts = (a.topics || []).filter(id => TP(id)); return !ts.length ? -1 : ts.every(isM) ? 2 : ts.some(id => DB.sk[id] && DB.sk[id].a) ? 1 : 0; };
 const autosDone = () => AUTOS.filter(a => autoState(a) === 2).length + ' из ' + AUTOS.length;
+let OFFTR = false;
 function viewOfficiel() {
-  chrome({ title: 'Автоматизмы', back: '#/prog', tab: 1, words: true });
+  chrome({ title: 'Автоматизмы', back: '#/prog', tab: 1, words: true, tr: true, trOn: OFFTR, onTr: on => { OFFTR = on; } });
   let h = '<section class="card"><p class="muted" style="margin:0">Partie 1 бревета — 9 коротких вопросов без калькулятора, 20 минут, 6 баллов. Министерство опубликовало ориентировочный список того, что там спрашивают: ' + AUTOS.length + ' умений. Ниже — каждое из них и темы приложения, которые его тренируют. Освоено: <b>' + autosDone() + '</b>.</p></section>';
   const sec = a => a.sec || CH(a.dom).fr, doms = []; AUTOS.forEach(a => { if (!doms.includes(sec(a))) doms.push(sec(a)); });
   doms.forEach(dm => {

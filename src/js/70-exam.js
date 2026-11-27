@@ -70,7 +70,7 @@ function viewExamRun() {
   const pi = cur.part, pt = cur.parts[pi], md = MODES[cur.mode];
   if (pt.end && Date.now() >= pt.end) return handIn(true);
   /* no «Перевод» in the mock exams — like on the day; the start test keeps it: it measures the maths, not the French */
-  chrome({ title: md.ru, back: '#/exam', tr: cur.mode === 'diag', kb: true });
+  chrome({ title: md.ru, back: '#/exam', tr: cur.mode === 'diag', words: cur.mode === 'diag', kb: true });
   const items = partItems(pi);
   let h = '<section class="card exhead"><div class="exrowtop"><div class="qname"><b>' + esc(pt.title) + '</b><span class="frn">' + (pt.kind === 'short' ? (cur.mode === 'diag' ? 'без подсказок, без таймера' : 'sans calculatrice') : 'calculatrice autorisée') + '</span></div>' +
     (pt.end ? '<div class="tmr" id="tmr" aria-live="off">' + mmss((pt.end - Date.now()) / 1000) + '</div>' : '') + '</div>' +

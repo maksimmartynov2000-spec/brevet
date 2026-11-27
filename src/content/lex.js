@@ -1401,6 +1401,7 @@ lex('tort', 'avoir tort — ошибаться, быть неправым');
 lex('vérification', 'проверка');
 
 /* ---------- имена собственные: города, названия, обозначения тел ---------- */
-lexn('ABCDEFGH|SABCD');
+lexn('ABCDEFGH|SABCD');   /* имена тел длиннее четырёх букв (короткие имена точек словарь пропускает сам) */
+lexn('ax|cx');            /* куски формул в названиях тем: «Résoudre ax + b = cx + d» */
 lexn('Besançon|Grenoble|Lille|Limoges|Metz|Nancy|Reims|Strasbourg');
 lexn('France');

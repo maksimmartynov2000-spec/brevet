@@ -107,7 +107,9 @@ function applyIncoming(inc, why) {
 
 /* ===================== THE CODE =====================
    BRV3.<base64url>: a compact binary record, so that a whole school year still fits in one Telegram message (< 4096 characters).
-   Topics and problems are written by their permanent numbers (src/content/ids.js), times to the minute, days as numbers. */
+   Topics and problems are written by their permanent numbers (src/content/00-ids.js), times to the minute, days as numbers.
+   The order of the fields never changes. New data go to the END (before the check byte) and are read only if bytes are left
+   (r.left() > 0): an older version of the app then reads a newer code, and a newer version reads an older one. */
 const MIN0 = Date.UTC(2026, 0, 1) / 60000, DAY0 = Date.UTC(2026, 0, 1) / 864e5;
 const DAYS_WIN = 35, VC_MAX = 30, EX_MAX = 12;
 const t2m = t => (t ? Math.max(1, Math.floor(t / 60000 - MIN0)) : 0);
@@ -139,7 +141,8 @@ function BR(u8) {
     u8() { need(1); return u8[i++]; },
     vu() { let v = 0, m = 1, b; do { need(1); b = u8[i++]; v += (b & 127) * m; m *= 128; } while (b & 128); return v; },
     str() { const n = r.vu(); need(n); const s = new TextDecoder().decode(u8.subarray(i, i + n)); i += n; return s; },
-    u32() { need(4); const v = (u8[i] | (u8[i + 1] << 8) | (u8[i + 2] << 16) | (u8[i + 3] << 24)) >>> 0; i += 4; return v; } };
+    u32() { need(4); const v = (u8[i] | (u8[i + 1] << 8) | (u8[i + 2] << 16) | (u8[i + 3] << 24)) >>> 0; i += 4; return v; },
+    left: () => u8.length - i };          /* bytes not read yet: data added to the code later is read only when it is there */
   return r;
 }
 function packV3(d) {
