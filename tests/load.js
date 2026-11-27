@@ -5,7 +5,7 @@ const path = require('path');
 const vm = require('vm');
 
 const SRC = path.resolve(__dirname, '..', 'src');
-const CORE = ['00-engine.js', '05-grade.js', '10-helpers.js', '20-api.js', '25-render.js', '27-lex.js'];
+const CORE = ['00-engine.js', '05-grade.js', '10-helpers.js', '20-api.js', '25-render.js', '27-lex.js', '28-dates.js'];
 
 module.exports = function load(only) {
   const mod = { exports: {} };

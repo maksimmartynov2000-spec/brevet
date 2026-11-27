@@ -147,6 +147,22 @@ A.FICHES.forEach((f, i) => {
   (f.frs || []).forEach((t, j) => textOk(W + '.frs' + j, t, 'fr'));
   lexOk(W, f.frs || []);
 });
+/* the lexicon: every form belongs to one entry; translations are Russian and short */
+const lexForms = new Map();
+A.LEXI.forEach((e, i) => {
+  const forms = String(e.f || '').split('|').map((x) => x.trim()).filter(Boolean);
+  const W = 'lex «' + (forms[0] || '?') + '»';
+  if (!forms.length) err('lex #' + i, 'no forms');
+  if (CYR.test(e.f)) err(W, 'Cyrillic letters among the French forms');
+  if (e.k !== 2) { if (!e.ru || !CYR.test(e.ru)) err(W, 'needs a Russian translation'); else if (e.ru.length > 90) err(W, 'translation too long (' + e.ru.length + '): keep it under 90 characters'); }
+  forms.forEach((f) => {
+    const key = A.lexTokens(f).map((t) => t.w).join(' ');
+    const k2 = key.includes(' ') ? key.toLowerCase() : key;
+    if (!key) { err(W, 'empty form'); return; }
+    if (lexForms.has(k2) && lexForms.get(k2) !== i) err(W, 'the form «' + f + '» is already in the entry «' + String(A.LEXI[lexForms.get(k2)].f).split('|')[0] + '»');
+    lexForms.set(k2, i);
+  });
+});
 /* the ministry's list of automatismes: every item is linked to topics that exist */
 const autoN = new Set();
 A.AUTOS.forEach((a) => {
