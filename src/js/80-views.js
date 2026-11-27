@@ -32,16 +32,16 @@ function wireNewProfile() {
     if (pin.value && pin.value.length !== 4) { pin.focus(); return toast('PIN — ровно 4 цифры (или оставь пустым)'); }
     if (profiles().some(p => p.name.toLowerCase() === nm.toLowerCase())) return toast('Такое имя уже есть на этом устройстве');
     await createProfile(nm, pin.value || null);
-    document.documentElement.classList.remove('nologin'); setTr(DB.ru); go('#/');
+    document.documentElement.classList.remove('nologin'); go('#/');
   };
   if ($('#npMove')) $('#npMove').onclick = moveInSheet;
 }
 function enterProfile(id) {
   const p = profOf(id); if (!p) return;
-  if (!p.pin) { openProfile(id); document.documentElement.classList.remove('nologin'); setTr(DB.ru); return go('#/'); }
+  if (!p.pin) { openProfile(id); document.documentElement.classList.remove('nologin'); return go('#/'); }
   pinSheet(p.name, async pin => {
     if (Date.now() < PINTRY.until) { toast('Подожди немного и попробуй снова'); return false; }
-    if (await pinOk(p, pin)) { PINTRY.n = 0; closeSheet(); openProfile(id); document.documentElement.classList.remove('nologin'); setTr(DB.ru); go('#/'); return true; }
+    if (await pinOk(p, pin)) { PINTRY.n = 0; closeSheet(); openProfile(id); document.documentElement.classList.remove('nologin'); go('#/'); return true; }
     PINTRY.n++; if (PINTRY.n >= 5) { PINTRY.until = Date.now() + 30000; PINTRY.n = 0; toast('5 неверных попыток — подожди 30 секунд'); }
     return false;
   }, () => forgotPin(p));
@@ -68,7 +68,7 @@ function forgotPin(p) {
   $('#fpGo', sh).onclick = () => {
     if (normName($('#fpName').value).toLowerCase() !== p.name.toLowerCase()) return toast('Имя не совпадает');
     const ps = profiles(); const x = ps.find(q => q.id === p.id); x.pin = null; x.pinReset = Date.now(); saveProfiles(ps);
-    closeSheet(); openProfile(p.id); document.documentElement.classList.remove('nologin'); setTr(DB.ru); toast('PIN сброшен. Поставь новый в настройках.'); go('#/settings');
+    closeSheet(); openProfile(p.id); document.documentElement.classList.remove('nologin'); toast('PIN сброшен. Поставь новый в настройках.'); go('#/settings');
   };
 }
 
@@ -95,7 +95,7 @@ function pasteSheet() {
   $('#mvFile', sh).onchange = e => { const f = e.target.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => { try { takeProgress(readBackup(JSON.parse(rd.result))); } catch (er) { toast(er.message || 'Это не файл прогресса'); } }; rd.readAsText(f); };
 }
 const moveInSheet = pasteSheet;
-function enterApp() { document.documentElement.classList.remove('nologin'); setTr(DB.ru); }
+function enterApp() { document.documentElement.classList.remove('nologin'); }
 /* which student the progress belongs to: this one, another one on this device, or a new one */
 function takeProgress(inc) {
   closeSheet();
@@ -292,7 +292,7 @@ function fallbackCopy(t, cb) { const a = document.createElement('textarea'); a.v
 /* ---------- cheat sheets and the dictionary ---------- */
 function viewFiche(ch) {
   const c = CH(ch); if (!c) return go('#/prog');
-  chrome({ title: 'Шпаргалка', back: '#/ch/' + ch, tab: 1 });
+  chrome({ title: 'Шпаргалка', back: '#/ch/' + ch, tab: 1, words: true });
   const fs = FICHES.filter(f => f.ch === ch);
   shell('<section class="card theory"><span class="chnum">' + esc(c.ru) + '</span>' + fs.map((f, i) => '<details' + (i === 0 ? ' open' : '') + '><summary>' + esc(f.ru) + ' <span class="frn" lang="fr">' + esc(f.fr) + '</span></summary>' +
     (f.body || []).map(p => '<p>' + rt(p) + '</p>').join('') +

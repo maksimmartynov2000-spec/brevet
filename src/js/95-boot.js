@@ -79,12 +79,13 @@ function boot() {
   applyTheme();
   if (window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
   $('#abBack').onclick = goBack;
-  $('#tTr').onclick = () => { setTr(!(DB && DB.ru)); vib(8); };
-  $('#tKb').onclick = () => { if (!DB) return; DB.kbd = !DB.kbd; save(); chrome(VIEW); $$('input.inp[data-field]').forEach(i => { i.inputMode = DB.kbd ? 'text' : 'none'; }); hideKb(); toast(DB.kbd ? 'Обычная клавиатура' : 'Математическая клавиатура'); };
+  $('#tTr').onclick = () => { setTr(!VIEW.trOn); vib(8); };
+  $('#tKb').onclick = () => { if (!DB) return; DB.kbd = !DB.kbd; save(); $('#tKb').setAttribute('aria-pressed', DB.kbd ? 'true' : 'false'); $$('input.inp[data-field]').forEach(i => { i.inputMode = ownKb() ? 'none' : 'text'; }); hideKb(); toast(DB.kbd ? 'Обычная клавиатура' : 'Математическая клавиатура'); };
+  LESSON = !!LS.get('lesson', false);
   $('#tabbar').innerHTML = TABS.map(([h, ic, t]) => '<button type="button" class="tab">' + ico(ic) + '<span>' + t + '</span></button>').join('');
   $$('.tab').forEach((t, i) => t.onclick = () => go(TABS[i][0]));
   addEventListener('scroll', () => $('#appbar').classList.toggle('sc', scrollY > 4), { passive: true });
-  if (autoSignIn()) setTr(DB.ru);
+  autoSignIn();
   route();
   const sp = $('#splash'); if (sp) { sp.classList.add('out'); setTimeout(() => sp.remove(), 400); }
   if (UPD_ON) {

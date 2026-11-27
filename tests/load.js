@@ -18,6 +18,6 @@ module.exports = function load(only) {
     .filter((f) => !only || !only.length || f.startsWith('00-') || f === 'lex.js' || only.some((w) => f.includes(w)));   /* chapters and the lexicon always */
   for (const f of files) vm.runInContext(fs.readFileSync(path.join(SRC, 'content', f), 'utf8'), ctx, { filename: 'content/' + f });
   // top-level const/let are not properties of the context: expose what the tests need
-  vm.runInContext('this.__A = { CHAPTERS, TOPICS, PROBLEMS, FICHES, GLOSS, LEXI, AUTOS, mkRng, grade, keyInput, parse, tex, ev, varsOf, katex, L, bi, mi, rt, texOfText, lexTokens, lexFind, lexUnknown, lexSkip, lexBuild };', ctx);
+  vm.runInContext('this.__A = { IDX: typeof IDX === "undefined" ? [] : IDX, CHAPTERS, TOPICS, PROBLEMS, FICHES, GLOSS, LEXI, AUTOS, mkRng, grade, keyInput, parse, tex, ev, varsOf, katex, L, bi, mi, rt, texOfText, lexTokens, lexFind, lexUnknown, lexSkip, lexBuild };', ctx);
   return Object.assign(ctx.__A, { files, ctx });
 };

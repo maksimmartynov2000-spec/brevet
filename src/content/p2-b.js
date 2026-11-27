@@ -31,9 +31,17 @@ function pbTyS(s) { if (typeof s === 'string') return pbTy(s); if (Array.isArray
 /* probleme() with the typography applied to every text the generator returns */
 function pbProb(def) {
   const g = def.gen;
-  def.gen = function (r) { const p = g.call(this, r); if (p.ctx) p.ctx = pbTyT(p.ctx); p.qs.forEach(q => { q.q = pbTyT(q.q); pbTyA(q.ans); q.sol = (q.sol || []).map(pbTyS); }); return p; };
+  def.gen = function (r) { const p = g.call(this, r); if (p.ctx) p.ctx = pbTyT(p.ctx); p.qs.forEach(q => { q.q = pbTyT(q.q); pbTyA(q.ans); q.sol = (q.sol || []).map(pbTyS); if (q.redac) q.redac = [].concat(q.redac).map(pbTy); }); return p; };
   return probleme(def);
 }
+/* ---------- « Comment l'écrire sur la copie » (redac) : pieces of TeX for $$…$$ ---------- */
+const pbT = v => { const [i, d] = fx(v).split('.'); return (i.replace('-', '').length > 4 ? i.replace(/\B(?=(\d{3})+(?!\d))/g, '\\,') : i) + (d ? '{,}' + d : ''); };   /* a number: 4{,}5 · 27\,700 */
+const pbDf = (a, b) => '\\dfrac{' + a + '}{' + b + '}';
+const pbFT = (n, d) => { const f = F(n, d); return f.d === 1 ? String(f.n) : pbDf(f.n, f.d); };                    /* reduced fraction */
+const pbFE = (n, d) => (F(n, d).d === d ? pbDf(n, d) : pbDf(n, d) + '=' + pbFT(n, d));                              /* 6/22 = 3/11 (or just 5/22) */
+const pbOrd = k => '$$' + k + '^{\\text{e}}$$';                                                                     /* 12e */
+/* a decimal value of a fraction for a comparison: « = 0,4 » when exact, « ≈ 0,36 » otherwise */
+const pbDecEq = (v, k = 2) => (pbIsD(v, k) ? '=' + pbT(v) : '\\approx ' + texNum(pbK(v, k)));
 /* Pythagorean triples for right triangles with «nice» sides */
 const PB_TRIPLES = [[3, 4, 5], [5, 12, 13], [8, 15, 17], [7, 24, 25], [20, 21, 29], [12, 35, 37], [9, 40, 41], [28, 45, 53], [11, 60, 61], [33, 56, 65], [16, 63, 65], [48, 55, 73], [13, 84, 85], [36, 77, 85], [39, 80, 89], [65, 72, 97]];
 
@@ -103,8 +111,9 @@ pbProb({ id: 'p2.papillon', ch: 'ge', lvl: 2, pts: 4,
     const ctx = L('Sur la figure ci-dessous, qui n\'est pas en vraie grandeur, les droites (BD) et (CE) sont sécantes en A et les droites (BC) et (DE) sont parallèles. On donne : ' + data + '.',
       'На рисунке (масштаб не соблюдён) прямые (BD) и (CE) пересекаются в точке A, а прямые (BC) и (DE) параллельны. Известно: ' + data.replace(/cm/g, 'см').replace(' et ', ' и ') + '.');
     const calc = '$BC^2 = ' + fx(BC) + '^2 = ' + bc2 + '$';
-    const sum = '$AB^2 + AC^2 = ' + ab2 + ' + ' + ac2 + ' = ' + bc2 + '$';
-    const sumT = 'AB^2+AC^2=' + AB + '^2+' + AC + '^2=' + ab2 + '+' + ac2 + '=' + bc2;
+    const sum = '$AB^2 + AC^2 = ' + fx(AB) + '^2 + ' + fx(AC) + '^2 = ' + ab2 + ' + ' + ac2 + ' = ' + bc2 + '$';
+    const thEq = '$$' + pbDf('AD', 'AB') + '=' + pbDf('AE', 'AC') + '=' + pbDf('DE', 'BC') + '$$', tri = [AB * AC, AC * AD, AD * AE, AE * AB].map(v => v / 2);
+    const sumT ='AB^2+AC^2=' + AB + '^2+' + AC + '^2=' + ab2 + '+' + ac2 + '=' + bc2;
     return { ctx, fig: pbPapFig(d), qs: [
       { q: L('Parmi les rédactions suivantes, laquelle démontre que le triangle ABC est rectangle en A ?', 'Какое из рассуждений доказывает, что треугольник ABC прямоугольный с прямым углом A?'), red: true,
         ans: MQ(r, [
@@ -122,13 +131,26 @@ pbProb({ id: 'p2.papillon', ch: 'ge', lvl: 2, pts: 4,
           'Получилось равенство, значит, прямой угол лежит напротив самой длинной стороны [BC] — это угол A.',
           'Вариант, который начинается со слов «ABC прямоугольный», берёт как данное то, что нужно доказать: прямая теорема Пифагора («théorème de Pythagore») применяется только к треугольнику, про который уже известно, что он прямоугольный. Это порочный круг, даже если числа посчитаны верно.',
           'Вариант с выводом «прямоугольный с прямым углом B» ошибается в вершине: прямой угол всегда лежит напротив самой длинной стороны, а напротив [BC] — вершина A.',
-          'Теорема Фалеса даёт равные отношения сторон, но ничего не говорит о прямых углах — из параллельности (BC) и (DE) прямой угол не следует.'] },
-      { q: L('Calculer la longueur DE.', 'Вычисли длину DE.'), ans: pbNE(DE, 'cm'), sol: [
+          'Теорема Фалеса даёт равные отношения сторон, но ничего не говорит о прямых углах — из параллельности (BC) и (DE) прямой угол не следует.'],
+        redac: ['Dans le triangle ABC, le plus long côté est [BC].',
+          'D\'une part : ' + calc + '.',
+          'D\'autre part : ' + sum + '.',
+          'On constate que $BC^2 = AB^2 + AC^2$.',
+          'Donc, d\'après la réciproque du théorème de Pythagore, le triangle ABC est rectangle en A.'] },
+      { q: L('Calculer la longueur DE.', 'Вычисли длину DE.'), ans: pbNE(DE, 'cm'),
+        redac: ['Les droites (BD) et (CE) sont sécantes en A et les droites (BC) et (DE) sont parallèles.',
+          'D\'après le théorème de Thalès : ' + thEq,
+          'soit $$' + pbDf(pbT(AD), pbT(AB)) + '=' + pbDf('AE', pbT(AC)) + '=' + pbDf('DE', pbT(BC)) + '$$.',
+          'Donc $$DE=' + pbDf(pbT(BC) + '\\times ' + pbT(AD), pbT(AB)) + '=' + pbT(DE) + '$$.',
+          'La longueur DE est de ' + nf(DE) + ' cm.'], sol: [
         'Точки B, A, D лежат на одной прямой, точки C, A, E — тоже, и прямые (BC) и (DE) параллельны. Это конфигурация «бабочка» теоремы Фалеса («théorème de Thalès»): треугольник ADE — уменьшенная или увеличенная копия треугольника ABC.',
         ['Поэтому отношения соответствующих сторон равны:', 'AD/AB=AE/AC=DE/BC'],
         ['Подставляем известные длины:', AD + '/' + AB + '=AE/' + AC + '=DE/' + BC],
         ['Из равенства первого и третьего отношений:', 'DE=' + BC + '*' + AD + '/' + AB + '=' + DE, 'см']] },
-      { q: L('Calculer la longueur AE.', 'Вычисли длину AE.'), ans: pbNE(AE, 'cm'), sol: [
+      { q: L('Calculer la longueur AE.', 'Вычисли длину AE.'), ans: pbNE(AE, 'cm'),
+        redac: ['D\'après le théorème de Thalès (question précédente) : $$' + pbDf('AD', 'AB') + '=' + pbDf('AE', 'AC') + '$$, soit $$' + pbDf(pbT(AD), pbT(AB)) + '=' + pbDf('AE', pbT(AC)) + '$$.',
+          'Donc $$AE=' + pbDf(pbT(AC) + '\\times ' + pbT(AD), pbT(AB)) + '=' + pbT(AE) + '$$.',
+          'La longueur AE est de ' + nf(AE) + ' cm.'], sol: [
         'Используем те же равные отношения теоремы Фалеса, но теперь первое и второе.',
         ['', AD + '/' + AB + '=AE/' + AC],
         ['Отсюда', 'AE=' + AC + '*' + AD + '/' + AB + '=' + AE, 'см'],
@@ -136,13 +158,18 @@ pbProb({ id: 'p2.papillon', ch: 'ge', lvl: 2, pts: 4,
       { q: L('On veut montrer que les angles ' + pbAng('ABC') + ' et ' + pbAng('ADE') + ' sont égaux. Remettre dans l\'ordre les étapes de la démonstration.', 'Нужно доказать, что углы ' + pbAng('ABC') + ' и ' + pbAng('ADE') + ' равны. Расставь шаги доказательства по порядку.'), red: true,
         ans: ORD(r, [L('Les droites (BC) et (DE) sont coupées par la sécante (BD).', 'Прямые (BC) и (DE) пересечены секущей (BD).'),
           L('Les angles ' + pbAng('ABC') + ' et ' + pbAng('ADE') + ' sont alternes-internes.', 'Углы ' + pbAng('ABC') + ' и ' + pbAng('ADE') + ' — накрест лежащие.'),
-          L('Or les droites (BC) et (DE) sont parallèles, et deux angles alternes-internes formés par deux droites parallèles sont égaux.', 'А прямые (BC) и (DE) параллельны, а накрест лежащие углы при параллельных прямых равны.'),
+          L('Or les droites (BC) et (DE) sont parallèles ; si deux droites parallèles sont coupées par une sécante, alors les angles alternes-internes sont de même mesure.', 'А прямые (BC) и (DE) параллельны; если две параллельные прямые пересечены секущей, то накрест лежащие углы равны.'),
           L('Donc $$\\widehat{ABC}=\\widehat{ADE}$$.', 'Значит, $$\\widehat{ABC}=\\widehat{ADE}$$.')]),
         sol: ['Сначала описываем конфигурацию: две прямые и секущая (BD), на которой лежат вершины обоих углов.',
           'Потом называем тип углов: они лежат по разные стороны от секущей и между прямыми (BC) и (DE) — это накрест лежащие углы («angles alternes-internes»).',
           'Затем свойство: у параллельных прямых накрест лежащие углы равны. Без условия параллельности вывод был бы неверен — поэтому его обязательно упоминаем.',
           'И только в конце вывод.'] },
-      { q: L('Déterminer l\'aire du quadrilatère BCDE.', 'Найди площадь четырёхугольника BCDE.'), ans: pbNE(area, 'cm²'), sol: [
+      { q: L('Déterminer l\'aire du quadrilatère BCDE.', 'Найди площадь четырёхугольника BCDE.'), ans: pbNE(area, 'cm²'),
+        redac: ['Le triangle ABC est rectangle en A, donc les droites (BD) et (CE) sont perpendiculaires en A.',
+          'Le quadrilatère BCDE est donc formé de quatre triangles rectangles en A : ABC, ACD, ADE et AEB.',
+          '$$' + [[AB, AC], [AC, AD], [AD, AE], [AE, AB]].map(v => pbDf(pbT(v[0]) + '\\times ' + pbT(v[1]), 2)).join('+') + '$$',
+          '$$=' + tri.map(pbT).join('+') + '=' + pbT(area) + '$$',
+          'L\'aire du quadrilatère BCDE est de ' + nf(area) + ' cm².'], sol: [
         'Угол BAC прямой (вопрос 1). Углы DAE и BAC вертикальные («opposés par le sommet»), поэтому DAE тоже 90°; углы BAE и CAD дополняют прямой угол до 180°, значит, тоже по 90°. Диагонали [BD] и [CE] четырёхугольника перпендикулярны.',
         'Значит, BCDE состоит из четырёх прямоугольных треугольников с прямым углом в A: ABC, ACD, ADE и AEB. Площадь прямоугольного треугольника — половина произведения катетов.',
         ['Складываем четыре площади:', AB + '*' + AC + '/2+' + AC + '*' + AD + '/2+' + AD + '*' + AE + '/2+' + AE + '*' + AB + '/2=' + [AB * AC, AC * AD, AD * AE, AE * AB].map(v => fx(v / 2)).join('+') + '=' + fx(area), 'см²'],
@@ -181,7 +208,11 @@ pbProb({ id: 'p2.terrain-tangente', ch: 'ge', lvl: 2, pts: 5,
     const ctx = L('Sur la figure ci-dessous, qui n\'est pas à l\'échelle : les points A, B, E et M sont alignés ; les points A, C et D sont alignés ; le triangle ADE est rectangle en E ; le triangle ABC est rectangle en B ; AD = ' + nf(AD) + ' m ; BC = ' + nf(BC) + ' m ; AC = ' + nf(AC) + ' m et ' + pbAngEq('DME', th) + '.',
       'На рисунке (масштаб не соблюдён): точки A, B, E и M лежат на одной прямой; точки A, C и D лежат на одной прямой; треугольник ADE прямоугольный с прямым углом E; треугольник ABC прямоугольный с прямым углом B; AD = ' + nf(AD) + ' м; BC = ' + nf(BC) + ' м; AC = ' + nf(AC) + ' м и ' + pbAngEq('DME', th) + '.');
     return { ctx, fig: pbTanFig(d, th, EM), qs: [
-      { q: L('Calculer la longueur AB.', 'Вычисли длину AB.'), ans: pbNE(AB, 'm'), sol: [
+      { q: L('Calculer la longueur AB.', 'Вычисли длину AB.'), ans: pbNE(AB, 'm'),
+        redac: ['Dans le triangle ABC rectangle en B, d\'après le théorème de Pythagore : $AC^2 = AB^2 + BC^2$.',
+          '$AB^2 = AC^2 - BC^2 = ' + AC + '^2 - ' + BC + '^2 = ' + (AC * AC) + ' - ' + (BC * BC) + ' = ' + (AB * AB) + '$',
+          '$AB = √' + (AB * AB) + ' = ' + AB + '$',
+          'La longueur AB est de ' + nf(AB) + ' m.'], sol: [
         'Треугольник ABC прямоугольный с прямым углом B, гипотенуза — сторона напротив прямого угла, [AC]. Значит, работает теорема Пифагора («théorème de Pythagore»).',
         ['', 'AC^2=AB^2+BC^2'],
         ['Отсюда квадрат катета — квадрат гипотенузы минус квадрат другого катета:', 'AB^2=' + AC + '^2-' + BC + '^2=' + (AC * AC) + '-' + (BC * BC) + '=' + (AB * AB)],
@@ -193,18 +224,36 @@ pbProb({ id: 'p2.terrain-tangente', ch: 'ge', lvl: 2, pts: 5,
           L('Sur la figure, les droites (DE) et (BC) ne se coupent pas, même si on les prolonge. Donc elles sont parallèles.', 'На рисунке прямые (DE) и (BC) не пересекаются, даже если их продолжить. Значит, они параллельны.')], 0),
         sol: ['Из условия: угол ABC прямой, значит, (BC) ⊥ (AM); угол AED прямой, значит, (DE) ⊥ (AM). Две прямые, перпендикулярные одной и той же прямой, параллельны.',
           'Вариант с обратной теоремой Фалеса не годится: длину DE мы ещё не знаем — её как раз найдём в следующем вопросе с помощью этой параллельности. Получился бы порочный круг.',
-          'Теорема Пифагора даёт длины сторон, а не параллельность. А «на рисунке не пересекаются» — не доказательство: рисунок не в масштабе, и «на глаз» нельзя отличить параллельные прямые от почти параллельных.'] },
-      { q: L('Calculer la longueur DE.', 'Вычисли длину DE.'), ans: pbNE(DE, 'm'), sol: [
+          'Теорема Пифагора даёт длины сторон, а не параллельность. А «на рисунке не пересекаются» — не доказательство: рисунок не в масштабе, и «на глаз» нельзя отличить параллельные прямые от почти параллельных.'],
+        redac: ['Le triangle ABC est rectangle en B, donc la droite (BC) est perpendiculaire à la droite (AB).',
+          'Le triangle ADE est rectangle en E, donc la droite (DE) est perpendiculaire à la droite (AE).',
+          'Les points A, B, E et M sont alignés : les droites (BC) et (DE) sont donc perpendiculaires à la même droite (AM).',
+          'Or, si deux droites sont perpendiculaires à une même droite, alors elles sont parallèles.',
+          'Donc les droites (DE) et (BC) sont parallèles.'] },
+      { q: L('Calculer la longueur DE.', 'Вычисли длину DE.'), ans: pbNE(DE, 'm'),
+        redac: ['Les droites (BE) et (CD) sont sécantes en A et les droites (BC) et (DE) sont parallèles.',
+          'D\'après le théorème de Thalès : $$' + pbDf('AB', 'AE') + '=' + pbDf('AC', 'AD') + '=' + pbDf('BC', 'DE') + '$$',
+          'soit $$' + pbDf(pbT(AC), pbT(AD)) + '=' + pbDf(pbT(BC), 'DE') + '$$, donc $$DE=' + pbDf(pbT(BC) + '\\times ' + pbT(AD), pbT(AC)) + '=' + pbT(DE) + '$$.',
+          'La longueur DE est de ' + nf(DE) + ' m.'], sol: [
         'Точки A, B, E лежат на одной прямой, точки A, C, D — тоже, и (BC) ∥ (DE). Это теорема Фалеса («théorème de Thalès»): треугольник AED — увеличенный треугольник ABC.',
         ['', 'AB/AE=AC/AD=BC/DE'],
         ['Нужны второе и третье отношения: в них известно всё, кроме DE.', AC + '/' + AD + '=' + BC + '/DE'],
         ['Отсюда', 'DE=' + BC + '*' + AD + '/' + AC + '=' + DE, 'м']] },
-      { q: L('Calculer la longueur EM. Arrondir au dixième de mètre.', 'Вычисли длину EM. Округли до десятых метра.'), ans: pbNR(EM, 1, 'm'), sol: [
+      { q: L('Calculer la longueur EM. Arrondir au dixième de mètre.', 'Вычисли длину EM. Округли до десятых метра.'), ans: pbNR(EM, 1, 'm'),
+        redac: ['Les points A, E et M sont alignés et le triangle ADE est rectangle en E, donc le triangle DEM est rectangle en E.',
+          'Dans le triangle DEM rectangle en E : $$\\tan\\widehat{DME}=' + pbDf('DE', 'EM') + '$$, soit $$\\tan ' + th + '^{\\circ}=' + pbDf(pbT(DE), 'EM') + '$$.',
+          'Donc $$EM=' + pbDf(pbT(DE), '\\tan ' + th + '^{\\circ}') + '\\approx ' + texNum(pbK(EM, 1)) + '$$.',
+          'La longueur EM est d\'environ ' + pbS(EM, 1) + ' m.'], sol: [
         'В треугольнике DEM угол E прямой: (DE) ⊥ (AM), а M лежит на прямой (AM). Известны угол M и катет DE, лежащий напротив него; EM — катет, прилежащий к углу M.',
         { t: 'Противолежащий и прилежащий катеты связывает тангенс:', tex: '\\tan\\widehat{DME}=\\dfrac{DE}{EM}' },
         { t: 'Отсюда', tex: 'EM=\\dfrac{DE}{\\tan ' + th + '^\\circ}=\\dfrac{' + texNum(DE) + '}{\\tan ' + th + '^\\circ}\\approx ' + texNum(pbK(EM, 3)) },
         'Округляем до десятых: EM ≈ ' + pbS(EM, 1) + ' м. Калькулятор должен быть в градусах (режим «DEG»).'] },
-      { q: L('On prend EM ≈ ' + pbS(EM, 1) + ' m. Calculer l\'aire du triangle AMD.', 'Возьмём EM ≈ ' + pbS(EM, 1) + ' м. Вычисли площадь треугольника AMD.'), ans: pbNE(area, 'm²'), sol: [
+      { q: L('On prend EM ≈ ' + pbS(EM, 1) + ' m. Calculer l\'aire du triangle AMD.', 'Возьмём EM ≈ ' + pbS(EM, 1) + ' м. Вычисли площадь треугольника AMD.'), ans: pbNE(area, 'm²'),
+        redac: ['D\'après le théorème de Thalès (question 3) : $$' + pbDf('AB', 'AE') + '=' + pbDf('AC', 'AD') + '$$, donc $$AE=' + pbDf(pbT(AB) + '\\times ' + pbT(AD), pbT(AC)) + '=' + pbT(AE) + '$$.',
+          'Le point E appartient au segment [AM], donc AM = AE + EM ≈ ' + nf(AE) + ' + ' + pbS(EM, 1) + ' = ' + nf(AM) + ' m.',
+          'La droite (DE) est perpendiculaire à (AM) : [DE] est la hauteur du triangle AMD relative au côté [AM].',
+          '$$\\mathcal{A}=' + pbDf('AM\\times DE', 2) + '\\approx ' + pbDf(pbT(AM) + '\\times ' + pbT(DE), 2) + '=' + pbT(area) + '$$',
+          'L\'aire du triangle AMD est d\'environ ' + nf(area) + ' m².'], sol: [
         'Основание треугольника AMD — сторона [AM], а высота к ней — [DE], потому что (DE) ⊥ (AM).',
         ['Сначала AE — по той же теореме Фалеса, что и DE:', 'AE=' + AB + '*' + AD + '/' + AC + '=' + AE, 'м'],
         ['Точка E лежит между A и M, поэтому', 'AM=AE+EM=' + AE + '+' + EMr + '=' + fx(AM), 'м'],
@@ -254,18 +303,25 @@ pbProb({ id: 'p2.alignement', ch: 'ge', lvl: 2, pts: 4,
           'Сумма углов (180°) сама по себе не даёт величину угла: для этого нужно знать два других угла, а мы знаем только один.',
           'Равносторонним треугольник не является: известно лишь BC = BF; к тому же у равностороннего треугольника все углы по 60°, а не по ' + al + '°.',
           '«На рисунке одинаковые» — не доказательство: рисунок не в масштабе.'] },
-      { q: L('Calculer la mesure de l\'angle ' + pbAng('CBF') + '.', 'Вычисли величину угла ' + pbAng('CBF') + '.'), ans: N(be, { unit: '°' }), sol: [
+      { q: L('Calculer la mesure de l\'angle ' + pbAng('CBF') + '.', 'Вычисли величину угла ' + pbAng('CBF') + '.'), ans: N(be, { unit: '°' }),
+        redac: ['Dans un triangle, la somme des mesures des angles est égale à 180°.',
+          'Dans le triangle CBF : $$\\widehat{CBF}=180^{\\circ}-2\\times ' + al + '^{\\circ}=' + be + '^{\\circ}$$.',
+          'L\'angle ' + pbAng('CBF') + ' mesure ' + be + '°.'], sol: [
         'Сумма углов треугольника равна 180°, а два угла треугольника CBF мы уже знаем: по ' + al + '°.',
         ['', '180-' + al + '-' + al + '=' + be, '°']] },
       { q: L('On veut démontrer que le triangle ABC est rectangle. Remettre dans l\'ordre les étapes de la démonstration.', 'Нужно доказать, что треугольник ABC прямоугольный. Расставь шаги доказательства по порядку.'), red: true,
         ans: ORD(r, [L('Dans le triangle ABC, le plus long côté est [AC].', 'В треугольнике ABC самая длинная сторона — [AC].'),
-          L('D\'une part $AC^2 = ' + fx(AC) + '^2 = ' + fx(AC * AC) + '$ ; d\'autre part $AB^2 + BC^2 = ' + fx(AB * AB) + ' + ' + fx(BC * BC) + ' = ' + fx(AC * AC) + '$.', 'С одной стороны, $AC^2 = ' + fx(AC) + '^2 = ' + fx(AC * AC) + '$; с другой стороны, $AB^2 + BC^2 = ' + fx(AB * AB) + ' + ' + fx(BC * BC) + ' = ' + fx(AC * AC) + '$.'),
+          L('D\'une part : $AC^2 = ' + fx(AC) + '^2 = ' + fx(AC * AC) + '$. D\'autre part : $AB^2 + BC^2 = ' + fx(AB) + '^2 + ' + fx(BC) + '^2 = ' + fx(AB * AB) + ' + ' + fx(BC * BC) + ' = ' + fx(AC * AC) + '$.', 'С одной стороны, $AC^2 = ' + fx(AC) + '^2 = ' + fx(AC * AC) + '$. С другой стороны, $AB^2 + BC^2 = ' + fx(AB) + '^2 + ' + fx(BC) + '^2 = ' + fx(AB * AB) + ' + ' + fx(BC * BC) + ' = ' + fx(AC * AC) + '$.'),
           L('Donc $AC^2 = AB^2 + BC^2$.', 'Значит, $AC^2 = AB^2 + BC^2$.'),
           L('D\'après la réciproque du théorème de Pythagore, le triangle ABC est rectangle en B.', 'По обратной теореме Пифагора треугольник ABC прямоугольный с прямым углом B.')]),
         sol: ['Сначала находим самую длинную сторону — только её квадрат сравнивают с суммой квадратов двух других.',
           'Потом считаем обе части по отдельности и не пишем знак «=» между ними, пока не убедились, что числа совпали.',
           'Только после совпадения пишем вывод и называем теорему: обратная теорема Пифагора («réciproque du théorème de Pythagore»). Прямой угол — напротив самой длинной стороны [AC], то есть угол B.'] },
-      { q: L('Dans le triangle rectangle BGF, calculer la mesure de l\'angle ' + pbAng('FBG') + '.', 'В прямоугольном треугольнике BGF вычисли величину угла ' + pbAng('FBG') + '.'), ans: N(60, { unit: '°' }), sol: [
+      { q: L('Dans le triangle rectangle BGF, calculer la mesure de l\'angle ' + pbAng('FBG') + '.', 'В прямоугольном треугольнике BGF вычисли величину угла ' + pbAng('FBG') + '.'), ans: N(60, { unit: '°' }),
+        redac: ['Dans le triangle BGF rectangle en G : $$\\cos\\widehat{FBG}=' + pbDf('BG', 'BF') + '$$.',
+          'Or BF = BC = ' + nf(BC) + ' cm, donc $$\\cos\\widehat{FBG}=' + pbDf(pbT(BG), pbT(BC)) + '=0{,}5$$.',
+          'Avec la calculatrice : $$\\widehat{FBG}=\\arccos(0{,}5)=60^{\\circ}$$.',
+          'L\'angle ' + pbAng('FBG') + ' mesure 60°.'], sol: [
         'В треугольнике BGF прямой угол G, значит, гипотенуза — [BF], и BF = BC = ' + nf(BC) + ' см. Катет [BG] прилежит к углу FBG.',
         { t: 'Прилежащий катет и гипотенуза — это косинус:', tex: '\\cos\\widehat{FBG}=\\dfrac{BG}{BF}=\\dfrac{' + texNum(BG) + '}{' + texNum(BC) + '}=0{,}5' },
         'Угол, косинус которого равен 0,5, — это 60° (на калькуляторе: arccos 0,5 = 60).'] },
@@ -276,7 +332,11 @@ pbProb({ id: 'p2.alignement', ch: 'ge', lvl: 2, pts: 4,
           ['', '90+' + be + '+60=' + tot, '°'],
           ok ? 'Ровно 180°: угол ABG развёрнутый, точки лежат на одной прямой. Мерить по рисунку не нужно и нельзя — он не в масштабе, а вычисление и есть доказательство.'
             : tot + '° ≠ 180°: угол не развёрнутый, точки не лежат на одной прямой. «Почти 180°» не считается: даже при разнице в 1° точки не на одной прямой, просто на рисунке этого не видно.',
-          'Прямой угол G в треугольнике BGF ничего не говорит о положении точки A — этот довод не по делу.'] }] };
+          'Прямой угол G в треугольнике BGF ничего не говорит о положении точки A — этот довод не по делу.'],
+        redac: ['D\'après les questions précédentes : ' + pbAngEq('ABC', 90) + ', ' + pbAngEq('CBF', be) + ' et ' + pbAngEq('FBG', 60) + '.',
+          sumEq,
+          ok ? 'L\'angle ' + pbAng('ABG') + ' mesure 180° : c\'est un angle plat. Donc les points A, B et G sont alignés.'
+            : 'L\'angle ' + pbAng('ABG') + ' ne mesure pas 180° : ce n\'est pas un angle plat. Donc les points A, B et G ne sont pas alignés.'] }] };
   } });
 
 /* ---------- p2.panneaux : Pythagore, pourcentage, tangente, Thalès ---------- */
@@ -296,7 +356,8 @@ pbProb({ id: 'p2.panneaux', ch: 'ge', lvl: 2, pts: 5,
     for (let t = 0; t < 80; t++) {
       HP = r.pick([80, 85, 90, 95, 100]); PS = r.pick([125, 130, 135, 140, 145, 150, 155]); UT = r.pick([40, 45, 50, 55, 60]); Lp = r.pick([1600, 1650, 1700, 1750, 1800]);
       HS = Math.hypot(HP, PS); ang = pbDeg(Math.atan(HP / PS)); ST = PS * UT / HP;
-      if (UT <= HP - 25 && !pbTie(HS, 1) && !pbTie(ang, 1) && !pbTie(ST, 1) && Math.abs(HS - 0.95 * Lp / 10) > 0.8) break;
+      /* HS and ST must really need rounding: a whole number would make the key «170.0» */
+      if (UT <= HP - 25 && !pbTie(HS, 1) && !pbTie(ang, 1) && !pbTie(ST, 1) && !pbIsD(HS, 0) && !pbIsD(ST, 0) && Math.abs(HS - 0.95 * Lp / 10) > 0.8) break;
     }
     const nm = r.pick(PRENOMS_F), LpT = String(Lp).replace(/\B(?=(\d{3})+(?!\d))/g, ' '), Lc = Lp / 10, lim = 0.95 * Lc, conf = HS >= lim, opt = ang >= 30 && ang <= 35, HSs = pbS(HS, 1), HSk = pbK(HS, 1);
     const ctx = L(nm + ' veut installer des panneaux photovoltaïques sur le sol plat de son jardin. Un panneau mesure ' + LpT + ' mm de long ; il fonctionne de façon optimale si son inclinaison par rapport à l\'horizontale est comprise entre 30° et 35°. ' + nm + ' fabrique un support formé d\'équerres identiques ; le panneau est posé sur le côté [HS]. Sur le plan d\'une équerre ci-dessous, le triangle HPS est rectangle en P, HP = ' + HP + ' cm et PS = ' + PS + ' cm. Une barre de renfort [UT] de ' + UT + ' cm, perpendiculaire à [PS], relie le point U du segment [HS] et le point T du segment [PS].',
@@ -310,8 +371,16 @@ pbProb({ id: 'p2.panneaux', ch: 'ge', lvl: 2, pts: 5,
     const last = HS < Lc ? L('Non : HS ≈ ' + HSs + ' cm est plus petit que la longueur du panneau, ' + Lc + ' cm.', 'Нет: HS ≈ ' + HSs + ' см меньше длины панели, ' + Lc + ' см.')
       : L('Non : 95 % de ' + Lc + ' cm, c\'est ' + p95 + ' cm, et HS ≈ ' + HSs + ' cm dépasse cette longueur, donc le support ne convient pas.', 'Нет: 95 % от ' + Lc + ' см — это ' + p95 + ' см, а HS ≈ ' + HSs + ' см больше, значит, опора не подходит.');
     const q2 = [good, vs95, ofHS, last];
+    const q2why = 'Сравнивать с числом 95 бессмысленно: 95 — это проценты, а не сантиметры. ' + (0.95 * HS < Lc ? '95 % нужно брать от длины панели, а не от HS. ' : '«Au moins 95 %» — это 95 % или больше, а не ровно 95 %. ') +
+      (HS < Lc ? 'И сравнивать HS со всей длиной панели неверно: совет допускает HS короче панели, лишь бы не меньше 95 %.' : 'И если HS больше ' + nf(lim) + ' см, совет тем более выполнен: «не меньше» значит, что можно и больше.');
+    const tanT = '\\tan\\widehat{HSP}=' + pbDf('HP', 'PS');
     return { ctx, fig: pbPanFig({ HP, PS, UT, ST }), qs: [
-      { q: L('Calculer la longueur HS. Arrondir au millimètre.', 'Вычисли длину HS. Округли до миллиметра.'), ans: pbNR(HS, 1, 'cm'), sol: [
+      { q: L('Calculer la longueur HS, en cm. Arrondir au millimètre.', 'Вычисли длину HS в см. Округли до миллиметра.'), ans: pbNR(HS, 1, 'cm'),
+        redac: ['Dans le triangle HPS rectangle en P, d\'après le théorème de Pythagore :',
+          '$HS^2 = HP^2 + PS^2 = ' + HP + '^2 + ' + PS + '^2$',
+          '$HS^2 = ' + (HP * HP) + ' + ' + (PS * PS) + ' = ' + (HP * HP + PS * PS) + '$',
+          '$HS = √' + (HP * HP + PS * PS) + ' ≈ ' + HSk + '$',
+          'La longueur HS est d\'environ ' + HSs + ' cm.'], sol: [
         'Треугольник HPS прямоугольный с прямым углом P, гипотенуза — [HS]. По теореме Пифагора («théorème de Pythagore»):',
         ['', 'HS^2=HP^2+PS^2=' + HP + '^2+' + PS + '^2=' + (HP * HP) + '+' + (PS * PS) + '=' + (HP * HP + PS * PS)],
         ['', 'HS=√' + (HP * HP + PS * PS) + '≈' + pbK(HS, 3), 'см'],
@@ -321,17 +390,30 @@ pbProb({ id: 'p2.panneaux', ch: 'ge', lvl: 2, pts: 5,
         sol: ['Сначала переводим длину панели в сантиметры: ' + LpT + ' мм = ' + Lc + ' см. Потом считаем 95 % именно от длины панели — так сказано в совете.',
           ['', '0.95*' + Lc + '=' + fx(lim), 'см'],
           'HS ≈ ' + HSs + ' см ' + (conf ? 'не меньше' : 'меньше') + ' ' + nf(lim) + ' см, поэтому опора ' + (conf ? 'соответствует совету.' : 'совету не соответствует.'),
-          'Сравнивать HS со всей длиной панели неверно: совет допускает HS короче панели, лишь бы не меньше 95 %. Сравнивать с числом 95 бессмысленно: 95 — это проценты, а не сантиметры. И 95 % нужно брать от длины панели, а не от HS.'] },
+          q2why],
+        redac: ['Longueur du panneau : ' + LpT + ' mm = ' + Lc + ' cm.',
+          '95 % de cette longueur : ' + p95 + ' cm.',
+          'Or HS ≈ ' + HSs + ' cm et $' + HSk + ' ' + (conf ? '>' : '<') + ' ' + fx(lim) + '$.',
+          'Donc le support ' + (conf ? 'est' : 'n\'est pas') + ' conforme au conseil du fabricant.'] },
       { q: L('Dans le triangle HPS rectangle en P, quelle égalité permet de calculer la mesure de l\'angle ' + pbAng('HSP') + ' à partir des longueurs HP et PS ?', 'Какое равенство позволяет найти угол ' + pbAng('HSP') + ' прямоугольного треугольника HPS (прямой угол P) по длинам HP и PS?'), red: true,
         ans: MQ(r, ['$$\\tan\\widehat{HSP}=\\dfrac{HP}{PS}$$', '$$\\tan\\widehat{HSP}=\\dfrac{PS}{HP}$$', '$$\\sin\\widehat{HSP}=\\dfrac{HP}{PS}$$', '$$\\cos\\widehat{HSP}=\\dfrac{HP}{PS}$$'], 0),
         sol: ['Для угла S: катет [HP] лежит напротив него (противолежащий), катет [PS] — рядом с ним (прилежащий), [HS] — гипотенуза.',
           'Тангенс — отношение противолежащего катета к прилежащему: tan HSP = HP / PS. Обе длины даны точно — удобно.',
-          'Синус и косинус — это отношения к гипотенузе: sin = HP / HS, cos = PS / HS; делить на PS в них нельзя. А PS / HP — тангенс другого острого угла, H.'] },
-      { q: L('Calculer la mesure de l\'angle ' + pbAng('HSP') + ', arrondie au dixième de degré.', 'Вычисли величину угла ' + pbAng('HSP') + ', округлив до десятых градуса.'), ans: pbNR(ang, 1, '°'), sol: [
+          'Синус и косинус — это отношения к гипотенузе: sin = HP / HS, cos = PS / HS; делить на PS в них нельзя. А PS / HP — тангенс другого острого угла, H.'],
+        redac: ['Dans le triangle HPS rectangle en P, [HP] est le côté opposé à l\'angle ' + pbAng('HSP') + ' et [PS] est le côté adjacent à cet angle.',
+          'Donc $$' + tanT + '$$.'] },
+      { q: L('Calculer la mesure de l\'angle ' + pbAng('HSP') + ', arrondie au dixième de degré.', 'Вычисли величину угла ' + pbAng('HSP') + ', округлив до десятых градуса.'), ans: pbNR(ang, 1, '°'),
+        redac: ['Dans le triangle HPS rectangle en P : $$' + tanT + '=' + pbDf(HP, PS) + '$$.',
+          'Avec la calculatrice : $$\\widehat{HSP}=\\arctan\\left(' + pbDf(HP, PS) + '\\right)\\approx ' + texNum(pbK(ang, 1)) + '^{\\circ}$$.',
+          'L\'angle ' + pbAng('HSP') + ' mesure environ ' + pbS(ang, 1) + '°.'], sol: [
         { t: 'По предыдущему вопросу:', tex: '\\tan\\widehat{HSP}=\\dfrac{HP}{PS}=\\dfrac{' + HP + '}{' + PS + '}' },
         'На калькуляторе (в режиме градусов): arctan(' + HP + ' ÷ ' + PS + ') ≈ ' + pbS(ang, 3) + '°, то есть ≈ ' + pbS(ang, 1) + '°.',
         opt ? 'Угол между 30° и 35° — панели будут работать оптимально.' : 'Угол не попадает в промежуток от 30° до 35° — оптимальной работы не будет.'] },
-      { q: L('Calculer la longueur ST. Arrondir au millimètre.', 'Вычисли длину ST. Округли до миллиметра.'), ans: pbNR(ST, 1, 'cm'), sol: [
+      { q: L('Calculer la longueur ST, en cm. Arrondir au millimètre.', 'Вычисли длину ST в см. Округли до миллиметра.'), ans: pbNR(ST, 1, 'cm'),
+        redac: ['Les droites (UT) et (HP) sont toutes les deux perpendiculaires à la droite (PS), donc elles sont parallèles.',
+          'Les droites (HU) et (PT) sont sécantes en S. D\'après le théorème de Thalès : $$' + pbDf('ST', 'SP') + '=' + pbDf('SU', 'SH') + '=' + pbDf('UT', 'HP') + '$$',
+          'soit $$' + pbDf('ST', PS) + '=' + pbDf(UT, HP) + '$$, donc $$ST=' + pbDf(PS + '\\times ' + UT, HP) + '\\approx ' + texNum(pbK(ST, 1)) + '$$.',
+          'La longueur ST est d\'environ ' + pbS(ST, 1) + ' cm.'], sol: [
         'Прямые (UT) и (HP) обе перпендикулярны (PS), значит, они параллельны.',
         'В треугольнике SHP точка U лежит на [SH], точка T — на [SP], и (UT) ∥ (HP). По теореме Фалеса («théorème de Thalès»):',
         ['', 'ST/SP=SU/SH=UT/PH'],
@@ -369,14 +451,25 @@ pbProb({ id: 'p2.reciproque-thales', ch: 'ge', lvl: 2, pts: 4,
       'На рисунке (масштаб не соблюдён): прямые (BE) и (TM) пересекаются в точке A; точка A лежит на отрезках [TM] и [BE]; треугольник ABM прямоугольный с прямым углом A; AT = ' + nf(AT) + ' м; MT = ' + nf(MT) + ' м; AE = ' + nf(AE) + ' м и MB = ' + nf(MB) + ' м.');
     const rat = [-rk, rk, -k, k].map(v => L(nf(v), nf(v)));
     return { ctx, fig: pbRthFig(d), qs: [
-      { q: L('Calculer la longueur AM.', 'Вычисли длину AM.'), ans: pbNE(AM, 'm'), sol: [
+      { q: L('Calculer la longueur AM.', 'Вычисли длину AM.'), ans: pbNE(AM, 'm'),
+        redac: ['Le point A appartient au segment [TM], donc $AM = MT - AT$.',
+          '$AM = ' + fx(MT) + ' - ' + fx(AT) + ' = ' + fx(AM) + '$',
+          'La longueur AM est de ' + nf(AM) + ' m.'], sol: [
         'Точка A лежит на отрезке [TM], значит, отрезок [TM] складывается из [TA] и [AM]: TM = TA + AM.',
         ['Отсюда', 'AM=MT-AT=' + MT + '-' + AT + '=' + AM, 'м']] },
-      { q: L('Calculer la longueur AB.', 'Вычисли длину AB.'), ans: pbNE(AB, 'm'), sol: [
+      { q: L('Calculer la longueur AB.', 'Вычисли длину AB.'), ans: pbNE(AB, 'm'),
+        redac: ['Dans le triangle ABM rectangle en A, d\'après le théorème de Pythagore : $MB^2 = AB^2 + AM^2$.',
+          '$AB^2 = MB^2 - AM^2 = ' + fx(MB) + '^2 - ' + fx(AM) + '^2$',
+          '$AB^2 = ' + fx(MB * MB) + ' - ' + fx(AM * AM) + ' = ' + fx(AB * AB) + '$',
+          '$AB = √' + fx(AB * AB) + ' = ' + fx(AB) + '$',
+          'La longueur AB est de ' + nf(AB) + ' m.'], sol: [
         'Треугольник ABM прямоугольный с прямым углом A, гипотенуза — [MB]. По теореме Пифагора («théorème de Pythagore») MB² = AB² + AM².',
         ['', 'AB^2=MB^2-AM^2=' + MB + '^2-' + AM + '^2=' + fx(MB * MB) + '-' + fx(AM * AM) + '=' + fx(AB * AB)],
         ['', 'AB=√' + fx(AB * AB) + '=' + AB, 'м']] },
-      { q: L('Calculer la mesure de l\'angle ' + pbAng('ABM') + '. Arrondir au degré.', 'Вычисли величину угла ' + pbAng('ABM') + '. Округли до градуса.'), ans: pbNR(ang, 0, '°'), sol: [
+      { q: L('Calculer la mesure de l\'angle ' + pbAng('ABM') + '. Arrondir au degré.', 'Вычисли величину угла ' + pbAng('ABM') + '. Округли до градуса.'), ans: pbNR(ang, 0, '°'),
+        redac: ['Dans le triangle ABM rectangle en A : $$\\tan\\widehat{ABM}=' + pbDf('AM', 'AB') + '=' + pbDf(pbT(AM), pbT(AB)) + '$$.',
+          'Avec la calculatrice : $$\\widehat{ABM}=\\arctan\\left(' + pbDf(pbT(AM), pbT(AB)) + '\\right)\\approx ' + pbRd(ang, 0) + '^{\\circ}$$.',
+          'L\'angle ' + pbAng('ABM') + ' mesure environ ' + pbRd(ang, 0) + '°.'], sol: [
         'В прямоугольном треугольнике ABM для угла B: катет [AM] противолежащий, катет [AB] прилежащий. Обе длины известны точно — берём тангенс.',
         { t: '', tex: '\\tan\\widehat{ABM}=\\dfrac{AM}{AB}=\\dfrac{' + texNum(AM) + '}{' + texNum(AB) + '}' },
         'arctan(' + nf(AM) + ' ÷ ' + nf(AB) + ') ≈ ' + pbS(ang, 2) + '°, округляем до градуса: ' + pbRd(ang, 0) + '°. (Через косинус cos B = AB / MB получится то же самое.)'] },
@@ -389,7 +482,10 @@ pbProb({ id: 'p2.reciproque-thales', ch: 'ge', lvl: 2, pts: 4,
           'Потом каждое отношение считаем отдельно: заранее писать «=» между ними нельзя, ведь их равенство мы и проверяем.',
           'Когда отношения совпали, записываем равенство и только в конце называем теорему и делаем вывод.'] },
       { q: L('Le triangle ABM est l\'image du triangle AET par une homothétie de centre A. Quel est le rapport de cette homothétie ?', 'Треугольник ABM — образ треугольника AET при гомотетии с центром A. Чему равен коэффициент этой гомотетии?'),
-        ans: MQ(r, rat, 0), sol: [
+        ans: MQ(r, rat, 0),
+        redac: ['L\'homothétie de centre A transforme T en M. Le point A appartient au segment [TM] : T et M sont de part et d\'autre de A, donc le rapport est négatif.',
+          '$$' + pbDf('AM', 'AT') + '=' + pbDf(pbT(AM), pbT(AT)) + '=' + pbT(rk) + '$$',
+          'Le rapport de cette homothétie est ' + nf(-rk) + '.'], sol: [
         'Гомотетия с центром A переводит T в M и E в B. Модуль коэффициента — во сколько раз образ больше исходной фигуры:',
         ['', 'AM/AT=' + AM + '/' + AT + '=' + fx(rk)],
         'Знак: точка и её образ (T и M) лежат по разные стороны от центра A, поэтому коэффициент отрицательный: ' + nf(-rk) + '.',
@@ -430,11 +526,17 @@ pbProb({ id: 'p2.gobelet', ch: 'gm', lvl: 2, pts: 5,
   gen(r) {
     const d = r.pick(PB_GOB), { AD, OA, OD, m, BC, OB, Vb, Vs } = d, Vg = Vb - Vs;
     const kT = m === 3 ? '1/3' : fx(1 / m), k3T = m === 3 ? '1/27' : fx(Math.pow(1 / m, 3)), mT = fx(m);
-    const ctx = L('Une entreprise fabrique des gobelets en forme de tronc de cône, c\'est-à-dire un cône coupé par un plan parallèle à sa base. La figure ci-dessous, qui n\'est pas à l\'échelle, représente un grand cône de sommet O ; le gobelet est la partie grisée. Les points O, A et B sont alignés ; les points O, D et C sont alignés ; les angles ' + pbAng('OAD') + ' et ' + pbAng('OBC') + ' sont droits. OD = ' + nf(OD) + ' cm ; AD = ' + nf(AD) + ' cm ; BC = ' + nf(BC) + ' cm. Rappel : le volume d\'un cône de rayon R et de hauteur H est $$V=\\dfrac{\\pi\\times R^2\\times H}{3}$$.',
-      'Компания делает стаканчики в форме усечённого конуса — это конус, срезанный плоскостью, параллельной основанию. На рисунке (масштаб не соблюдён) — большой конус с вершиной O; стаканчик — закрашенная часть. Точки O, A и B лежат на одной прямой; точки O, D и C — тоже; углы ' + pbAng('OAD') + ' и ' + pbAng('OBC') + ' прямые. OD = ' + nf(OD) + ' см; AD = ' + nf(AD) + ' см; BC = ' + nf(BC) + ' см. Напоминание: объём конуса с радиусом основания R и высотой H равен $$V=\\dfrac{\\pi\\times R^2\\times H}{3}$$.');
+    const kX = m === 3 ? pbDf(1, 3) : pbT(1 / m), k3X = m === 3 ? pbDf(1, 27) : pbT(Math.pow(1 / m, 3));   /* the same in TeX, for the redac */
+    const ctx = L('Une entreprise fabrique des gobelets en forme de tronc de cône, c\'est-à-dire un cône coupé par un plan parallèle à sa base. La figure ci-dessous, qui n\'est pas à l\'échelle, représente un grand cône de sommet O ; le gobelet est la partie grisée. Les points O, A et B sont alignés ; les points O, D et C sont alignés ; les angles ' + pbAng('OAD') + ' et ' + pbAng('OBC') + ' sont droits. OD = ' + nf(OD) + ' cm ; AD = ' + nf(AD) + ' cm ; BC = ' + nf(BC) + ' cm. Rappel : le volume d\'un cône de révolution est $$V=\\dfrac{\\pi\\times R^2\\times H}{3}$$, où R est le rayon de la base et H la hauteur du cône.',
+      'Компания делает стаканчики в форме усечённого конуса — это конус, срезанный плоскостью, параллельной основанию. На рисунке (масштаб не соблюдён) — большой конус с вершиной O; стаканчик — закрашенная часть. Точки O, A и B лежат на одной прямой; точки O, D и C — тоже; углы ' + pbAng('OAD') + ' и ' + pbAng('OBC') + ' прямые. OD = ' + nf(OD) + ' см; AD = ' + nf(AD) + ' см; BC = ' + nf(BC) + ' см. Напоминание: объём конуса равен $$V=\\dfrac{\\pi\\times R^2\\times H}{3}$$, где R — радиус основания, а H — высота конуса.');
     const opt = (k, f, v) => L('$k = ' + k + '$ et $V_1 = ' + f + '*V_2$', '$k = ' + k + '$ и $V_1 = ' + f + '*V_2$');
     return { ctx, fig: pbGobFig(d), qs: [
-      { q: L('Calculer la longueur OA.', 'Вычисли длину OA.'), ans: pbNE(OA, 'cm'), sol: [
+      { q: L('Calculer la longueur OA.', 'Вычисли длину OA.'), ans: pbNE(OA, 'cm'),
+        redac: ['Le triangle OAD est rectangle en A. D\'après le théorème de Pythagore : $OD^2 = OA^2 + AD^2$.',
+          '$OA^2 = OD^2 - AD^2 = ' + fx(OD) + '^2 - ' + fx(AD) + '^2$',
+          '$OA^2 = ' + fx(OD * OD) + ' - ' + fx(AD * AD) + ' = ' + fx(OA * OA) + '$',
+          '$OA = √' + fx(OA * OA) + ' = ' + fx(OA) + '$',
+          'La longueur OA est de ' + nf(OA) + ' cm.'], sol: [
         'Угол OAD прямой, значит, треугольник OAD прямоугольный с гипотенузой [OD]. По теореме Пифагора («théorème de Pythagore») OD² = OA² + AD².',
         ['', 'OA^2=OD^2-AD^2=' + OD + '^2-' + AD + '^2=' + fx(OD * OD) + '-' + fx(AD * AD) + '=' + fx(OA * OA)],
         ['', 'OA=√' + fx(OA * OA) + '=' + OA, 'см']] },
@@ -445,23 +547,39 @@ pbProb({ id: 'p2.gobelet', ch: 'gm', lvl: 2, pts: 5,
           L('Sur la figure, les droites (BC) et (AD) ne se coupent pas. Donc elles sont parallèles.', 'На рисунке прямые (BC) и (AD) не пересекаются. Значит, они параллельны.')], 0),
         sol: ['Углы OAD и OBC прямые: обе прямые (AD) и (BC) перпендикулярны оси (OB). Две прямые, перпендикулярные одной прямой, параллельны.',
           'Теорема Фалеса («théorème de Thalès») параллельность не доказывает — наоборот, она её требует в условии. Обратную теорему здесь применить нельзя: длину OB мы ещё не знаем, её найдём только в следующем вопросе.',
-          'Рисунок не в масштабе и доказательством не является.'] },
-      { q: L('Calculer la longueur OB.', 'Вычисли длину OB.'), ans: pbNE(OB, 'cm'), sol: [
+          'Рисунок не в масштабе и доказательством не является.'],
+        redac: ['Les angles ' + pbAng('OAD') + ' et ' + pbAng('OBC') + ' sont droits et les points O, A, B sont alignés : les droites (AD) et (BC) sont donc toutes les deux perpendiculaires à la droite (OB).',
+          'Or, si deux droites sont perpendiculaires à une même droite, alors elles sont parallèles.',
+          'Donc les droites (BC) et (AD) sont parallèles.'] },
+      { q: L('Calculer la longueur OB.', 'Вычисли длину OB.'), ans: pbNE(OB, 'cm'),
+        redac: ['Les droites (AB) et (DC) sont sécantes en O et les droites (AD) et (BC) sont parallèles.',
+          'D\'après le théorème de Thalès : $$' + pbDf('OA', 'OB') + '=' + pbDf('OD', 'OC') + '=' + pbDf('AD', 'BC') + '$$',
+          'soit $$' + pbDf(pbT(OA), 'OB') + '=' + pbDf(pbT(AD), pbT(BC)) + '$$, donc $$OB=' + pbDf(pbT(OA) + '\\times ' + pbT(BC), pbT(AD)) + '=' + pbT(OB) + '$$.',
+          'La longueur OB est de ' + nf(OB) + ' cm.'], sol: [
         'Точки O, A, B лежат на одной прямой, точки O, D, C — тоже, и (AD) ∥ (BC). По теореме Фалеса:',
         ['', 'OA/OB=OD/OC=AD/BC'],
         ['Берём первое и третье отношения: в них неизвестно только OB.', OA + '/OB=' + AD + '/' + BC],
         ['', 'OB=' + OA + '*' + BC + '/' + AD + '=' + OB, 'см']] },
-      { q: L('Calculer le volume du grand cône de hauteur OB, en cm³, arrondi à l\'unité.', 'Вычисли объём большого конуса высотой OB в см³, округлив до единиц.'), ans: pbNR(Vb, 0, 'cm³'), sol: [
+      { q: L('Calculer le volume du grand cône de hauteur OB, en cm³, arrondi à l\'unité.', 'Вычисли объём большого конуса высотой OB в см³, округлив до единиц.'), ans: pbNR(Vb, 0, 'cm³'),
+        redac: ['Le grand cône a pour rayon BC = ' + nf(BC) + ' cm et pour hauteur OB = ' + nf(OB) + ' cm.',
+          '$$V=' + pbDf('\\pi\\times R^2\\times H', 3) + '=' + pbDf('\\pi\\times ' + pbT(BC) + '^2\\times ' + pbT(OB), 3) + '\\approx ' + pbRd(Vb) + '$$',
+          'Le volume du grand cône est d\'environ ' + pbRd(Vb) + ' cm³.'], sol: [
         'Радиус основания большого конуса — BC = ' + nf(BC) + ' см, высота — OB = ' + nf(OB) + ' см.',
         { t: '', tex: 'V_2=\\dfrac{\\pi\\times ' + texNum(BC) + '^2\\times ' + texNum(OB) + '}{3}\\approx ' + texNum(pbK(Vb, 2)) + '\\text{ см}^3' },
         'Округляем до единиц: ≈ ' + pbRd(Vb) + ' см³.'] },
-      { q: L('Le petit cône, de sommet O et de hauteur OA, est une réduction du grand cône de coefficient k. On note $V_1$ le volume du petit cône et $V_2$ celui du grand cône. Quelle proposition est correcte ?', 'Маленький конус с вершиной O и высотой OA — уменьшенная копия большого конуса с коэффициентом k. Обозначим $V_1$ объём маленького конуса, $V_2$ — большого. Какое утверждение верно?'), red: true,
+      { q: L('Le petit cône, de sommet O et de hauteur OA, est une réduction du grand cône de rapport k. On note $V_1$ le volume du petit cône et $V_2$ celui du grand cône. Quelle proposition est correcte ?', 'Маленький конус с вершиной O и высотой OA — уменьшенная копия большого конуса с коэффициентом k. Обозначим $V_1$ объём маленького конуса, $V_2$ — большого. Какое утверждение верно?'), red: true,
         ans: MQ(r, [opt(kT, '(' + kT + ')^3'), opt(kT, kT), opt(kT, '(' + kT + ')^2'), opt(mT, mT + '^3')], 0),
         sol: ['Коэффициент уменьшения — отношение длины в маленьком конусе к соответствующей длине в большом: k = OA / OB = ' + nf(OA) + ' / ' + nf(OB) + (m === 3 ? ' = 1/3.' : ' = ' + nf(1 / m) + '.') + ' Он меньше 1, потому что это уменьшение; ' + nf(m) + ' — коэффициент обратного перехода, увеличения.',
           'При уменьшении с коэффициентом k все длины умножаются на k, площади — на k² (два измерения), объёмы — на k³ (три измерения: в формуле объёма радиус стоит дважды и ещё высота).',
           ['Поэтому', 'V_1=(' + kT + ')^3*V_2=' + k3T + '*V_2'],
-          'Ошибка «объём умножается на k» — частая: кажется, что раз фигура в ' + nf(m) + ' раза меньше, то и объём в ' + nf(m) + ' раза меньше. Но уменьшается каждое из трёх измерений.'] },
-      { q: L('En déduire le volume du gobelet, en cm³, arrondi à l\'unité.', 'Найди объём стаканчика в см³, округлив до единиц.'), ans: pbNR(Vg, 0, 'cm³'), sol: [
+          'Ошибка «объём умножается на k» — частая: кажется, что раз фигура в ' + nf(m) + ' раза меньше, то и объём в ' + nf(m) + ' раза меньше. Но уменьшается каждое из трёх измерений.'],
+        redac: ['Le petit cône est une réduction du grand cône de rapport $$k=' + pbDf('OA', 'OB') + '=' + pbDf(pbT(OA), pbT(OB)) + '=' + kX + '$$.',
+          'Dans une réduction de rapport k, les volumes sont multipliés par $k^3$.',
+          'Donc $$V_1=' + (m === 3 ? '\\left(' + kX + '\\right)^3' : kX + '^3') + '\\times V_2=' + k3X + '\\times V_2$$.'] },
+      { q: L('En déduire le volume du gobelet, en cm³, arrondi à l\'unité.', 'Найди объём стаканчика в см³, округлив до единиц.'), ans: pbNR(Vg, 0, 'cm³'),
+        redac: ['D\'après la question précédente : $$V_1=' + k3X + '\\times V_2\\approx ' + k3X + '\\times ' + pbRd(Vb) + '\\approx ' + pbRd(Vs) + '$$ (en cm³).',
+          'Le gobelet est le grand cône privé du petit cône : $$V_2-V_1\\approx ' + pbRd(Vb) + '-' + pbRd(Vs) + '=' + pbRd(Vg) + '$$.',
+          'Le volume du gobelet est d\'environ ' + pbRd(Vg) + ' cm³.'], sol: [
         'Стаканчик — это большой конус без маленького: V = V₂ − V₁.',
         { t: 'Объём маленького конуса (радиус AD, высота OA):', tex: 'V_1=\\dfrac{\\pi\\times ' + texNum(AD) + '^2\\times ' + texNum(OA) + '}{3}\\approx ' + texNum(pbK(Vs, 2)) + '\\text{ см}^3' },
         'То же получится через коэффициент: V₁ = ' + (m === 3 ? '(1/3)³' : nf(1 / m) + '³') + ' × V₂ ≈ ' + pbS(Vs, 2) + ' см³.',
@@ -479,6 +597,13 @@ const PB_BON = (() => {
   }));
   return out;
 })();
+/* a sweet and a daily volume of mixture (in litres): the number of sweets rounds to the same thousand
+   whether one divides by the exact volume of a sweet or by the volume rounded to 1 mm³ (the previous answer) */
+const PB_BONV = (() => {
+  const out = [], far = v => Math.abs(v / 1000 - Math.floor(v / 1000) - 0.5) > 0.06;
+  PB_BON.forEach(d => [50, 60, 75, 80, 83, 90, 100, 120].forEach(Vd => { const n = Vd * 1e6 / d.Vt, n2 = Vd * 1e6 / pbRd(d.Vt); if (far(n) && far(n2) && Math.round(n / 1000) === Math.round(n2 / 1000)) out.push({ d, Vd }); }));
+  return out;
+})();
 function pbBonFig(d) {
   const W = 240, k = W / d.Lt, r = d.R * k, x0 = (340 - W) / 2, x1 = x0 + W, cy = 36 + r, top = cy - r, bot = cy + r, xa = x0 + r, xb = x1 - r;
   const out = '<path d="M' + pbXY([xa, top]) + ' L' + pbXY([xb, top]) + ' A' + pbC(r) + ',' + pbC(r) + ' 0 0 1 ' + pbXY([xb, bot]) + ' L' + pbXY([xa, bot]) + ' A' + pbC(r) + ',' + pbC(r) + ' 0 0 1 ' + pbXY([xa, top]) + ' Z" class="fl" fill="none"/>';
@@ -492,21 +617,30 @@ pbProb({ id: 'p2.bonbons', ch: 'gm', lvl: 2, pts: 4,
   ru: 'Конфеты-капсулы', fr: 'Des bonbons en forme de gélule',
   src: 'Centres étrangers 2026 · exercice 2',
   gen(r) {
-    let d, Vd, n;
-    for (let t = 0; t < 30; t++) { d = r.pick(PB_BON); Vd = r.pick([50, 60, 75, 80, 83, 90, 100, 120]); n = Vd * 1e6 / d.Vt; const f = n / 1000 - Math.floor(n / 1000); if (Math.abs(f - 0.5) > 0.06) break; }
+    const { d, Vd } = r.pick(PB_BONV), n = Vd * 1e6 / d.Vt;
     const { R, Lt, h, Vc, Vb, Vt } = d, nk = Math.round(n / 1000) * 1000;
     const ctx = L('Une confiserie fabrique des bonbons au goût réglisse. Chaque bonbon a la forme d\'une gélule de longueur totale ' + nf(Lt) + ' mm, formée d\'un cylindre de hauteur h et de deux demi-boules identiques de rayon R = ' + nf(R) + ' mm (voir le schéma). Rappels : volume d\'un cylindre $$V=\\pi\\times R^2\\times h$$ ; volume d\'une boule $$V=\\dfrac{4}{3}\\times\\pi\\times R^3$$ ; 1 L = 1 dm³.',
       'Кондитерская фабрика делает лакричные конфеты. Каждая конфета — капсула общей длиной ' + nf(Lt) + ' мм: цилиндр высотой h и две одинаковые полусферы радиусом R = ' + nf(R) + ' мм (см. схему). Напоминание: объём цилиндра $$V=\\pi\\times R^2\\times h$$; объём шара $$V=\\dfrac{4}{3}\\times\\pi\\times R^3$$; 1 л = 1 дм³.');
     const Vs = nf(Vd), big = v => nf(v);
     return { ctx, fig: pbBonFig(d), qs: [
-      { q: L('Calculer la hauteur h du cylindre.', 'Вычисли высоту h цилиндра.'), ans: pbNE(h, 'mm'), sol: [
+      { q: L('Calculer la hauteur h du cylindre.', 'Вычисли высоту h цилиндра.'), ans: pbNE(h, 'mm'),
+        redac: ['La longueur totale du bonbon est la somme de la hauteur du cylindre et de deux rayons (un pour chaque demi-boule).',
+          '$h = ' + fx(Lt) + ' - 2*' + fx(R) + ' = ' + fx(h) + '$',
+          'La hauteur du cylindre est de ' + nf(h) + ' mm.'], sol: [
         'Вдоль всей длины капсулы идут: полусфера (её «длина» — радиус R), цилиндр (h) и ещё одна полусфера (ещё R). Значит, общая длина = h + 2R.',
         ['', 'h=' + Lt + '-2*' + R + '=' + h, 'мм']] },
-      { q: L('Calculer le volume de la partie cylindrique d\'un bonbon, arrondi au mm³.', 'Вычисли объём цилиндрической части конфеты, округлив до мм³.'), ans: pbNR(Vc, 0, 'mm³'), sol: [
+      { q: L('Calculer le volume de la partie cylindrique d\'un bonbon, arrondi au mm³.', 'Вычисли объём цилиндрической части конфеты, округлив до мм³.'), ans: pbNR(Vc, 0, 'mm³'),
+        redac: ['Le cylindre a pour rayon R = ' + nf(R) + ' mm et pour hauteur h = ' + nf(h) + ' mm.',
+          '$$V=\\pi\\times R^2\\times h=\\pi\\times ' + pbT(R) + '^2\\times ' + pbT(h) + '\\approx ' + pbRd(Vc) + '$$',
+          'Le volume de la partie cylindrique est d\'environ ' + pbRd(Vc) + ' mm³.'], sol: [
         'Радиус основания цилиндра тот же, что у полусфер: R = ' + nf(R) + ' мм, высота h = ' + nf(h) + ' мм.',
         { t: '', tex: 'V=\\pi\\times ' + texNum(R) + '^2\\times ' + texNum(h) + '\\approx ' + texNum(pbK(Vc, 2)) + '\\text{ мм}^3' },
         'Округляем до единиц: ≈ ' + pbRd(Vc) + ' мм³.'] },
-      { q: L('Calculer le volume total d\'un bonbon, arrondi au mm³.', 'Вычисли полный объём одной конфеты, округлив до мм³.'), ans: pbNR(Vt, 0, 'mm³'), sol: [
+      { q: L('Calculer le volume total d\'un bonbon, arrondi au mm³.', 'Вычисли полный объём одной конфеты, округлив до мм³.'), ans: pbNR(Vt, 0, 'mm³'),
+        redac: ['Les deux demi-boules forment une boule de rayon ' + nf(R) + ' mm.',
+          'Volume de la boule : $$' + pbDf(4, 3) + '\\times\\pi\\times ' + pbT(R) + '^3\\approx ' + pbRd(Vb) + '$$ (en mm³).',
+          'Volume total : $$' + pbRd(Vc) + '+' + pbRd(Vb) + '=' + pbRd(Vt) + '$$.',
+          'Le volume total d\'un bonbon est d\'environ ' + pbRd(Vt) + ' mm³.'], sol: [
         'Две одинаковые полусферы вместе составляют один целый шар радиуса R — это удобнее, чем считать половинки.',
         { t: 'Объём шара:', tex: '\\dfrac{4}{3}\\times\\pi\\times ' + texNum(R) + '^3\\approx ' + texNum(pbK(Vb, 2)) + '\\text{ мм}^3' },
         ['Складываем с цилиндром:', fx(pbRd(Vc, 2)) + '+' + fx(pbRd(Vb, 2)) + '≈' + fx(pbRd(Vt, 2)), 'мм³'],
@@ -518,12 +652,17 @@ pbProb({ id: 'p2.bonbons', ch: 'gm', lvl: 2, pts: 4,
           L(Vs + ' L = ' + big(Vd * 1e9) + ' mm³, car 1 L = 1 m³.', Vs + ' л = ' + big(Vd * 1e9) + ' мм³, потому что 1 л = 1 м³.')], 0),
         sol: ['1 л = 1 дм³ — это куб с ребром 1 дм. В 1 дм 100 мм, поэтому такой куб складывается из 100 × 100 × 100 = 1 000 000 кубиков по 1 мм³.',
           'Значит, ' + Vs + ' л = ' + Vs + ' × 1 000 000 мм³ = ' + big(Vd * 1e6) + ' мм³.',
-          'Частые ошибки: 1 л = 1 000 см³ (а не мм³); множитель 100 годится для длин, а для объёмов его надо взять трижды; 1 м³ — это 1 000 л, а не 1 л.'] },
+          'Частые ошибки: 1 л = 1 000 см³ (а не мм³); множитель 100 годится для длин, а для объёмов его надо взять трижды; 1 м³ — это 1 000 л, а не 1 л.'],
+        redac: ['1 L = 1 dm³ et 1 dm = 100 mm, donc 1 dm³ = 100 × 100 × 100 mm³ = 1 000 000 mm³.',
+          'Donc ' + Vs + ' L = ' + Vs + ' × 1 000 000 mm³ = ' + big(Vd * 1e6) + ' mm³.'] },
       { q: L('Combien de bonbons la confiserie peut-elle produire par jour avec ce mélange ? Arrondir au millier.', 'Сколько конфет фабрика может сделать за день из этой смеси? Округли до тысяч.'),
-        ans: N(nk, { forms: ['approx'], tol: 0.006 }), sol: [
+        ans: N(nk, { forms: ['approx'], tol: 0.006 }),
+        redac: ['On divise le volume de mélange par le volume d\'un bonbon, tous les deux en mm³ :',
+          '$$' + pbDf(pbT(Vd * 1e6), pbRd(Vt)) + '\\approx ' + pbT(Math.round(Vd * 1e6 / pbRd(Vt))) + '$$',
+          'La confiserie peut produire environ ' + big(nk) + ' bonbons par jour.'], sol: [
         'Число конфет — во сколько раз объём смеси больше объёма одной конфеты. Объёмы должны быть в одних единицах — в мм³ (предыдущий вопрос).',
         { t: '', tex: '\\dfrac{' + fmtBig(String(Vd * 1e6)) + '}{' + texNum(pbK(Vt, 2)) + '}\\approx ' + fmtBig(String(Math.floor(n))) },
-        'Округляем до тысяч: примерно ' + big(nk) + ' конфет в день. (Если делить на объём, округлённый до ' + pbRd(Vt) + ' мм³, ответ почти такой же.)'] }] };
+        'Округляем до тысяч: примерно ' + big(nk) + ' конфет в день. (Если делить на объём, округлённый до ' + pbRd(Vt) + ' мм³, после округления до тысяч получится то же самое.)'] }] };
   } });
 
 /* ---------- p2.potager : dénombrement, budget, volume d'un pavé, conversion cm³ → L ---------- */
@@ -543,23 +682,33 @@ pbProb({ id: 'p2.potager', ch: 'gm', lvl: 1, pts: 4,
   ru: 'Грядка-короб', fr: 'Un carré potager',
   src: 'Amérique du Sud 2022 · exercice 5',
   gen(r) {
-    const nm = r.pick(PRENOMS_F.concat(PRENOMS_M)), c = r.pick([100, 110, 120, 125]), H = r.pick([30, 30, 45]), fr = r.pick([[2, 3], [3, 4]]), Ls = r.pick([40, 40, 50]);
+    const nm = r.pick(PRENOMS_F.concat(PRENOMS_M)), c = r.pick([100, 110, 120, 125]), H = r.pick([30, 30, 45]), fr0 = r.pick([[2, 3], [3, 4]]), Ls = r.pick([40, 40, 50]);
+    const fr = H === 45 ? [2, 3] : fr0;   /* three quarters of 45 cm would give 33,75 cm and a volume with 8 digits */
     const p1 = r.pick([5.6, 6.2, 6.9, 7.5]), p2 = r.pick([2.9, 3.2, 3.5]), p3 = r.pick([5.7, 6.4]), vis = H === 30 ? 8 : 12;
     const nH = H / 15, pieces = 4 * nH, planks = Math.ceil(pieces / 2), budget = planks * p1 + 4 * p2 + p3;
     const ci = c - 2, hmin = H * fr[0] / fr[1], V = ci * ci * hmin, VL = V / 1000, sacs = Math.ceil(VL / Ls - 1e-9);
     const frT = fr[0] + '/' + fr[1], frW = fr[0] === 2 ? 'aux deux tiers' : 'aux trois quarts', frR = fr[0] === 2 ? 'до двух третей' : 'до трёх четвертей';
-    const ctx = L(nm + ' veut construire un carré potager sans fond, en forme de pavé droit à base carrée, de hauteur ' + H + ' cm. Chaque côté est formé de ' + nH + ' planches de ' + pbM(c) + ' m de long et de 15 cm de large, posées les unes au-dessus des autres. Au magasin, les planches mesurent 2,50 m de long et 2 cm d\'épaisseur ; on les découpe. Dans chacun des 4 angles, on fixe une équerre avec ' + vis + ' vis. On remplit ensuite le carré de terre au minimum ' + frW + ' de sa hauteur : la terre forme un pavé droit dont la base est un carré de ' + ci + ' cm de côté. Rappel : 1 L = 1 dm³.',
-      nm + ' хочет сделать грядку-короб без дна в форме прямоугольного параллелепипеда с квадратным основанием, высотой ' + H + ' см. Каждая сторона — ' + nH + ' доски длиной ' + pbM(c) + ' м и шириной 15 см, положенные одна на другую. В магазине доски длиной 2,50 м и толщиной 2 см; их распиливают. В каждом из 4 углов крепят уголок на ' + vis + ' шурупов. Потом короб засыпают землёй минимум ' + frR + ' высоты: земля образует прямоугольный параллелепипед с квадратным основанием со стороной ' + ci + ' см. Напоминание: 1 л = 1 дм³.');
+    const ctx = L(nm + ' veut construire un carré potager sans fond, en forme de pavé droit à base carrée, de hauteur ' + H + ' cm. Chaque côté est formé de ' + nH + ' planches de ' + pbM(c) + ' m de long et de 15 cm de large, posées ' + (nH === 2 ? 'l\'une sur l\'autre' : 'les unes sur les autres') + '. Au magasin, les planches mesurent 2,50 m de long et 2 cm d\'épaisseur ; on les découpe. Dans chacun des 4 angles, on fixe une équerre avec ' + vis + ' vis. On remplit ensuite le carré de terre au minimum jusqu\'' + frW + ' de sa hauteur : la terre forme un pavé droit dont la base est un carré de ' + ci + ' cm de côté. Les tarifs du magasin sont donnés dans le tableau ci-dessous. Rappel : 1 L = 1 dm³.',
+      nm + ' хочет сделать грядку-короб без дна в форме прямоугольного параллелепипеда с квадратным основанием, высотой ' + H + ' см. Каждая сторона — ' + nH + ' доски длиной ' + pbM(c) + ' м и шириной 15 см, положенные одна на другую. В магазине доски длиной 2,50 м и толщиной 2 см; их распиливают. В каждом из 4 углов крепят уголок на ' + vis + ' шурупов. Потом короб засыпают землёй минимум ' + frR + ' высоты: земля образует прямоугольный параллелепипед с квадратным основанием со стороной ' + ci + ' см. Цены магазина — в таблице ниже: доска («planche»), уголок («équerre»), шурупы набором по 100 штук («vis, lot de 100»), мешок земли («sac de terre»). На рисунке — вид сверху («vue de dessus»), «terre» — земля. Напоминание: 1 л = 1 дм³.');
     const fig = tbl([['Article', 'Prix'], ['Planche 250 cm × 15 cm × 2 cm', eur(p1) + ' la pièce'], ['Équerre', eur(p2) + ' la pièce'], ['Vis (lot de 100)', eur(p3) + ' le lot'], ['Sac de terre de ' + Ls + ' L', eur(r.pick([6.9, 7.5])) + ' le sac']]) + pbPotFig(c, 2);
-    const vt = (a, h) => a + '\\times ' + a + '\\times ' + texNum(fx(h)) + '=' + fmtBig(fx(a * a * h));
-    const vol = (a, h, div) => L('$$' + vt(a, h) + '$$ cm³, soit $$' + fmtBig(fx(a * a * h / div)) + '$$ L', '$$' + vt(a, h) + '$$ см³, то есть $$' + fmtBig(fx(a * a * h / div)) + '$$ л');
+    const vt = (a, h) => a + '\\times ' + a + '\\times ' + pbT(h) + '=' + pbT(a * a * h);
+    const vol = (a, h, div) => L('$$' + vt(a, h) + '$$ cm³, soit $$' + pbT(a * a * h / div) + '$$ L', '$$' + vt(a, h) + '$$ см³, то есть $$' + pbT(a * a * h / div) + '$$ л');
     return { ctx, fig, qs: [
-      { q: L('Combien de planches de 2,50 m faut-il acheter ?', 'Сколько досок по 2,50 м нужно купить?'), ans: N(planks), sol: [
+      { q: L('Combien de planches de 2,50 m faut-il acheter ?', 'Сколько досок по 2,50 м нужно купить?'), ans: N(planks),
+        redac: ['Chaque côté est formé de ' + nH + ' planches : il faut $4*' + nH + ' = ' + pieces + '$ planches de ' + pbM(c) + ' m.',
+          'Dans une planche de 2,50 m, on peut découper 2 planches de ' + pbM(c) + ' m (2 × ' + pbM(c) + ' m = ' + pbM(2 * c) + ' m), mais pas 3 (3 × ' + pbM(c) + ' m = ' + pbM(3 * c) + ' m).',
+          '$' + pieces + '÷2 = ' + planks + '$',
+          'Il faut acheter ' + planks + ' planches de 2,50 m.'], sol: [
         'Нужно ' + nH + ' куска на сторону, сторон 4: всего ' + pieces + ' кусков по ' + pbM(c) + ' м.',
         'Из одной доски 2,50 м выходит 2 куска: 2 × ' + pbM(c) + ' = ' + pbM(2 * c) + ' м ≤ 2,50 м, а на третий кусок длины уже не хватит (3 × ' + pbM(c) + ' = ' + pbM(3 * c) + ' м > 2,50 м).',
         ['', pieces + '/2=' + planks],
         'Нужно купить ' + planks + ' ' + pbRu(planks, 'доску', 'доски', 'досок') + '.'] },
-      { q: L('Déterminer le budget nécessaire pour réaliser ce carré potager, sans compter la terre.', 'Найди, сколько денег нужно на короб без учёта земли.'), ans: pbNE(budget, '€'), sol: [
+      { q: L('Déterminer le budget nécessaire pour réaliser ce carré potager, sans compter la terre.', 'Найди, сколько денег нужно на короб без учёта земли.'), ans: pbNE(budget, '€'),
+        redac: ['Planches : $' + planks + '*' + fx(p1) + ' = ' + fx(planks * p1) + '$, soit ' + eur(r2(planks * p1)) + '.',
+          'Équerres : $4*' + fx(p2) + ' = ' + fx(4 * p2) + '$, soit ' + eur(r2(4 * p2)) + '.',
+          'Vis : il en faut $4*' + vis + ' = ' + (4 * vis) + '$, donc un seul lot de 100 suffit : ' + eur(p3) + '.',
+          '$' + fx(planks * p1) + ' + ' + fx(4 * p2) + ' + ' + fx(p3) + ' = ' + fx(budget) + '$',
+          'Le budget nécessaire est de ' + eur(r2(budget)) + '.'], sol: [
         ['Доски:', planks + '*' + fx(p1) + '=' + fx(planks * p1), '€'],
         ['Уголки — по одному в каждом из 4 углов:', '4*' + fx(p2) + '=' + fx(4 * p2), '€'],
         'Шурупы: 4 × ' + vis + ' = ' + (4 * vis) + ' ' + pbRu(4 * vis, 'штука', 'штуки', 'штук') + ' — хватает одного набора из 100, это ' + eur(p3) + '.',
@@ -570,8 +719,14 @@ pbProb({ id: 'p2.potager', ch: 'gm', lvl: 1, pts: 4,
           ['', frT + '*' + H + '=' + fx(hmin), 'см'],
           { t: 'Объём:', tex: vt(ci, hmin) + '\\text{ см}^3' },
           '1 л = 1 дм³ = 10 × 10 × 10 = 1 000 см³, поэтому делим на 1 000: ' + nf(VL) + ' л.',
-          'Типичные ошибки: взять всю высоту ' + H + ' см (а нужно лишь ' + frT + '), взять длину доски ' + c + ' см вместо внутренней стороны ' + ci + ' см, делить на 100 вместо 1 000.'] },
-      { q: L('Combien de sacs de terre de ' + Ls + ' L faut-il acheter au minimum ?', 'Сколько мешков земли по ' + Ls + ' л нужно купить как минимум?'), ans: N(sacs), sol: [
+          'Типичные ошибки: взять всю высоту ' + H + ' см (а нужно лишь ' + frT + '), взять длину доски ' + c + ' см вместо внутренней стороны ' + ci + ' см, делить на 100 вместо 1 000.'],
+        redac: ['Hauteur minimale de terre : $' + frT + '*' + H + ' = ' + fx(hmin) + '$ (en cm).',
+          'Volume minimal de terre : $$' + vt(ci, hmin) + '$$ (en cm³).',
+          'Or 1 L = 1 dm³ = 1 000 cm³, donc le volume minimal de terre est de ' + nf(VL) + ' L.'] },
+      { q: L('Combien de sacs de terre de ' + Ls + ' L faut-il acheter au minimum ?', 'Сколько мешков земли по ' + Ls + ' л нужно купить как минимум?'), ans: N(sacs),
+        redac: ['$' + fx(VL) + '÷' + Ls + (pbIsD(VL / Ls, 2) ? ' = ' + fx(VL / Ls) : ' ≈ ' + pbK(VL / Ls, 2)) + '$',
+          'Avec ' + (sacs - 1) + ' sacs, on a seulement $' + (sacs - 1) + '*' + Ls + ' = ' + ((sacs - 1) * Ls) + '$ L de terre : ce n\'est pas assez.',
+          'Il faut donc acheter au minimum ' + sacs + ' sacs de terre.'], sol: [
         ['Делим нужный объём на объём одного мешка:', fx(VL) + '/' + Ls + '≈' + pbK(VL / Ls, 2)],
         'Мешки покупают целыми, и земли должно хватить, поэтому округляем вверх: ' + (sacs - 1) + ' ' + pbRu(sacs - 1, 'мешок', 'мешка', 'мешков') + ' — это только ' + ((sacs - 1) * Ls) + ' л < ' + nf(VL) + ' л.',
         'Нужно ' + sacs + ' ' + pbRu(sacs, 'мешок', 'мешка', 'мешков') + ' (' + (sacs * Ls) + ' л).'] }] };
@@ -607,13 +762,13 @@ pbProb({ id: 'p2.aquariums', ch: 'gm', lvl: 2, pts: 4,
       d = r.pick([24, 26, 28, 30, 32]); H1 = r.pick([22, 24, 25, 26, 28, 30]); Lp = r.pick([24, 25, 26, 28, 30]); lp = r.pick([20, 22, 24, 25, 28]); H2 = r.pick([24, 25, 26, 28, 30, 32]);
       f = r.pick([[4, 5], [4, 5], [3, 4]]); ff = f[0] / f[1]; Vmin = r.pick([12, 15, 15, 18]);
       V1 = Math.PI * (d / 2) * (d / 2) * ff * H1 / 1000; V2 = Lp * lp * ff * H2 / 1000; hx = Vmin * 1000 / (Math.PI * (d / 2) * (d / 2));
-      if ((V1 >= Vmin) !== (V2 >= Vmin) && Math.abs(V1 - Vmin) > 0.4 && Math.abs(V2 - Vmin) > 0.4 && !pbTie(V1, 1) && !pbTie(V2, 1) && !pbTie(hx, 1) && pbIsD(ff * H1, 1) && pbIsD(ff * H2, 1)) break;
+      if ((V1 >= Vmin) !== (V2 >= Vmin) && Math.abs(V1 - Vmin) > 0.4 && Math.abs(V2 - Vmin) > 0.4 && !pbTie(V1, 1) && !pbTie(V2, 1) && !pbTie(hx, 1) && pbIsD(ff * H1, 1) && pbIsD(ff * H2, 1) && hx <= H1 - 0.5) break;   /* hx ≤ H1: the height asked in question 4 exists */
     }
     const rr = d / 2, h1 = +(ff * H1).toFixed(1), h2 = +(ff * H2).toFixed(1), s = V1 >= Vmin ? 1 : 2, o2 = 3 - s, fT = '$' + f[0] + '/' + f[1] + '$';
     const V2ex = pbIsD(V2, 1), Vt = [null, pbS(V1, 1), V2ex ? nf(V2) : pbS(V2, 1)], F1 = V1 / ff, F2 = V2 / ff, V1d = 4 * V1;
     const pf = r.pick([8, 9, 12, 15]), pa = r.pick([35, 39, 40, 45, 49]), red = r.pick([10, 15, 20]), tot = pf + pa, pay = tot * (100 - red) / 100;
-    const ctx = L('Un magasin vend des poissons combattants. Un poisson combattant a besoin d\'au moins ' + Vmin + ' L d\'eau. On remplit un aquarium d\'eau jusqu\'aux ' + fT + ' de sa hauteur. Aquarium 1 : un cylindre de diamètre ' + d + ' cm et de hauteur ' + H1 + ' cm. Aquarium 2 : un pavé droit de longueur ' + Lp + ' cm, de largeur ' + lp + ' cm et de hauteur ' + H2 + ' cm. Rappels : volume d\'un cylindre de rayon r et de hauteur h : $$V=\\pi\\times r^2\\times h$$ ; volume d\'un pavé droit : $$V=L\\times\\ell\\times h$$ ; 1 dm³ = 1 L.',
-      'Магазин продаёт рыбок-петушков («poissons combattants»). Одной такой рыбке нужно не меньше ' + Vmin + ' л воды. Аквариум наполняют водой до ' + fT + ' его высоты. Аквариум 1 — цилиндр диаметром ' + d + ' см и высотой ' + H1 + ' см. Аквариум 2 — прямоугольный параллелепипед длиной ' + Lp + ' см, шириной ' + lp + ' см и высотой ' + H2 + ' см. Напоминание: объём цилиндра радиусом r и высотой h: $$V=\\pi\\times r^2\\times h$$; объём параллелепипеда: $$V=L\\times\\ell\\times h$$; 1 дм³ = 1 л.');
+    const ctx = L('Un magasin vend des poissons combattants. Un poisson combattant a besoin d\'au moins ' + Vmin + ' L d\'eau. On remplit chaque aquarium d\'eau jusqu\'aux ' + fT + ' de sa hauteur. Aquarium 1 : un cylindre de diamètre ' + d + ' cm et de hauteur ' + H1 + ' cm. Aquarium 2 : un pavé droit de longueur ' + Lp + ' cm, de largeur ' + lp + ' cm et de hauteur ' + H2 + ' cm. Rappels : volume d\'un cylindre de rayon r et de hauteur h : $$V=\\pi\\times r^2\\times h$$ ; volume d\'un pavé droit : $$V=L\\times\\ell\\times h$$ ; 1 dm³ = 1 L.',
+      'Магазин продаёт рыбок-петушков («poissons combattants»). Одной такой рыбке нужно не меньше ' + Vmin + ' л воды. Каждый аквариум наполняют водой до ' + fT + ' его высоты. Аквариум 1 — цилиндр диаметром ' + d + ' см и высотой ' + H1 + ' см. Аквариум 2 — прямоугольный параллелепипед длиной ' + Lp + ' см, шириной ' + lp + ' см и высотой ' + H2 + ' см. Напоминание: объём цилиндра радиусом r и высотой h: $$V=\\pi\\times r^2\\times h$$; объём параллелепипеда: $$V=L\\times\\ell\\times h$$; 1 дм³ = 1 л.');
     const both = F1 >= Vmin && F2 >= Vmin;
     const q3 = [L('L\'aquarium ' + s + ' : il contient environ ' + Vt[s] + ' L d\'eau, donc au moins ' + Vmin + ' L, alors que l\'aquarium ' + o2 + ' n\'en contient qu\'environ ' + Vt[o2] + ' L.', 'Аквариум ' + s + ': в нём примерно ' + Vt[s] + ' л воды, то есть не меньше ' + Vmin + ' л, а в аквариуме ' + o2 + ' — только примерно ' + Vt[o2] + ' л.'),
       both ? L('Les deux aquariums conviennent : pleins, ils contiennent environ ' + nf(pbRd(F1, 1)) + ' L et ' + nf(pbRd(F2, 1)) + ' L, soit plus de ' + Vmin + ' L chacun.', 'Подходят оба: полные, они вмещают примерно ' + nf(pbRd(F1, 1)) + ' л и ' + nf(pbRd(F2, 1)) + ' л, то есть больше ' + Vmin + ' л каждый.')
@@ -621,21 +776,34 @@ pbProb({ id: 'p2.aquariums', ch: 'gm', lvl: 2, pts: 4,
       L('Avec un rayon de ' + d + ' cm, l\'aquarium 1 contient environ ' + nf(pbRd(V1d, 1)) + ' L d\'eau, donc ' + (V2 >= Vmin ? 'les deux aquariums conviennent.' : 'on choisit l\'aquarium 1.'), 'С радиусом ' + d + ' см в аквариуме 1 примерно ' + nf(pbRd(V1d, 1)) + ' л воды, значит, ' + (V2 >= Vmin ? 'подходят оба аквариума.' : 'выбираем аквариум 1.')),
       L('Les deux aquariums conviennent : ils contiennent environ ' + nf(pbRd(V1 * 10, 0)) + ' L et ' + nf(pbRd(V2 * 10, 0)) + ' L d\'eau, car 1 L = 100 cm³.', 'Подходят оба: в них примерно ' + nf(pbRd(V1 * 10, 0)) + ' л и ' + nf(pbRd(V2 * 10, 0)) + ' л воды, потому что 1 л = 100 см³.')];
     return { ctx, fig: pbAquFig({ d, H1, Lp, lp, H2, f }), qs: [
-      { q: L('Calculer le volume d\'eau, en litres, contenu dans l\'aquarium 1. Arrondir au dixième.', 'Вычисли объём воды в аквариуме 1 в литрах. Округли до десятых.'), ans: pbNR(V1, 1, 'L'), sol: [
+      { q: L('Calculer le volume d\'eau, en litres, contenu dans l\'aquarium 1. Arrondir au dixième.', 'Вычисли объём воды в аквариуме 1 в литрах. Округли до десятых.'), ans: pbNR(V1, 1, 'L'),
+        redac: ['Rayon du cylindre : $' + d + '÷2 = ' + rr + '$ (en cm). Hauteur d\'eau : $' + f[0] + '/' + f[1] + '*' + H1 + ' = ' + fx(h1) + '$ (en cm).',
+          '$$V_1=\\pi\\times ' + rr + '^2\\times ' + pbT(h1) + '\\approx ' + pbT(pbRd(V1 * 1000, 0)) + '$$ (en cm³).',
+          'Or 1 L = 1 dm³ = 1 000 cm³, donc l\'aquarium 1 contient environ ' + pbS(V1, 1) + ' L d\'eau.'], sol: [
         'Вода в цилиндре — тоже цилиндр: тот же радиус, но высота не ' + H1 + ' см, а только ' + f[0] + '/' + f[1] + ' от неё.',
         ['Радиус — половина диаметра, высота воды:', 'r=' + d + '/2=' + rr + ';h=' + f[0] + '/' + f[1] + '*' + H1 + '=' + fx(h1), 'см'],
         { t: '', tex: 'V=\\pi\\times ' + rr + '^2\\times ' + texNum(fx(h1)) + '\\approx ' + fmtBig(pbK(V1 * 1000, 1)) + '\\text{ см}^3' },
         '1 л = 1 дм³ = 10 × 10 × 10 = 1 000 см³, поэтому делим на 1 000: ≈ ' + pbS(V1, 1) + ' л.'] },
-      { q: L('Calculer le volume d\'eau, en litres, contenu dans l\'aquarium 2. Arrondir au dixième si nécessaire.', 'Вычисли объём воды в аквариуме 2 в литрах. Если нужно, округли до десятых.'), ans: V2ex ? pbNE(V2, 'L') : pbNR(V2, 1, 'L'), sol: [
+      { q: L('Calculer le volume d\'eau, en litres, contenu dans l\'aquarium 2. Arrondir au dixième si nécessaire.', 'Вычисли объём воды в аквариуме 2 в литрах. Если нужно, округли до десятых.'), ans: V2ex ? pbNE(V2, 'L') : pbNR(V2, 1, 'L'),
+        redac: ['Hauteur d\'eau : $' + f[0] + '/' + f[1] + '*' + H2 + ' = ' + fx(h2) + '$ (en cm).',
+          '$$V_2=' + Lp + '\\times ' + lp + '\\times ' + pbT(h2) + '=' + pbT(Lp * lp * h2) + '$$ (en cm³).',
+          V2ex ? 'Or 1 L = 1 000 cm³, donc l\'aquarium 2 contient ' + nf(V2) + ' L d\'eau.' : 'Or 1 L = 1 000 cm³, donc l\'aquarium 2 contient ' + nf(V2) + ' L, soit environ ' + pbS(V2, 1) + ' L d\'eau.'], sol: [
         'Вода занимает параллелепипед с тем же дном ' + Lp + ' × ' + lp + ' см и высотой ' + f[0] + '/' + f[1] + ' от ' + H2 + ' см.',
         ['', f[0] + '/' + f[1] + '*' + H2 + '=' + fx(h2), 'см'],
         { t: '', tex: 'V=' + Lp + '\\times ' + lp + '\\times ' + texNum(fx(h2)) + '=' + fmtBig(fx(Lp * lp * h2)) + '\\text{ см}^3' },
         'Делим на 1 000: ' + (V2ex ? nf(V2) : '≈ ' + pbS(V2, 1)) + ' л.'] },
       { q: L('Quel aquarium faut-il choisir pour un poisson combattant ? Choisir la réponse correctement justifiée.', 'Какой аквариум нужно выбрать для рыбки-петушка? Выбери ответ с верным обоснованием.'), red: true,
-        ans: MQ(r, q3, 0), sol: [
+        ans: MQ(r, q3, 0),
+        redac: ['L\'aquarium 1 contient environ ' + Vt[1] + ' L d\'eau et $' + pbK(V1, 1) + (V1 >= Vmin ? ' > ' : ' < ') + Vmin + '$.',
+          'L\'aquarium 2 contient ' + (V2ex ? '' : 'environ ') + Vt[2] + ' L d\'eau et $' + (V2ex ? fx(V2) : pbK(V2, 1)) + (V2 >= Vmin ? ' > ' : ' < ') + Vmin + '$.',
+          'Seul l\'aquarium ' + s + ' contient au moins ' + Vmin + ' L d\'eau : il faut choisir l\'aquarium ' + s + '.'], sol: [
         'Сравниваем с ' + Vmin + ' л именно объём воды — аквариум заполняют только до ' + f[0] + '/' + f[1] + ' высоты: ' + pbS(V1, 1) + ' л и ' + (V2ex ? nf(V2) : pbS(V2, 1)) + ' л. Подходит только аквариум ' + s + '.',
         'Ошибки в других вариантах: взят объём полного аквариума (забыли про ' + f[0] + '/' + f[1] + '); в формулу цилиндра подставлен диаметр ' + d + ' см вместо радиуса ' + rr + ' см — объём выходит в 4 раза больше; при переводе делили на 100, хотя 1 л = 1 000 см³.'] },
-      { q: L('Jusqu\'à quelle hauteur faudrait-il remplir l\'aquarium 1 pour qu\'il contienne exactement ' + Vmin + ' L d\'eau ? Arrondir au millimètre.', 'До какой высоты нужно налить воду в аквариум 1, чтобы в нём было ровно ' + Vmin + ' л? Округли до миллиметра.'), ans: pbNR(hx, 1, 'cm'), sol: [
+      { q: L('Jusqu\'à quelle hauteur, en cm, faudrait-il remplir l\'aquarium 1 pour qu\'il contienne exactement ' + Vmin + ' L d\'eau ? Arrondir au millimètre.', 'До какой высоты (в см) нужно налить воду в аквариум 1, чтобы в нём было ровно ' + Vmin + ' л? Округли до миллиметра.'), ans: pbNR(hx, 1, 'cm'),
+        redac: [Vmin + ' L = ' + Vmin + ' dm³ = ' + nf(Vmin * 1000) + ' cm³.',
+          'On cherche la hauteur h (en cm) telle que $$\\pi\\times ' + rr + '^2\\times h=' + pbT(Vmin * 1000) + '$$.',
+          'Donc $$h=' + pbDf(pbT(Vmin * 1000), '\\pi\\times ' + rr + '^2') + '\\approx ' + texNum(pbK(hx, 1)) + '$$.',
+          'Il faudrait remplir l\'aquarium 1 jusqu\'à une hauteur d\'environ ' + pbS(hx, 1) + ' cm.'], sol: [
         'Переводим объём в см³: ' + Vmin + ' л = ' + nf(Vmin * 1000) + ' см³. Объём воды = площадь дна × высота воды, поэтому высота = объём ÷ площадь дна.',
         { t: '', tex: 'h=\\dfrac{' + fmtBig(String(Vmin * 1000)) + '}{\\pi\\times ' + rr + '^2}\\approx ' + texNum(pbK(hx, 3)) + '\\text{ см}' },
         'Округляем до миллиметра (до десятых сантиметра): ≈ ' + pbS(hx, 1) + ' см. ' + (hx <= H1 ? 'Это не больше высоты аквариума (' + H1 + ' см): налить столько можно, но при обычном заполнении до ' + f[0] + '/' + f[1] + ' (' + nf(h1) + ' см) воды будет ' + (h1 >= hx ? 'достаточно.' : 'меньше нужного.') : 'Это больше высоты самого аквариума (' + H1 + ' см): столько воды в него вообще не поместится.')] },

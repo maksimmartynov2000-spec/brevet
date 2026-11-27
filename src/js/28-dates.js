@@ -8,6 +8,9 @@ const today0 = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }
 const parseYmd = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
 const dayStart = ms => { const d = new Date(ms); d.setHours(0, 0, 0, 0); return d.getTime(); };
 const addDaysKey = (k, n) => { const d = parseYmd(k); d.setDate(d.getDate() + n); return ymd(d); };
+/* the start of the day that is n days after the moment ms (calendar days: an hour lost or gained by the clocks changes nothing) */
+const plusDays = (ms, n) => { const d = new Date(ms); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + n); return d.getTime(); };
+const isObj = x => !!x && typeof x === 'object' && !Array.isArray(x);
 function daysTo(s) { return Math.round((parseYmd(s) - today0()) / 864e5); }
 function dateRu(s) { const [, m, d] = String(s).split('-').map(Number); return d + ' ' + MON[m - 1]; }
 function plural(n, a, b, c) { n = Math.abs(n); const m10 = n % 10, m100 = n % 100; return m10 === 1 && m100 !== 11 ? a : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? b : c; }

@@ -686,3 +686,32 @@ textarea.code{font-family:var(--f-mono);font-size:13px;word-break:break-all}
 .redac .chl{color:var(--warn)}
 .redtx p{margin:3px 0;font-size:17px;line-height:1.5;color:var(--ink)}
 .redtx .katex-display{margin:4px 0;text-align:left}
+
+/* ---------- v2: words, stopwatch, reviews, lesson mode ---------- */
+html.words .w{cursor:pointer;border-radius:4px;-webkit-tap-highlight-color:transparent}
+html.words button .w{cursor:inherit}
+@media (hover:hover){html.words .instr .w:hover,html.words .pctx .w:hover,html.words .redtx .w:hover,html.words .theory .w:hover{box-shadow:0 1.5px 0 var(--amber)}}
+html.words .w.on{background:var(--warn-soft);box-shadow:0 0 0 2px var(--warn-soft)}
+.opt,.ordit{-webkit-touch-callout:none}
+#wpop{position:absolute;z-index:60;max-width:min(320px,calc(100vw - 16px));background:var(--ink);color:var(--paper);border-radius:10px;padding:8px 12px;font-size:15.5px;line-height:1.35;display:flex;flex-direction:column;gap:2px;box-shadow:var(--shadow-up);animation:fadein .12s ease}
+#wpop b{font-weight:600;font-size:16px}
+#wpop small{font-size:12.5px;opacity:.72}
+.chip.tmc{background:var(--chip);color:var(--muted);font-weight:500;font-variant-numeric:tabular-nums;margin-left:auto}
+.chip.tmc.slow{background:var(--warn-soft);color:var(--warn)}
+.wst{display:inline-flex;gap:3px;align-items:center}.wst i{width:8px;height:8px;border-radius:50%;background:var(--line);display:block}.wst i.on{background:var(--ok)}
+.dw.wrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:10px 2px;cursor:pointer;font:inherit;color:inherit;align-items:center}
+.dw.wrow:last-child{border-bottom:0}
+.dw.wrow b{grid-column:1;font-size:17px}.dw.wrow>span:not(.wst):not(.pill){grid-column:1;color:var(--muted);font-size:15px;line-height:1.35}
+.dw.wrow .wst,.dw.wrow .pill{grid-column:2;grid-row:1/3}
+.wcard{display:flex;flex-direction:column;gap:12px;align-items:center;text-align:center;padding:26px 16px}
+.wbig{font-family:var(--f-display);font-weight:600;font-size:34px;line-height:1.2;overflow-wrap:anywhere}
+.wru{font-size:19px;line-height:1.4}
+.wcard .row{justify-content:center}
+/* lesson mode: French and Russian together, larger */
+html.lesson .bi>.l-fr,html.lesson .bi>.l-ru{visibility:visible;grid-area:auto}
+html.lesson .bi{display:grid;grid-template-columns:minmax(0,1fr);gap:6px}
+html.lesson .bi>.l-ru{color:var(--muted);font-size:.9em;border-left:3px solid var(--line);padding-left:10px}
+html.lesson .q .instr,html.lesson .pctx{font-size:21px}
+html.lesson .opt,html.lesson .ordit{font-size:18px}
+html.lesson .sol,html.lesson .redtx{font-size:18.5px}
+@media (min-width:900px){html.lesson .instr>.bi,html.lesson .pctx>.bi{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:18px}html.lesson .instr>.bi>.l-ru,html.lesson .pctx>.bi>.l-ru{font-size:.86em}}
