@@ -125,8 +125,8 @@ function geoPtLab(S, p, dir, txt, o) {
   const fs = geoFs(o), hw = geoTW(txt, fs) / 2, hh = fs * 0.42, u0 = geoUnit(dir), gap = o.gap == null ? 4 : o.gap;
   const at = (u, e) => { const d = Math.abs(u.x) * hw + Math.abs(u.y) * hh + gap + e; return geoAdd(p, geoMul(u, d)); };
   /* o.near: the label stays close to its point (crowded figures) — otherwise it may move away a little */
-  for (const e of (o.near ? [0, 3] : [0, 5, 10, 16])) for (const ang of [0, 22, -22, 45, -45, 70, -70, 100, -100, 135, -135, 180]) { const c = at(geoRot(u0, ang), e); if (S.free(c, hw, hh)) { S.text(c, txt, o); return true; } }
-  GEO_BAD++; S.text(at(u0, 0), txt, o); return false;
+  for (const e of (o.near ? [0, 3] : [0, 5, 10, 16])) for (const ang of [0, 22, -22, 45, -45, 70, -70, 100, -100, 135, -135, 180]) { const c = at(geoRot(u0, ang), e); if (S.free(c, hw, hh)) { S.text(c, txt, o); return c; } }
+  GEO_BAD++; S.text(at(u0, 0), txt, o); return null;
 }
 /* outward direction at vertex v of a convex polygon (neighbours a and b) */
 const geoOut = (v, a, b) => { const d = geoAdd(geoUnit(geoSub(v, a)), geoUnit(geoSub(v, b))); return geoLen(d) < 1e-6 ? geoPerp(geoSub(b, a)) : d; };
@@ -1189,7 +1189,8 @@ function geoGrid(cols, rows, c) {
 /* labelled points on a grid: [[i, j, name], …] — dots first, then the names in a free corner of a cell */
 function geoGridPts(G, pts) {
   pts.forEach(([i, j]) => { const p = G.P(i, j); G.S.dot(p, 3); G.S.boxes.push([p.x - 3, p.y - 3, p.x + 3, p.y + 3]); });
-  pts.forEach(([i, j, t]) => geoPtLab(G.S, G.P(i, j), geoV(1, -1), t, { gap: 3, near: true }));   /* the name stays next to its own point */
+  /* the name stays next to its own point, and clearly nearer to it than to any other point */
+  pts.forEach(([i, j, t]) => { const p = G.P(i, j), c = geoPtLab(G.S, p, geoV(1, -1), t, { gap: 8, near: true }); if (c && pts.some(([i2, j2]) => (i2 !== i || j2 !== j) && geoDist(c, G.P(i2, j2)) < 1.35 * geoDist(c, p))) GEO_BAD++; });
 }
 const GEO_LETTERS = 'ABCDEFGHJKLMNPRSTUVWXYZ'.split('');
 const geoPl = (n, a, b, c) => { n = Math.abs(n); const m10 = n % 10, m100 = n % 100; return n + ' ' + (m10 === 1 && m100 !== 11 ? a : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? b : c); };
