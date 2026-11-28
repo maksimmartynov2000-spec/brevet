@@ -153,5 +153,6 @@ const IDX = [
   'nc.droite-graduee',
   'cl.exprimer-n',
   'cl.factoriser-simple',
-  'fn.graphique-contexte'
+  'fn.graphique-contexte',
+  'al.deplacement'
 ];

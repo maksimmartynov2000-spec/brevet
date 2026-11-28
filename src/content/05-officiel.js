@@ -102,7 +102,7 @@ automatisme({ n: 30, sec: OFF_ST, dom: 'st', topics: ['st.moyenne'],
 automatisme({ n: 31, sec: OFF_ST, dom: 'st', topics: ['st.mediane'],
   fr: 'Déterminer une médiane pour une série comportant un petit nombre de valeurs.',
   ru: 'Находить медиану ряда из небольшого числа значений.' });
-automatisme({ n: 32, sec: OFF_ST, dom: 'st', topics: ['st.diagrammes', 'st.diagramme-circulaire'],
+automatisme({ n: 32, sec: OFF_ST, dom: 'st', topics: ['st.diagrammes', 'st.diagramme-circulaire', 'fn.graphique-contexte'],
   fr: 'Lire et interpréter des informations présentées sous forme de tableaux, de diagrammes et de graphiques.',
   ru: 'Читать и понимать сведения из таблиц, диаграмм и графиков.' });
 
@@ -119,6 +119,6 @@ automatisme({ n: 36, sec: OFF_PP, dom: 'fn', topics: ['fn.graphique-contexte', '
   fr: 'Exploiter un graphique représentant la dépendance de deux grandeurs pour lire et interpréter différentes valeurs sur l\'axe des abscisses ou l\'axe des ordonnées.',
   ru: 'По графику зависимости двух величин читать и объяснять значения на оси абсцисс и на оси ординат.' });
 
-automatisme({ n: 37, sec: OFF_AL, dom: 'al', topics: ['cl.programme-calcul', 'al.scratch-lire', 'al.scratch-boucle'],
+automatisme({ n: 37, sec: OFF_AL, dom: 'al', topics: ['al.deplacement', 'al.scratch-lire', 'cl.programme-calcul'],
   fr: 'Interpréter une suite d\'instructions : programme de calcul, déplacement, construction géométrique.',
   ru: 'Понимать последовательность команд: программу вычислений, перемещение, геометрическое построение.' });
