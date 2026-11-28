@@ -150,5 +150,8 @@ const IDX = [
   'lg.questions',
   'nc.carres',
   'nc.ecritures-nombre',
-  'nc.droite-graduee'
+  'nc.droite-graduee',
+  'cl.exprimer-n',
+  'cl.factoriser-simple',
+  'fn.graphique-contexte'
 ];

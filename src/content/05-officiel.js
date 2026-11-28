@@ -31,7 +31,7 @@ automatisme({ n: 7, sec: OFF_NC, dom: 'nc', topics: ['nc.carres', 'nc.racines'],
 automatisme({ n: 8, sec: OFF_NC, dom: 'nc', topics: ['nc.arith-diviseurs'],
   fr: 'Appliquer les critères de divisibilité par 2, 3, 5, 9.',
   ru: 'Применять признаки делимости на 2, 3, 5 и 9.' });
-automatisme({ n: 9, sec: OFF_NC, dom: 'cl', topics: ['cl.programme-calcul', 'cl.mise-en-equation'],
+automatisme({ n: 9, sec: OFF_NC, dom: 'cl', topics: ['cl.exprimer-n', 'cl.programme-calcul'],
   fr: 'Pour un nombre entier n, exprimer son double, son triple, sa moitié, son prédécesseur, son successeur, son carré.',
   ru: 'Для целого числа n записывать через n его удвоенное и утроенное значение, половину, предыдущее и следующее число, квадрат.' });
 automatisme({ n: 10, sec: OFF_NC, dom: 'cl', topics: ['cl.reduire'],
@@ -40,7 +40,7 @@ automatisme({ n: 10, sec: OFF_NC, dom: 'cl', topics: ['cl.reduire'],
 automatisme({ n: 11, sec: OFF_NC, dom: 'cl', topics: ['cl.substituer'],
   fr: 'Calculer la valeur d\'une expression algébrique y compris avec des puissances, sans technicité excessive.',
   ru: 'Находить значение алгебраического выражения, в том числе со степенями, без громоздких вычислений.' });
-automatisme({ n: 12, sec: OFF_NC, dom: 'cl', topics: ['cl.developper-simple', 'cl.factoriser', 'cl.developper-double'],
+automatisme({ n: 12, sec: OFF_NC, dom: 'cl', topics: ['cl.developper-simple', 'cl.factoriser-simple'],
   fr: 'Développer et factoriser une expression simple.',
   ru: 'Раскрывать скобки и раскладывать на множители простое выражение.' });
 automatisme({ n: 13, sec: OFF_NC, dom: 'cl', topics: ['cl.eq-1'],
@@ -115,7 +115,7 @@ automatisme({ n: 34, sec: OFF_PP, dom: 'pp', topics: ['pp.tableau'],
 automatisme({ n: 35, sec: OFF_PP, dom: 'pp', topics: ['pp.pourcent-evol'],
   fr: 'Appliquer une augmentation ou une diminution exprimée en pourcentage.',
   ru: 'Увеличивать или уменьшать величину на заданное число процентов.' });
-automatisme({ n: 36, sec: OFF_PP, dom: 'fn', topics: ['fn.lecture-graphe', 'fn.modeliser'],
+automatisme({ n: 36, sec: OFF_PP, dom: 'fn', topics: ['fn.graphique-contexte', 'fn.lecture-graphe'],
   fr: 'Exploiter un graphique représentant la dépendance de deux grandeurs pour lire et interpréter différentes valeurs sur l\'axe des abscisses ou l\'axe des ordonnées.',
   ru: 'По графику зависимости двух величин читать и объяснять значения на оси абсцисс и на оси ординат.' });
 
