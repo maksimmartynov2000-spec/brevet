@@ -147,5 +147,8 @@ const IDX = [
   'lg.donnees',
   'lg.connecteurs',
   'lg.redaction',
-  'lg.questions'
+  'lg.questions',
+  'nc.carres',
+  'nc.ecritures-nombre',
+  'nc.droite-graduee'
 ];

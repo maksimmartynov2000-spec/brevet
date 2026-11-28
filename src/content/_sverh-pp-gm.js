@@ -65,3 +65,54 @@ topic({ id: 'pp.evol-successives', ch: 'pp', lvl: 3, calc: false, variants: 4,
         'Значит, нужно ' + (up ? 'снизить' : 'повысить') + ' на ' + nf(Bv) + ' %. Ответ «' + nf(A) + ' %» неверен: те же ' + nf(A) + ' единиц составляют разную долю от 100 и от ' + B + '.',
         'Через коэффициенты: $' + fx(B / 100) + '×k=1$, значит, $k=1÷' + fx(B / 100) + '=' + fx(1 + b / 100) + '$ — это ' + (up ? 'снижение' : 'повышение') + ' на ' + nf(Bv) + ' %.'] };
   } });
+
+/* ---------- two types taken out of gm.agrandissement-rapport (November 2026) ----------
+   The topic stays in the app with its id and its exam-level types (the ratio k from two areas or volumes, from «les aires sont
+   multipliées par 25», from two lengths). Above the brevet, removed: going from the area factor to the volume factor through k
+   (two inverse steps, not in the sujets 2018–2027), and a pyramid or a cone cut by a plane parallel to the base, whose volume is
+   found as V × k³ (in the sujets the frustum is computed from two cones, each with its formula: Asie 2026, ex. 2).
+   The figure helper moved here with them (nothing else used it). */
+/* a pyramid or a cone cut by a plane parallel to the base at the fraction t of the height from the apex */
+function ppgSectionFig(kind, t) {
+  if (kind === 'cone') {
+    const cx = 170, rx = 95, ry = 30, ty = 14, by = 190, ys = ty + t * (by - ty), rs = t * rx, qs = t * ry;
+    const half = (y, a, b, up, cls) => '<path d="M' + (cx - a).toFixed(1) + ' ' + y.toFixed(1) + ' A' + a.toFixed(1) + ' ' + b.toFixed(1) + ' 0 0 ' + (up ? 1 : 0) + ' ' + (cx + a).toFixed(1) + ' ' + y.toFixed(1) + '" class="' + cls + '"/>';
+    let g = '<path d="M' + cx + ' ' + ty + ' L' + (cx - rx) + ' ' + by + ' A' + rx + ' ' + ry + ' 0 0 0 ' + (cx + rx) + ' ' + by + ' Z" class="ffill"/>';
+    g += '<path d="M' + cx + ' ' + ty + ' L' + (cx - rs).toFixed(1) + ' ' + ys.toFixed(1) + ' A' + rs.toFixed(1) + ' ' + qs.toFixed(1) + ' 0 0 0 ' + (cx + rs).toFixed(1) + ' ' + ys.toFixed(1) + ' Z" class="ffill"/>';
+    g += ppgLn(cx, ty, cx - rx, by, 'fl') + ppgLn(cx, ty, cx + rx, by, 'fl') + half(by, rx, ry, false, 'fl') + half(by, rx, ry, true, 'fdash') + half(ys, rs, qs, false, 'fl') + half(ys, rs, qs, true, 'fdash') + ppgLn(cx, ty, cx, by, 'fdash') + ppgDot(cx, by) + ppgDot(cx, ys);
+    return svgFig(340, 230, g, 'cône coupé');
+  }
+  const c = 10, Hp = 9, T = [c / 2, Hp, c / 2], B = [[0, 0, 0], [c, 0, 0], [c, 0, c], [0, 0, c]], S = B.map(p => [T[0] + t * (p[0] - T[0]), T[1] + t * (p[1] - T[1]), T[2] + t * (p[2] - T[2])]);
+  const E = [[B[0], B[1]], [B[1], B[2]], [B[2], B[3], 1], [B[3], B[0], 1], [T, B[0]], [T, B[1]], [T, B[2]], [T, B[3], 1], [S[0], S[1]], [S[1], S[2]], [S[2], S[3], 1], [S[3], S[0], 1], [T, [c / 2, 0, c / 2], 1]];
+  return ppgSolid(E, [[T, B[0], B[1]], [T, B[1], B[2]], [T, S[0], S[1]], [T, S[1], S[2]]], [], m => { const q = m([c / 2, 0, c / 2]); return ppgDot(q[0], q[1]); });
+}
+topic({ id: 'gm.agrandissement-sections', ch: 'gm', lvl: 3, calc: false, variants: 2,
+  ru: 'Увеличение и уменьшение: от площадей к объёмам, сечение пирамиды и конуса', fr: 'Agrandissement et réduction : des aires aux volumes, sections',
+  hints: [
+    'Площади и объёмы связаны через $k$: площадь умножилась на 25 → $k=5$ → объём умножился на $5^3=125$.',
+    'Сечение пирамиды или конуса плоскостью, параллельной основанию, отрезает маленькую пирамиду (конус) — уменьшенную копию большой с коэффициентом $k$ = (высота маленькой) ÷ (высота большой). Её объём = объём большой × $k^3$.'],
+  gen(r, vi) {
+    if (vi === 0) {   /* from the area ratio to the volume ratio and back (type 1 of the former gm.agrandissement-rapport) */
+      const kf = r.pick([F(2), F(3), F(4), F(5), F(10), F(1, 2), F(1, 3)]), k2 = F(kf.n * kf.n, kf.d * kf.d), k3 = F(Math.pow(kf.n, 3), Math.pow(kf.d, 3)), fromA = r() < 0.6;
+      const ks = f => f.d === 1 ? String(f.n) : '$' + Fr.str(f) + '$';
+      return { q: fromA ? L('Lors d\'un agrandissement ou d\'une réduction, les aires sont multipliées par ' + ks(k2) + '. Par combien les volumes sont-ils multipliés ?', 'При увеличении или уменьшении площади умножились на ' + ks(k2) + '. На сколько умножились объёмы?')
+        : L('Lors d\'un agrandissement ou d\'une réduction, les volumes sont multipliés par ' + ks(k3) + '. Par combien les aires sont-elles multipliées ?', 'При увеличении или уменьшении объёмы умножились на ' + ks(k3) + '. На сколько умножились площади?'),
+        ans: N(Fr.str(fromA ? k3 : k2), { show: tF(fromA ? k3 : k2) }), sol: [
+          fromA ? ['Площади умножаются на $k^2$. Находим длины — коэффициент $k$:', ppgKtx(kf) + '^2=' + Fr.str(k2)] : ['Объёмы умножаются на $k^3$. Находим коэффициент $k$ для длин:', ppgKtx(kf) + '^3=' + Fr.str(k3)],
+          fromA ? ['Значит, $k=' + Fr.str(kf) + '$, а объёмы умножаются на $k^3$:', ppgKtx(kf) + '^3=' + Fr.str(k3)] : ['Значит, $k=' + Fr.str(kf) + '$, а площади умножаются на $k^2$:', ppgKtx(kf) + '^2=' + Fr.str(k2)],
+          'Нельзя просто умножить или поделить на ' + ks(fromA ? k2 : k3) + ': всё идёт через коэффициент длин $k$.'] };
+    }
+    /* vi 1: a section of a pyramid or a cone (type 2 of the former gm.agrandissement-rapport) */
+    {
+      const kind = r.pick(['pyr', 'cone']), [kn, kd] = r.pick([[1, 2], [1, 3], [1, 4], [2, 3], [3, 4]]), Ht = kd * r.pick([2, 3, 4, 5, 6]), h = Ht * kn / kd;
+      const V = Math.pow(kd, 3) * r.pick([1, 2, 3, 4, 5, 10]), v = V * Math.pow(kn, 3) / Math.pow(kd, 3), tronc = r() < 0.3, k = F(kn, kd), k3 = F(Math.pow(kn, 3), Math.pow(kd, 3));
+      const w = kind === 'pyr' ? ['Une pyramide', 'la petite pyramide', 'Пирамида', 'маленькой пирамиды', 'большой пирамиды', 'усечённой пирамиды', 'de la grande', 'de la petite pyramide', 'Её'] : ['Un cône', 'le petit cône', 'Конус', 'маленького конуса', 'большого конуса', 'усечённого конуса', 'du grand', 'du petit cône', 'Его'];
+      return { q: L(w[0] + ' de hauteur ' + Ht + ' cm a un volume de ' + V + ' cm³. On ' + (kind === 'pyr' ? 'la' : 'le') + ' coupe par un plan parallèle à sa base, à ' + h + ' cm du sommet : ' + w[1] + ' obtenu' + (kind === 'pyr' ? 'e' : '') + ' est une réduction ' + w[6] + '. ' + (tronc ? 'Quel est le volume de la partie restante, du côté de la base ?' : 'Quel est le volume ' + w[7] + ' ?'),
+        w[2] + ' высотой ' + Ht + ' см имеет объём ' + V + ' см³. ' + w[8] + ' разрезали плоскостью, параллельной основанию, на расстоянии ' + h + ' см от вершины; верхняя часть — уменьшенная копия ' + w[4] + '. ' + (tronc ? 'Каков объём оставшейся нижней части (' + w[5] + ')?' : 'Каков объём ' + w[3] + '?')),
+        fig: ppgSectionFig(kind === 'pyr' ? 'pyr' : 'cone', kn / kd), ans: N(fx(tronc ? V - v : v), { unit: 'cm³' }), sol: [
+          ['Верхняя часть — уменьшение с коэффициентом $k$ = отношение высот:', h + '/' + Ht + '=' + Fr.str(k)],
+          ['Объёмы умножаются на $k^3$:', ppgKtx(k) + '^3=' + Fr.str(k3)],
+          ['Объём верхней части:', V + '*' + ppgKtx(k3) + '=' + fx(v), 'cm³'],
+          tronc ? ['Нижняя часть — большой объём минус верхний:', V + '-' + fx(v) + '=' + fx(V - v), 'cm³'] : 'Ошибка — умножить объём на $k$: объём уменьшается во всех трёх направлениях, то есть в $' + kd + '^3$ раз' + (kn > 1 ? ' и умножается на $' + kn + '^3$' : '') + '.'] };
+    }
+  } });

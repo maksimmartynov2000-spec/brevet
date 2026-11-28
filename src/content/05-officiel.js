@@ -7,7 +7,7 @@
 const OFF_NC = 'Nombres et calculs', OFF_GE = 'Espace et géométrie', OFF_ST = 'Organisation et gestion de données et probabilités',
   OFF_PP = 'Proportionnalité, fonctions', OFF_AL = 'Algorithmique et programmation';
 
-automatisme({ n: 1, sec: OFF_NC, dom: 'nc', topics: ['nc.frac-ecritures'],
+automatisme({ n: 1, sec: OFF_NC, dom: 'nc', topics: ['nc.ecritures-nombre', 'nc.frac-ecritures'],
   fr: 'Entretenir l\'écriture décimale des fractions simples comme 1/2 ; 1/4 ; 3/4 ; 3/2 ; 4/2 ; 5/2 ; 1/10 ; 100/100 ; 7/1.',
   ru: 'Помнить десятичную запись простых дробей: 1/2; 1/4; 3/4; 3/2; 4/2; 5/2; 1/10; 100/100; 7/1.' });
 automatisme({ n: 2, sec: OFF_NC, dom: 'nc', topics: ['nc.decimaux', 'nc.relatifs-addsub', 'nc.relatifs-muldiv'],
@@ -16,16 +16,16 @@ automatisme({ n: 2, sec: OFF_NC, dom: 'nc', topics: ['nc.decimaux', 'nc.relatifs
 automatisme({ n: 3, sec: OFF_NC, dom: 'nc', topics: ['nc.frac-comparer', 'nc.frac-addsub', 'nc.frac-muldiv'],
   fr: 'Simplifier, comparer des fractions, calculer avec des fractions.',
   ru: 'Сокращать и сравнивать дроби, выполнять действия с дробями.' });
-automatisme({ n: 4, sec: OFF_NC, dom: 'nc', topics: ['pp.pourcent-appliquer', 'nc.frac-muldiv', 'nc.calcul-mental'],
+automatisme({ n: 4, sec: OFF_NC, dom: 'nc', topics: ['nc.calcul-mental', 'nc.frac-ecritures', 'pp.pourcent-appliquer'],
   fr: 'Prendre une fraction simple d\'un nombre : le tiers de 18 ; le quart de 12. Déterminer a % de c quand a vaut 100, 50, 25, 10, 1.',
   ru: 'Находить простую дробь от числа: треть от 18, четверть от 12. Находить a % от c, когда a равно 100, 50, 25, 10 или 1.' });
-automatisme({ n: 5, sec: OFF_NC, dom: 'nc', topics: ['nc.frac-ecritures', 'pp.pourcent-taux'],
+automatisme({ n: 5, sec: OFF_NC, dom: 'nc', topics: ['nc.ecritures-nombre', 'nc.frac-ecritures'],
   fr: 'Écrire un même nombre sous de multiples formes, par exemple dire que 1,2 = 12/10 = 6/5 = 1 + 1/5 = 120 % = 120/100.',
   ru: 'Записывать одно и то же число по-разному: например, 1,2 = 12/10 = 6/5 = 1 + 1/5 = 120 % = 120/100.' });
 automatisme({ n: 6, sec: OFF_NC, dom: 'nc', topics: ['nc.sci'],
   fr: 'Passer d\'une écriture décimale à la notation scientifique.',
   ru: 'Переходить от десятичной записи числа к научной (стандартному виду).' });
-automatisme({ n: 7, sec: OFF_NC, dom: 'nc', topics: ['nc.racines', 'nc.puissances'],
+automatisme({ n: 7, sec: OFF_NC, dom: 'nc', topics: ['nc.carres', 'nc.racines'],
   fr: 'Connaitre les carrés des nombres entiers compris entre 1 et 12.',
   ru: 'Знать квадраты целых чисел от 1 до 12.' });
 automatisme({ n: 8, sec: OFF_NC, dom: 'nc', topics: ['nc.arith-diviseurs'],
@@ -46,7 +46,7 @@ automatisme({ n: 12, sec: OFF_NC, dom: 'cl', topics: ['cl.developper-simple', 'c
 automatisme({ n: 13, sec: OFF_NC, dom: 'cl', topics: ['cl.eq-1'],
   fr: 'Résoudre des équations du type ax = c, x + b = c, ax + b = c.',
   ru: 'Решать уравнения вида ax = c, x + b = c, ax + b = c.' });
-automatisme({ n: 14, sec: OFF_NC, dom: 'nc', topics: ['nc.frac-ecritures'],
+automatisme({ n: 14, sec: OFF_NC, dom: 'nc', topics: ['nc.droite-graduee', 'nc.frac-ecritures'],
   fr: 'Sur une droite graduée, lire l\'abscisse d\'un point et placer un point d\'abscisse donnée.',
   ru: 'На числовой прямой читать координату точки и отмечать точку с данной координатой.' });
 

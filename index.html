@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="app-build" content="2026-11-28·d9ebc91e">
+<meta name="app-build" content="2026-11-28·83b34afa">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#F5F3EE" media="(prefers-color-scheme: light)">
@@ -2128,15 +2128,18 @@ topic({ id: 'nc.frac-addsub', ch: 'nc', lvl: 1, calc: false, variants: 3,
   gen(r, vi) {
     const q = L('Calculer et donner le résultat sous forme de fraction irréductible.', 'Вычисли и запиши ответ несократимой дробью.');
     if (vi === 0) {   /* same denominator */
-      const d = r.pick([5, 7, 9, 11, 13]); const a = r.ri(1, d - 1); let b = r.ri(1, d - 1); if (a === b) b = d - a === a ? 1 : d - a;
+      /* a + b = d would give 1: a whole number does not fit «sous forme de fraction irréductible» */
+      const d = r.pick([5, 7, 9, 11, 13]); let a, b; do { a = r.ri(1, d - 1); b = r.ri(1, d - 1); } while (a === b || a + b === d);
       const minus = r() < 0.4 && a > b; const n = minus ? a - b : a + b; const res = F(n, d);
       return { q, m: a + '/' + d + (minus ? '-' : '+') + b + '/' + d, ans: FRA(res), sol: [
         ['Доли уже одинаковые (знаменатель ' + d + '), поэтому ' + (minus ? 'вычитаем' : 'складываем') + ' только числители — считаем, сколько долей ' + (minus ? 'осталось' : 'всего') + '.', a + '/' + d + (minus ? '-' : '+') + b + '/' + d + '=' + n + '/' + d],
         res.d === d ? 'Числитель и знаменатель не имеют общих делителей — дробь уже несократимая.' : ['Сокращаем: числитель и знаменатель делятся на ' + (d / res.d) + '.', n + '/' + d + '=' + Fr.str(res)]] };
     }
     const pairs = [[2, 3], [3, 4], [2, 5], [4, 5], [3, 5], [2, 7], [4, 3], [5, 6], [3, 8], [6, 4], [10, 4], [6, 9], [4, 10]];
-    const [d1, d2] = r.pick(pairs); let a = r.ri(1, d1 + 2), b = r.ri(1, d2 + 1); if (a % d1 === 0) a++; if (b % d2 === 0) b--; if (!b) b = 1;   /* no whole numbers such as 4/4 */ const m = lcm2(d1, d2);
-    const k1 = m / d1, k2 = m / d2; const minus = vi === 2; const n = minus ? a * k1 - b * k2 : a * k1 + b * k2; const res = F(n, m);
+    const [d1, d2] = r.pick(pairs), m = lcm2(d1, d2), k1 = m / d1, k2 = m / d2, minus = vi === 2;
+    /* no whole numbers such as 4/4 in the terms, and no whole result (3/6 + 2/4 = 1, 2/4 − 3/6 = 0) */
+    let a, b, n; do { a = r.ri(1, d1 + 2); b = r.ri(1, d2 + 1); if (a % d1 === 0) a++; if (b % d2 === 0) b--; if (!b) b = 1; n = minus ? a * k1 - b * k2 : a * k1 + b * k2; } while (n % m === 0);
+    const res = F(n, m);
     const steps = [
       ['Знаменатели ' + d1 + ' и ' + d2 + ' разные — доли разного размера. Наименьшее число, которое делится и на ' + d1 + ', и на ' + d2 + ', — это ' + m + '.'],
       ['Приводим к знаменателю ' + m + ': ' + (k1 > 1 ? 'первую дробь умножаем сверху и снизу на ' + k1 : 'первая дробь уже со знаменателем ' + m) + ', ' + (k2 > 1 ? 'вторую — на ' + k2 : 'вторая уже со знаменателем ' + m) + '. Значение дробей при этом не меняется.', a + '/' + d1 + (minus ? '-' : '+') + b + '/' + d2 + '=' + (a * k1) + '/' + m + (minus ? '-' : '+') + (b * k2) + '/' + m],
@@ -2354,7 +2357,10 @@ const IDX = [
   'lg.donnees',
   'lg.connecteurs',
   'lg.redaction',
-  'lg.questions'
+  'lg.questions',
+  'nc.carres',
+  'nc.ecritures-nombre',
+  'nc.droite-graduee'
 ];
 
 /* ===== content/05-officiel.js ===== */
@@ -2367,7 +2373,7 @@ const IDX = [
 const OFF_NC = 'Nombres et calculs', OFF_GE = 'Espace et géométrie', OFF_ST = 'Organisation et gestion de données et probabilités',
   OFF_PP = 'Proportionnalité, fonctions', OFF_AL = 'Algorithmique et programmation';
 
-automatisme({ n: 1, sec: OFF_NC, dom: 'nc', topics: ['nc.frac-ecritures'],
+automatisme({ n: 1, sec: OFF_NC, dom: 'nc', topics: ['nc.ecritures-nombre', 'nc.frac-ecritures'],
   fr: 'Entretenir l\'écriture décimale des fractions simples comme 1/2 ; 1/4 ; 3/4 ; 3/2 ; 4/2 ; 5/2 ; 1/10 ; 100/100 ; 7/1.',
   ru: 'Помнить десятичную запись простых дробей: 1/2; 1/4; 3/4; 3/2; 4/2; 5/2; 1/10; 100/100; 7/1.' });
 automatisme({ n: 2, sec: OFF_NC, dom: 'nc', topics: ['nc.decimaux', 'nc.relatifs-addsub', 'nc.relatifs-muldiv'],
@@ -2376,16 +2382,16 @@ automatisme({ n: 2, sec: OFF_NC, dom: 'nc', topics: ['nc.decimaux', 'nc.relatifs
 automatisme({ n: 3, sec: OFF_NC, dom: 'nc', topics: ['nc.frac-comparer', 'nc.frac-addsub', 'nc.frac-muldiv'],
   fr: 'Simplifier, comparer des fractions, calculer avec des fractions.',
   ru: 'Сокращать и сравнивать дроби, выполнять действия с дробями.' });
-automatisme({ n: 4, sec: OFF_NC, dom: 'nc', topics: ['pp.pourcent-appliquer', 'nc.frac-muldiv', 'nc.calcul-mental'],
+automatisme({ n: 4, sec: OFF_NC, dom: 'nc', topics: ['nc.calcul-mental', 'nc.frac-ecritures', 'pp.pourcent-appliquer'],
   fr: 'Prendre une fraction simple d\'un nombre : le tiers de 18 ; le quart de 12. Déterminer a % de c quand a vaut 100, 50, 25, 10, 1.',
   ru: 'Находить простую дробь от числа: треть от 18, четверть от 12. Находить a % от c, когда a равно 100, 50, 25, 10 или 1.' });
-automatisme({ n: 5, sec: OFF_NC, dom: 'nc', topics: ['nc.frac-ecritures', 'pp.pourcent-taux'],
+automatisme({ n: 5, sec: OFF_NC, dom: 'nc', topics: ['nc.ecritures-nombre', 'nc.frac-ecritures'],
   fr: 'Écrire un même nombre sous de multiples formes, par exemple dire que 1,2 = 12/10 = 6/5 = 1 + 1/5 = 120 % = 120/100.',
   ru: 'Записывать одно и то же число по-разному: например, 1,2 = 12/10 = 6/5 = 1 + 1/5 = 120 % = 120/100.' });
 automatisme({ n: 6, sec: OFF_NC, dom: 'nc', topics: ['nc.sci'],
   fr: 'Passer d\'une écriture décimale à la notation scientifique.',
   ru: 'Переходить от десятичной записи числа к научной (стандартному виду).' });
-automatisme({ n: 7, sec: OFF_NC, dom: 'nc', topics: ['nc.racines', 'nc.puissances'],
+automatisme({ n: 7, sec: OFF_NC, dom: 'nc', topics: ['nc.carres', 'nc.racines'],
   fr: 'Connaitre les carrés des nombres entiers compris entre 1 et 12.',
   ru: 'Знать квадраты целых чисел от 1 до 12.' });
 automatisme({ n: 8, sec: OFF_NC, dom: 'nc', topics: ['nc.arith-diviseurs'],
@@ -2406,7 +2412,7 @@ automatisme({ n: 12, sec: OFF_NC, dom: 'cl', topics: ['cl.developper-simple', 'c
 automatisme({ n: 13, sec: OFF_NC, dom: 'cl', topics: ['cl.eq-1'],
   fr: 'Résoudre des équations du type ax = c, x + b = c, ax + b = c.',
   ru: 'Решать уравнения вида ax = c, x + b = c, ax + b = c.' });
-automatisme({ n: 14, sec: OFF_NC, dom: 'nc', topics: ['nc.frac-ecritures'],
+automatisme({ n: 14, sec: OFF_NC, dom: 'nc', topics: ['nc.droite-graduee', 'nc.frac-ecritures'],
   fr: 'Sur une droite graduée, lire l\'abscisse d\'un point et placer un point d\'abscisse donnée.',
   ru: 'На числовой прямой читать координату точки и отмечать точку с данной координатой.' });
 
@@ -6349,7 +6355,7 @@ lex('voir', 'видеть; (voir la figure) смотри рисунок');
 lex('vrai|vraie', 'верный, истинный: vrai ou faux — верно или неверно');
 
 /* ---------- арифметика: числа и действия ---------- */
-lex('addition', 'сложение');
+lex('addition|additions', 'сложение');
 lex('additionner|additionne|additionnant', 'сложить');
 lex('ajouter|ajoute|ajouté|ajoutées|ajoutant|ajoutés', 'прибавить, добавить');
 lex('arithmétique', 'арифметика: делители, кратные, простые числа');
@@ -6372,7 +6378,7 @@ lex('diviser|divise|divisé', 'разделить; делить нацело (27
 lex('diviseur|diviseurs', 'делитель');
 lex('divisibilité', 'делимость');
 lex('divisible|divisibles', 'делится нацело: divisible par 9 — делится на 9');
-lex('division', 'деление');
+lex('division|divisions', 'деление');
 lex('division euclidienne', 'деление с остатком');
 lex('dixième|au dixième', 'десятая часть (0,1); arrondir au dixième — до десятых (1 знак после запятой)');
 lex('dizaine|à la dizaine', 'десяток; arrondir à la dizaine — округлить до десятков');
@@ -6403,7 +6409,7 @@ lex('millième', 'тысячная часть (0,001)');
 lex('millier|milliers|au millier', 'тысяча; en milliers — в тысячах; arrondir au millier — округлить до тысяч');
 lex('moitié', 'половина');
 lex('multiple|multiples', 'кратное: un multiple de 4 — число, которое делится на 4');
-lex('multiplication', 'умножение');
+lex('multiplication|multiplications', 'умножение');
 lex('multiplier|multiplie|multiplié|multipliée|multipliés|multipliées|multipliant', 'умножить');
 lex('négatif|négatifs', 'отрицательный');
 lex('nombre|nombres', 'число; количество: le nombre de boules — число шаров');
@@ -6849,7 +6855,7 @@ lex('changer|change|changé', 'изменить; измениться');
 lex('chercher|cherche', 'искать');
 lex('combiner|combine', 'объединить, сочетать');
 lex('commander|commandées', 'заказать');
-lex('commencer|commence|commencé', 'начать; начаться');
+lex('commencer|commence|commencé|commençant', 'начать; начаться');
 lex('comporter|comporte|comportant', 'содержать, включать в себя');
 lex('composer|compose', 'составить (из частей)');
 lex('compris|comprise', 'заключённый: compris entre 2 et 5 — от 2 до 5; включённый');
@@ -7037,7 +7043,7 @@ lex('prochain', 'следующий, ближайший');
 lex('professionnel', 'профессиональный; профессионал');
 lex('propre', 'чистый');
 lex('réel|réelle|réels', 'настоящий, фактический: longueur réelle — длина в натуре');
-lex('relatif|relative', 'относящийся: hauteur relative au côté [AM] — высота, проведённая к стороне [AM]');
+lex('relatif|relative|relatifs|relatives', 'относящийся: hauteur relative au côté [AM] — высота, проведённая к стороне [AM]');
 lex('rouge|rouges', 'красный');
 lex('simple|simples', 'простой');
 lex('solaire|solaires', 'солнечный');
@@ -7467,7 +7473,7 @@ lex('explication', 'объяснение');
 lex('imposer|impose', 'требовать, обязывать');
 lex('intéressant|intéressante', 'выгодный, привлекательный (о тарифе, предложении)');
 lex('intéresser|intéresse', 'интересовать: on s\'intéresse à… — рассмотрим…');
-lex('intérieur|à l\'intérieur', 'внутренняя часть; à l\'intérieur de… — внутри…');
+lex('intérieur|à l\'intérieur|intérieure|intérieures', 'внутренняя часть; à l\'intérieur de… — внутри…');
 lex('intersection|point d\'intersection', 'пересечение: le point d\'intersection — точка пересечения');
 lex('moment-là', 'тот момент: à ce moment-là — в этот момент');
 lex('observer|observant', 'рассматривать: en observant le tableau — глядя на таблицу');
@@ -7539,6 +7545,14 @@ lex('rejoindre|rejoignent|rejoint', 'догнать; se rejoindre — встре
 lex('trait|traits', 'линия, черта: traits de construction — линии построения');
 lexf('dix', 'десять');
 lexf('sauf', 'кроме; sauf si… — если только не…');
+
+/* ---------- шпаргалки «Числа и вычисления»: французские формулировки ---------- */
+lex('parenthèse|parenthèses', 'скобка: entre parenthèses — в скобках');
+lex('zéro', 'ноль');
+lex('priorité|en priorité', 'первоочерёдность: en priorité — в первую очередь');
+lex('enfin', 'наконец, в последнюю очередь');
+lex('soustraction|soustractions', 'вычитание');
+lex('unique', 'единственный: cette décomposition est unique — другого разложения нет');
 
 /* ===== content/lg.js ===== */
 /* ===================== «ЯЗЫК БРЕВЕТА» · La langue du brevet =====================
@@ -8642,7 +8656,9 @@ function ncSumWhy(a, b, k, plain) {
 function ncMulWhy(an, ak, bn, bk) {
   const pn = an * bn, pk = ak + bk, a = ncN(an, ak), b = ncN(bn, bk), full = ncTxt(dec(pn, pk)), p = ncN(pn, pk);
   if (!pk) return a + ' × ' + b + ' = ' + p + '.';
-  return 'Перемножаем числа без запятых: ' + an + ' × ' + bn + ' = ' + pn + '. Во множителях вместе ' + pk + ' ' + ncPl(pk, 'знак', 'знака', 'знаков') + ' после запятой' + (ak === 1 && bk === 1 ? ' (десятые × десятые = сотые)' : '') + ', значит, и в произведении ' + pk + ': ' + a + ' × ' + b + ' = ' + full + (full !== p ? ' = ' + p : '') + '.';
+  const nm = ['', 'десятые', 'сотые', 'тысячные'], why = ak && bk ? nm[ak][0].toUpperCase() + nm[ak].slice(1) + ' × ' + nm[bk] + ' = ' + nm[pk] + ', поэтому в произведении ' + ncParts(pn, pk)   /* «десятые × десятые = сотые» */
+    : (ak ? a + ' — это ' + ncParts(an, ak) : b + ' — это ' + ncParts(bn, bk)) + ', поэтому и в произведении ' + ncParts(pn, pk);
+  return 'Перемножаем числа без запятых: ' + an + ' × ' + bn + ' = ' + pn + '. ' + why + ': ' + a + ' × ' + b + ' = ' + full + (full !== p ? ' = ' + p : '') + '.';
 }
 
 /* ===================== RELATIVE NUMBERS: + and − ===================== */
@@ -8703,7 +8719,7 @@ topic({ id: 'nc.relatifs-addsub', ch: 'nc', lvl: 1, calc: false, variants: 5,
           'Проверка по термометру: от ' + nf(t1) + ' до 0 — ' + (-t1) + ' ' + ncPl(-t1, 'градус', 'градуса', 'градусов') + ', от 0 до ' + t2 + ' — ещё ' + t2 + ', всего ' + (t2 - t1) + '.'] };
     }
     if (kind === 1) {   /* the temperature falls below zero */
-      const t1 = r.ri(-4, 9), d = Math.max(t1, 0) + r.ri(2, 9), t2 = t1 - d;   /* the morning is always below zero */
+      const t1 = r.nz(-4, 9), d = Math.max(t1, 0) + r.ri(2, 9), t2 = t1 - d;   /* the morning is always below zero */
       return { q: L('Le soir, le thermomètre indique ' + nf(t1) + ' °C. Pendant la nuit, la température baisse de ' + d + ' °C. Quelle température indique le thermomètre le matin ?',
         'Вечером термометр показывает ' + nf(t1) + ' °C. За ночь температура понижается на ' + d + ' °C. Что показывает термометр утром?'),
         ans: N(t2, { unit: '°C' }), sol: [
@@ -8847,24 +8863,30 @@ topic({ id: 'nc.priorites', ch: 'nc', lvl: 1, calc: false, variants: 5,
         'Ответ ' + ncN(v[3], 1) + ' — ошибка в знаке: ' + ncN(a, 1) + ' − ' + ncN(b, 1) + ' = ' + ncN(a - b, 1) + ' (вычитаем больше, чем было), а не ' + ncN(b - a, 1) + '.'] };
     }
     /* vi === 4: from words to an expression */
-    const [b, c] = r.distinct(2, 2, 9), a = r.distinct(1, 2, 20, [b, c])[0], t = r.ri(0, 3);
+    /* numbers for which a wrong expression has the value of the right one are skipped: (a + b) × c = a × b + c, a − b × c = b × c − a */
+    let a, b, c, t; do { [b, c] = r.distinct(2, 2, 9); a = r.distinct(1, 2, 20, [b, c])[0]; t = r.ri(0, 3); } while ((t === 1 && (a + b) * c === a * b + c) || (t === 2 && a === b * c));
     const T = [
       { fr: 'la somme de ' + a + ' et du produit de ' + b + ' par ' + c, ru: 'сумма числа ' + a + ' и произведения ' + b + ' на ' + c,
         ok: a + '+' + b + '*' + c, bad: ['(' + a + '+' + b + ')*' + c, a + '*' + b + '+' + c, a + '+' + b + '+' + c],
-        why: 'Первое слово — «la somme»: в конце складываем. Слагаемые — число ' + a + ' и произведение ' + b + ' × ' + c + '. Скобки не нужны: умножение и так выполняется раньше сложения.' },
+        why: 'Первое слово — «la somme»: в конце складываем. Слагаемые — число ' + a + ' и произведение ' + b + ' × ' + c + '. Скобки не нужны: умножение и так выполняется раньше сложения.',
+        no: ['это произведение: последнее действие — умножение', 'это сумма произведения ' + a + ' × ' + b + ' и числа ' + c, 'здесь нет произведения: это сумма трёх чисел'] },
       { fr: 'le produit de la somme de ' + a + ' et ' + b + ' par ' + c, ru: 'произведение суммы чисел ' + a + ' и ' + b + ' на ' + c,
         ok: '(' + a + '+' + b + ')*' + c, bad: [a + '+' + b + '*' + c, a + '*' + b + '+' + c, a + '*(' + b + '+' + c + ')'],
-        why: 'Первое слово — «le produit»: в конце умножаем. Первый множитель — сумма ' + a + ' + ' + b + ', второй — ' + c + '. Сумму надо посчитать раньше умножения, поэтому она в скобках.' },
+        why: 'Первое слово — «le produit»: в конце умножаем. Первый множитель — сумма ' + a + ' + ' + b + ', второй — ' + c + '. Сумму надо посчитать раньше умножения, поэтому она в скобках.',
+        no: ['без скобок сначала умножают: это сумма числа ' + a + ' и произведения ' + b + ' × ' + c, 'это сумма: последнее действие — сложение', 'это произведение числа ' + a + ' на сумму ' + b + ' + ' + c + ': в скобках не те числа'] },
       { fr: 'la différence entre ' + a + ' et le produit de ' + b + ' par ' + c, ru: 'разность числа ' + a + ' и произведения ' + b + ' на ' + c,
         ok: a + '-' + b + '*' + c, bad: ['(' + a + '-' + b + ')*' + c, b + '*' + c + '-' + a, a + '*' + b + '-' + c],
-        why: 'Первое слово — «la différence»: в конце вычитаем. Из числа ' + a + ' вычитаем произведение ' + b + ' × ' + c + ' (порядок важен: сначала то, из чего вычитают). Скобки не нужны: умножение выполняется раньше.' },
+        why: 'Первое слово — «la différence»: в конце вычитаем. Из числа ' + a + ' вычитаем произведение ' + b + ' × ' + c + ' (порядок важен: сначала то, из чего вычитают). Скобки не нужны: умножение выполняется раньше.',
+        no: ['это произведение: последнее действие — умножение', 'порядок перепутан: здесь из произведения вычитают ' + a, 'это разность произведения ' + a + ' × ' + b + ' и числа ' + c] },
       { fr: 'le quotient de la somme de ' + a + ' et ' + b + ' par ' + c, ru: 'частное от деления суммы чисел ' + a + ' и ' + b + ' на ' + c,
         ok: '(' + a + '+' + b + ')÷' + c, bad: [a + '+' + b + '÷' + c, a + '÷(' + b + '+' + c + ')', '(' + a + '+' + b + ')*' + c],
-        why: 'Первое слово — «le quotient»: в конце делим. Делимое — сумма ' + a + ' + ' + b + ', делитель — ' + c + '. Сумму нужно посчитать до деления, поэтому она в скобках.' }][t];
+        why: 'Первое слово — «le quotient»: в конце делим. Делимое — сумма ' + a + ' + ' + b + ', делитель — ' + c + '. Сумму нужно посчитать до деления, поэтому она в скобках.',
+        no: ['без скобок сначала делят: это сумма числа ' + a + ' и частного ' + b + ' ÷ ' + c, 'здесь ' + a + ' делят на сумму ' + b + ' + ' + c + ': делимое и делитель не те', 'это произведение, а не частное'] }][t];
     return { q: L('Quelle expression correspond à la phrase « ' + T.fr + ' » ?', 'Какое выражение соответствует фразе «' + T.ru + '»?'),
       ans: ncMQ(r, [T.ok].concat(T.bad).map(x => '$' + x + '$')), sol: [
         'Выражение называют по последнему действию. ' + T.why,
-        ['Ответ:', T.ok]] };
+        ['Ответ:', T.ok],
+        'Неверные варианты: ' + T.bad.map((x, i) => '$' + x + '$ — ' + T.no[i]).join('; ') + '.'] };
   } });
 
 /* ===================== DECIMALS WITHOUT A CALCULATOR ===================== */
@@ -8977,17 +8999,18 @@ topic({ id: 'nc.calcul-mental', ch: 'nc', lvl: 1, calc: false, variants: 5,
       return { q: L('Calculer mentalement :', 'Вычисли в уме:'), m, ans: N(res), sol: st };
     }
     if (vi === 3) {   /* what does × 0,5, ÷ 0,5, × 0,25 … mean */
-      const [fr, ru, ok, bad, why, ex] = r.pick([
-        ['Multiplier un nombre par 0,5 revient à :', 'Умножить число на 0,5 — это то же самое, что:', ['le diviser par 2', 'разделить его на 2'], [['le multiplier par 2', 'умножить его на 2'], ['lui soustraire 0,5', 'вычесть из него 0,5'], ['le diviser par 5', 'разделить его на 5']], '0,5 — это половина (5 десятых = 1/2). Умножить на половину — значит взять половину числа.', '8*0.5=4=8÷2'],
-        ['Diviser un nombre par 0,5 revient à :', 'Разделить число на 0,5 — это то же самое, что:', ['le multiplier par 2', 'умножить его на 2'], [['le diviser par 2', 'разделить его на 2'], ['le diviser par 5', 'разделить его на 5'], ['le multiplier par 5', 'умножить его на 5']], 'Разделить на 0,5 — узнать, сколько половинок помещается в числе. В каждой единице две половинки, поэтому результат вдвое больше самого числа.', '3÷0.5=6=3*2'],
-        ['Multiplier un nombre par 0,25 revient à :', 'Умножить число на 0,25 — это то же самое, что:', ['le diviser par 4', 'разделить его на 4'], [['le diviser par 25', 'разделить его на 25'], ['le multiplier par 4', 'умножить его на 4'], ['le diviser par 2', 'разделить его на 2']], '0,25 — это четверть (25 сотых = 1/4). Умножить на четверть — значит взять четверть числа.', '12*0.25=3=12÷4'],
-        ['Multiplier un nombre par 0,1 revient à :', 'Умножить число на 0,1 — это то же самое, что:', ['le diviser par 10', 'разделить его на 10'], [['le multiplier par 10', 'умножить его на 10'], ['le diviser par 100', 'разделить его на 100'], ['lui soustraire 0,1', 'вычесть из него 0,1']], '0,1 — одна десятая. Умножить на 0,1 — значит взять десятую часть числа.', '45*0.1=4.5=45÷10'],
-        ['Diviser un nombre par 0,1 revient à :', 'Разделить число на 0,1 — это то же самое, что:', ['le multiplier par 10', 'умножить его на 10'], [['le diviser par 10', 'разделить его на 10'], ['le multiplier par 0,01', 'умножить его на 0,01'], ['le diviser par 100', 'разделить его на 100']], 'Разделить на 0,1 — узнать, сколько десятых в числе. В каждой единице 10 десятых, поэтому десятых в 10 раз больше, чем единиц.', '7÷0.1=70=7*10'],
-        ['Multiplier un nombre par 25 revient à :', 'Умножить число на 25 — это то же самое, что:', ['le multiplier par 100, puis diviser le résultat par 4', 'умножить его на 100, а результат разделить на 4'], [['le multiplier par 100, puis diviser le résultat par 2', 'умножить его на 100, а результат разделить на 2'], ['le multiplier par 10, puis diviser le résultat par 4', 'умножить его на 10, а результат разделить на 4'], ['le multiplier par 4, puis diviser le résultat par 100', 'умножить его на 4, а результат разделить на 100']], '25 — четверть от 100: 100 ÷ 4 = 25. Поэтому умножить на 25 — то же, что умножить на 100 и взять четверть результата.', '8*25=200=8*100÷4'],
-        ['Prendre le quart d\'un nombre revient à le multiplier par :', 'Взять четверть числа — то же самое, что умножить его на:', ['0,25', '0,25'], [['4', '4'], ['0,4', '0,4'], ['0,04', '0,04']], 'Четверть — это 1/4 = 25/100 = 0,25.', '20*0.25=5=20÷4'],
-        ['Prendre les trois quarts d\'un nombre revient à le multiplier par :', 'Взять три четверти числа — то же самое, что умножить его на:', ['0,75', '0,75'], [['3,4', '3,4'], ['0,34', '0,34'], ['1,25', '1,25']], 'Три четверти — это 3/4 = 75/100 = 0,75.', '20*0.75=15=(20÷4)*3'],
-        ['Prendre le cinquième d\'un nombre revient à le multiplier par :', 'Взять пятую часть числа — то же самое, что умножить его на:', ['0,2', '0,2'], [['5', '5'], ['0,5', '0,5'], ['0,05', '0,05']], 'Пятая часть — это 1/5 = 2/10 = 0,2.', '30*0.2=6=30÷5']]);
+      const [fr, ru, ok, bad, why, ex, no] = r.pick([   /* the statement, the right option, the wrong ones (typical mistakes), why, an example, why each wrong one is wrong */
+        ['Multiplier un nombre par 0,5 revient à :', 'Умножить число на 0,5 — это то же самое, что:', ['le diviser par 2', 'разделить его на 2'], [['le multiplier par 2', 'умножить его на 2'], ['lui soustraire 0,5', 'вычесть из него 0,5'], ['le diviser par 5', 'разделить его на 5']], '0,5 — это половина (5 десятых = 1/2). Умножить на половину — значит взять половину числа.', '8*0.5=4=8÷2', ['наоборот: удвоение увеличивает число, а умножение на 0,5 уменьшает', 'вычитание — другое действие: 8 − 0,5 = 7,5, а 8 × 0,5 = 4', '0,5 — это 5 десятых, то есть $1/2$, а не $1/5$: разделить на 5 — значит умножить на 0,2']],
+        ['Diviser un nombre par 0,5 revient à :', 'Разделить число на 0,5 — это то же самое, что:', ['le multiplier par 2', 'умножить его на 2'], [['le diviser par 2', 'разделить его на 2'], ['le diviser par 5', 'разделить его на 5'], ['le multiplier par 5', 'умножить его на 5']], 'Разделить на 0,5 — узнать, сколько половинок помещается в числе. В каждой единице две половинки, поэтому результат вдвое больше самого числа.', '3÷0.5=6=3*2', ['это умножение на 0,5, а не деление: 3 ÷ 2 = 1,5, а 3 ÷ 0,5 = 6', '0,5 — не 5: 3 ÷ 5 = 0,6', '3 × 5 = 15, а 3 ÷ 0,5 = 6: в единице две половинки, а не пять']],
+        ['Multiplier un nombre par 0,25 revient à :', 'Умножить число на 0,25 — это то же самое, что:', ['le diviser par 4', 'разделить его на 4'], [['le diviser par 25', 'разделить его на 25'], ['le multiplier par 4', 'умножить его на 4'], ['le diviser par 2', 'разделить его на 2']], '0,25 — это четверть (25 сотых = 1/4). Умножить на четверть — значит взять четверть числа.', '12*0.25=3=12÷4', ['25 сотых — не 25: 12 ÷ 25 = 0,48, а 12 × 0,25 = 3', 'наоборот: число увеличится в 4 раза, а умножение на 0,25 уменьшает', 'разделить на 2 — значит умножить на 0,5, а 0,25 — половина от половины']],
+        ['Multiplier un nombre par 0,1 revient à :', 'Умножить число на 0,1 — это то же самое, что:', ['le diviser par 10', 'разделить его на 10'], [['le multiplier par 10', 'умножить его на 10'], ['le diviser par 100', 'разделить его на 100'], ['lui soustraire 0,1', 'вычесть из него 0,1']], '0,1 — одна десятая. Умножить на 0,1 — значит взять десятую часть числа.', '45*0.1=4.5=45÷10', ['наоборот: умножение на 10 увеличивает число, а на 0,1 — уменьшает', 'разделить на 100 — значит умножить на 0,01, а не на 0,1', 'вычитание — другое действие: 45 − 0,1 = 44,9, а 45 × 0,1 = 4,5']],
+        ['Diviser un nombre par 0,1 revient à :', 'Разделить число на 0,1 — это то же самое, что:', ['le multiplier par 10', 'умножить его на 10'], [['le diviser par 10', 'разделить его на 10'], ['le multiplier par 0,01', 'умножить его на 0,01'], ['le diviser par 100', 'разделить его на 100']], 'Разделить на 0,1 — узнать, сколько десятых в числе. В каждой единице 10 десятых, поэтому десятых в 10 раз больше, чем единиц.', '7÷0.1=70=7*10', ['разделить на 10 — значит умножить на 0,1: число уменьшится, а деление на 0,1 его увеличивает', 'умножение на 0,01 уменьшит число в 100 раз', 'деление на 100 уменьшит число в 100 раз']],
+        ['Multiplier un nombre par 25 revient à :', 'Умножить число на 25 — это то же самое, что:', ['le multiplier par 100, puis diviser le résultat par 4', 'умножить его на 100, а результат разделить на 4'], [['le multiplier par 100, puis diviser le résultat par 2', 'умножить его на 100, а результат разделить на 2'], ['le multiplier par 10, puis diviser le résultat par 4', 'умножить его на 10, а результат разделить на 4'], ['le multiplier par 4, puis diviser le résultat par 100', 'умножить его на 4, а результат разделить на 100']], '25 — четверть от 100: 100 ÷ 4 = 25. Поэтому умножить на 25 — то же, что умножить на 100 и взять четверть результата.', '8*25=200=8*100÷4', ['так получится умножение на 50: 100 ÷ 2 = 50', 'так получится умножение на 2,5: 10 ÷ 4 = 2,5', 'так получится умножение на 0,04: 4 ÷ 100 = 0,04']],
+        ['Prendre le quart d\'un nombre revient à le multiplier par :', 'Взять четверть числа — то же самое, что умножить его на:', ['0,25', '0,25'], [['4', '4'], ['0,4', '0,4'], ['0,04', '0,04']], 'Четверть — это 1/4 = 25/100 = 0,25.', '20*0.25=5=20÷4', ['умножение на 4 увеличит число, а четверть меньше самого числа', '0,4 — это 4 десятых, то есть $2/5$, а не $1/4$', '0,04 — это 4 сотых, то есть $1/25$']],
+        ['Prendre les trois quarts d\'un nombre revient à le multiplier par :', 'Взять три четверти числа — то же самое, что умножить его на:', ['0,75', '0,75'], [['3,4', '3,4'], ['0,34', '0,34'], ['1,25', '1,25']], 'Три четверти — это 3/4 = 75/100 = 0,75.', '20*0.75=15=(20÷4)*3', ['запятая не заменяет черту дроби: 3,4 больше 3, а $3/4$ меньше 1', '0,34 — это 34 сотых, а $3/4$ — 75 сотых', '1,25 — это $5/4$, а не $3/4$']],
+        ['Prendre le cinquième d\'un nombre revient à le multiplier par :', 'Взять пятую часть числа — то же самое, что умножить его на:', ['0,2', '0,2'], [['5', '5'], ['0,5', '0,5'], ['0,05', '0,05']], 'Пятая часть — это 1/5 = 2/10 = 0,2.', '30*0.2=6=30÷5', ['умножение на 5 увеличит число в 5 раз', '0,5 — это половина, а не пятая часть', '0,05 — это 5 сотых, то есть $1/20$']]]);
       return { q: L(fr, ru), ans: ncMQ(r, [ok].concat(bad).map(o => L(o[0], o[1]))), sol: [why, ['Проверка на примере:', ex],
+        'Неверные варианты: ' + bad.map((b, i) => '«' + b[0] + '»: ' + no[i]).join('; ') + '.',
         'Проверь себя по смыслу: умножение на число меньше 1 уменьшает число, а деление на число меньше 1 — увеличивает.'] };
     }
     /* vi === 4: parts of an hour in minutes (Antilles 2026 Q6: 1/10 d'heure) */
@@ -9003,6 +9026,51 @@ topic({ id: 'nc.calcul-mental', ch: 'nc', lvl: 1, calc: false, variants: 5,
     return { q: L('Combien de minutes y a-t-il dans $' + p + '/' + q + '$ d\'heure ?', 'Сколько минут в $' + p + '/' + q + '$ часа?'), ans: N(mn, { unit: 'min' }), sol: p === 1
       ? [['$1/' + q + '$ часа — одна из ' + q + ' равных частей часа, то есть 60 минут делим на ' + q + ':', '60÷' + q + '=' + one, 'min']]
       : [['Сначала одна доля: $1/' + q + '$ часа — это 60 минут, делённые на ' + q + ':', '60÷' + q + '=' + one, 'min'], ['Таких долей ' + p + ':', one + '*' + p + '=' + mn, 'min']] };
+  } });
+
+/* ===================== SQUARES OF THE WHOLE NUMBERS FROM 1 TO 12 (official list, item 7) ===================== */
+topic({ id: 'nc.carres', ch: 'nc', lvl: 1, calc: false, variants: 3,
+  ru: 'Квадраты чисел от 1 до 12', fr: 'Les carrés des nombres entiers de 1 à 12',
+  hints: [
+    'Квадрат числа («le carré») — число, умноженное само на себя: $7^2=7*7=49$. Это не удвоение: $7*2=14$ — это «le double».',
+    'Квадраты от 1 до 12 — 1, 4, 9, 16, 25, 36, 49, 64, 81, 100, 121, 144 — нужны в теореме Пифагора и для корней без калькулятора, поэтому их стоит знать наизусть. Забыл — восстанови через распределительный закон: $12*12=12*10+12*2=120+24=144$.',
+    'В выражении $6^2+8^2$ сначала возводят в квадрат (степень выполняется раньше сложения), потом складывают: $36+64=100$. А чтобы найти число по его квадрату, ищи число, которое при умножении само на себя даёт этот квадрат: $9*9=81$.'],
+  gen(r, vi) {
+    if (vi === 0) {   /* the square of n */
+      const n = r() < 0.8 ? r.ri(6, 12) : r.ri(1, 5), sq = n * n, ask = r() < 0.5;
+      const sol = [['$' + n + '^2$ — это ' + n + ', умноженное само на себя:', n + '^2=' + n + '*' + n + '=' + sq]];
+      if (n > 10) sol.push(['В уме удобно разбить второй множитель: ' + n + ' = 10 + ' + (n - 10) + ', и умножить на каждую часть (распределительный закон):', n + '*' + n + '=' + n + '*10+' + n + '*' + (n - 10) + '=' + 10 * n + '+' + n * (n - 10) + '=' + sq]);
+      sol.push(n === 2 ? 'Здесь квадрат совпал с удвоением ($2*2=2+2$), но это особенность числа 2: $3^2=9$, а $3*2=6$.'
+        : 'Частая ошибка — ' + 2 * n + ': это ' + n + ' × 2, удвоение («le double»), а квадрат — ' + n + ' × ' + n + '.');
+      const it = { q: ask ? L('Quel est le carré de ' + n + ' ?', 'Чему равен квадрат числа ' + n + '?') : L('Calculer :', 'Вычисли:'), ans: N(sq), sol };
+      if (!ask) it.m = n + '^2';
+      return it;
+    }
+    if (vi === 1) {   /* sums and differences of squares, as in the theorem of Pythagoras */
+      let a, b, minus;
+      if (r() < 0.4) [a, b, minus] = r.pick([[3, 4, 0], [4, 3, 0], [6, 8, 0], [8, 6, 0], [5, 12, 0], [12, 5, 0], [9, 12, 0], [12, 9, 0], [5, 3, 1], [5, 4, 1], [10, 6, 1], [10, 8, 1]]);
+      else { minus = r() < 0.4 ? 1 : 0; do { a = r.ri(2, 12); b = r.ri(2, 12); } while (a === b || (minus && a < b)); }
+      const v = minus ? a * a - b * b : a * a + b * b, op = minus ? '-' : '+', c = Math.round(Math.sqrt(v));
+      const sol = [['Степень выполняется раньше ' + (minus ? 'вычитания' : 'сложения') + ', поэтому сначала находим каждый квадрат:', a + '^2=' + a * a + ';' + b + '^2=' + b * b],
+        ['Потом ' + (minus ? 'вычитаем' : 'складываем') + ':', a * a + op + b * b + '=' + v],
+        'Частая ошибка — ' + (minus ? 2 * a - 2 * b : 2 * a + 2 * b) + ': так выходит, если вместо квадратов взять удвоения (' + a + ' × 2 и ' + b + ' × 2).'];
+      if (c * c === v) sol.push('Результат — тоже квадрат целого числа: ' + v + ' = $' + c + '^2$. Такие вычисления встречаются в теореме Пифагора.');
+      return { q: L('Calculer :', 'Вычисли:'), m: a + '^2' + op + b + '^2', ans: N(v), sol };
+    }
+    /* vi === 2: from the square back to the number */
+    const n = r.ri(3, 12), sq = n * n;
+    if (r() < 0.5) return { q: L('Quel nombre entier positif a pour carré ' + sq + ' ?', 'Квадрат какого целого положительного числа равен ' + sq + '?'), ans: N(n), sol: [
+      ['Ищем число, которое при умножении само на себя даёт ' + sq + ':', n + '*' + n + '=' + sq],
+      'Такое положительное число называют квадратным корнем («la racine carrée»): $√' + sq + '=' + n + '$.' + (sq % 2 ? '' : ' Не ' + sq / 2 + ': половина числа — не то же самое, что корень (' + sq / 2 + ' × ' + sq / 2 + ' = ' + sq * sq / 4 + ').')] };
+    const ok = x => x > 1 && !Number.isInteger(Math.sqrt(x)), wr = [];
+    if (ok(2 * n)) wr.push(2 * n);   /* the square taken for the double */
+    r.sh([sq - 1, sq + 1, sq + n, sq - n, 10 * n]).forEach(x => { if (wr.length < 3 && ok(x) && !wr.includes(x)) wr.push(x); });
+    const between = x => { const k = Math.floor(Math.sqrt(x)); return x + ' лежит между ' + k * k + ' = $' + k + '^2$ и ' + (k + 1) * (k + 1) + ' = $' + (k + 1) + '^2$'; };
+    return { q: L('Parmi les nombres suivants, lequel est le carré d\'un nombre entier ?', 'Какое из этих чисел — квадрат целого числа?'), ans: ncMQ(r, [sq].concat(wr).map(String)), sol: [
+      'Квадраты целых чисел: 1, 4, 9, 16, 25, 36, 49, 64, 81, 100, 121, 144, …',
+      sq + ' = ' + n + ' × ' + n + ' — это квадрат числа ' + n + '.',
+      wr.map(between).join('; ') + '. Между квадратами двух соседних целых чисел других квадратов нет: у следующего целого числа квадрат уже больше.'
+        + (wr[0] === 2 * n ? ' А ' + 2 * n + ' = ' + n + ' × 2 — это удвоение числа ' + n + ', а не его квадрат.' : '')] };
   } });
 
 /* ===================== WRITINGS OF A NUMBER: fraction, decimal, point on a line ===================== */
@@ -9060,8 +9128,9 @@ topic({ id: 'nc.frac-ecritures', ch: 'nc', lvl: 1, calc: false, variants: 5,
           'То же самое одним действием: $' + p + '/' + q + '$ от числа — это умножение на $' + p + '/' + q + '$.'] };
     }
     if (vi === 3) {   /* reading a graduated line, multiple choice (sujet zéro 2026 Q4) */
-      let d, k, ok, e1, e2, e3;
-      do { d = r.pick([3, 4, 5, 6, 8]); k = r.ri(d + 2, 3 * d - 1); const dl = (k + 1) % d === 0 ? -1 : (k - 1) % d === 0 ? 1 : r.sgn();
+      let d, k, ok, e1, e2, e3, dl;
+      const ncUnred = (f, n, dd) => '$' + Fr.str(f) + '$' + (f.d !== dd ? ' (это $' + n + '/' + dd + '$, сокращённая)' : '');
+      do { d = r.pick([3, 4, 5, 6, 8]); k = r.ri(d + 2, 3 * d - 1); dl = (k + 1) % d === 0 ? -1 : (k - 1) % d === 0 ? 1 : r.sgn();
         ok = F(k, d); e1 = F(k, d + 1); e2 = F(k + dl, d); e3 = F(k - d, d);
       } while (gcd(k, d) !== 1 || k % (d + 1) === 0 || new Set([ok, e1, e2, e3].map(Fr.str)).size < 4);
       const hi = k < 2 * d ? 2 : 3, nm = r.pick(['A', 'B', 'E', 'M', 'P', 'R']), w = Math.floor(k / d);
@@ -9070,7 +9139,7 @@ topic({ id: 'nc.frac-ecritures', ch: 'nc', lvl: 1, calc: false, variants: 5,
           'Считаем промежутки между штрихами, а не сами штрихи: от 0 до 1 — ' + ncGaps(d) + ' (штрихов там ' + (d + 1) + ', если считать оба конца). Значит, одно деление — это $1/' + d + '$.',
           'Точка ' + nm + ' стоит на ' + k + '-м делении от нуля: это ' + k + ' долей по $1/' + d + '$, то есть $' + k + '/' + d + '$.',
           'Проверка: $' + k + '/' + d + '$ — это ' + w + ' и ещё $' + (k - w * d) + '/' + d + '$, точка действительно между ' + w + ' и ' + (w + 1) + '.',
-          'Ответ $' + Fr.str(e1) + '$ получается, если считать штрихи: тогда кажется, что единица разделена на ' + (d + 1) + ' ' + ncPl(d + 1, 'часть', 'части', 'частей') + '. Ответ $' + Fr.str(e3) + '$ — если отсчитывать деления от 1, а не от 0. Ответ $' + Fr.str(e2) + '$ — если ошибиться на одно деление.'] };
+          'Ответ ' + ncUnred(e1, k, d + 1) + ' получается, если считать штрихи: тогда кажется, что единица разделена на ' + (d + 1) + ' ' + ncPl(d + 1, 'часть', 'части', 'частей') + '. Ответ ' + ncUnred(e3, k - d, d) + ' — если отсчитывать деления от 1, а не от 0. Ответ ' + ncUnred(e2, k + dl, d) + ' — если ошибиться на одно деление.'] };
     }
     /* vi === 4: reading a graduated line, short answer */
     let d, a, t; do { d = r.pick([2, 3, 4, 5, 6, 8, 10]); a = r.ri(-3, 4); t = r.ri((a - 1) * d + 1, (a + 2) * d - 1); } while (t % d === 0 || gcd(Math.abs(t), d) !== 1);
@@ -9084,6 +9153,198 @@ topic({ id: 'nc.frac-ecritures', ch: 'nc', lvl: 1, calc: false, variants: 5,
     sol.push('Проверка: $' + Fr.str(res) + '$ ' + (exact ? '= ' + ncN(t * 1000 / d, 3) : '≈ ' + ncTxt(String(+(t / d).toFixed(2)))) + ' — точка действительно между ' + nf(lo_) + ' и ' + nf(lo_ + 1) + '.');
     return { q: L('Sur cette droite graduée, quelle est l\'abscisse du point ' + nm + ' ? Donner la réponse sous la forme d\'une fraction.', 'Какова абсцисса точки ' + nm + ' на этой числовой прямой? Запиши ответ дробью.'),
       fig: ncLine(a - 1, a + 2, d, [a, a + 1], t, nm), ans: FRA(res), sol };
+  } });
+
+/* ===================== ONE NUMBER, SEVERAL WRITINGS (official list, items 1 and 5) ===================== */
+const ncPc = v => nf(v) + ' %';                                          /* 120 % (the same no-break space as in pp-gm.js) */
+/* simple fractions [n, d]: those of the official list (item 1) and their neighbours — halves, quarters, fifths, tenths, hundredths, whole numbers */
+const NC_SF_OFF = [[1, 2], [1, 4], [3, 4], [3, 2], [4, 2], [5, 2], [1, 10], [100, 100], [7, 1]];
+const NC_SF = [[7, 2], [9, 2], [6, 2], [5, 4], [7, 4], [2, 4], [6, 4], [8, 4], [1, 5], [2, 5], [3, 5], [4, 5], [6, 5], [10, 5], [3, 10], [7, 10], [9, 10], [12, 10], [15, 10], [20, 10], [10, 10], [5, 5],
+  [6, 3], [9, 3], [3, 1], [12, 1], [1, 100], [5, 100], [25, 100], [50, 100], [75, 100], [120, 100], [150, 100]];
+/* «4 половинки», «3 четверти», «7 десятых» */
+const NC_PNAME = { 2: ['половинка', 'половинки', 'половинок'], 3: ['треть', 'трети', 'третей'], 4: ['четверть', 'четверти', 'четвертей'], 5: ['пятая', 'пятых', 'пятых'], 10: ['десятая', 'десятых', 'десятых'], 100: ['сотая', 'сотых', 'сотых'] };
+const ncPN = (n, d) => n + ' ' + ncPl(n, NC_PNAME[d][0], NC_PNAME[d][1], NC_PNAME[d][2]);
+/* «= 0,5» when the decimal writing of n/d ends, «≈ 0,33» when it does not */
+function ncDecTxt(n, d) {
+  const f = F(n, d); let k = 0; while (k < 6 && Math.pow(10, k) % f.d) k++;
+  return Math.pow(10, k) % f.d ? '≈ ' + ncTxt(String(+(f.n / f.d).toFixed(2))) : '= ' + ncTxt(ncD(f.n * Math.pow(10, k) / f.d, k));
+}
+/* decimals p · 10^-k for the questions «which writing is equal»; a whole part ≥ 1 is never followed by 0 (no 2,05) */
+const NC_WRN = [[2, 1], [3, 1], [4, 1], [5, 1], [6, 1], [7, 1], [8, 1], [9, 1], [12, 1], [14, 1], [15, 1], [16, 1], [24, 1], [25, 1], [35, 1], [45, 1], [4, 2], [5, 2], [12, 2], [25, 2], [35, 2], [75, 2], [125, 2], [175, 2], [225, 2]];
+/* the writings of x = p · 10^-k: the right ones (all equal to x) and the typical wrong ones, each with its value and why it is wrong */
+function ncWritings(p, k) {
+  const P = Math.pow(10, k), w = Math.floor(p / P), rp = p % P, dg = +String(rp).padStart(k, '0'), xs = ncD(p, k), X = ncTxt(xs), pc = k === 1 ? 10 * p : p;
+  const irr = F(p, P), fp = F(rp, P), right = [{ t: '$' + p + '/' + P + '$', f: 'dec' }], wrong = [];
+  if (k === 1) right.push({ t: '$' + 10 * p + '/100$', f: '100' });
+  if (irr.d !== P) right.push({ t: '$' + Fr.str(irr) + '$', f: 'irr' });
+  if (w && rp) right.push({ t: '$' + w + '+' + Fr.str(fp) + '$', f: 'mix' });
+  right.push({ t: ncPc(pc), f: 'pc' });
+  const add = (t, n, d, why) => { const v = F(n, d); if (v.n * P === p * v.d || wrong.some(o => o.v.n === v.n && o.v.d === v.d)) return; wrong.push({ t, v, why }); };
+  if (w) add('$' + w + '/' + dg + '$', w, dg, '$' + w + '/' + dg + '$ — это ' + w + ' ÷ ' + dg + ' ' + ncDecTxt(w, dg) + ': запятую нельзя заменять чертой дроби.');
+  if (!w && p > 1 && (k === 1 || p >= 10)) add('$1/' + p + '$', 1, p, '$1/' + p + '$ — это 1 ÷ ' + p + ' ' + ncDecTxt(1, p) + ', а не ' + X + ': ' + X + ' — это ' + ncParts(p, k) + ', то есть $' + p + '/' + P + '$.');
+  add('$' + p + '/' + 10 * P + '$', p, 10 * P, '$' + p + '/' + 10 * P + '$ — это ' + ncParts(p, k + 1) + ', то есть ' + ncTxt(ncD(p, k + 1)) + ': ошибка в разряде.');
+  if (k === 2) add('$' + p + '/10$', p, 10, '$' + p + '/10$ — это ' + ncParts(p, 1) + ', то есть ' + ncTxt(ncD(p, 1)) + ': ошибка в разряде.');
+  add(ncPc(+xs), p, 100 * P, ncPc(+xs) + ' — это ' + X + ' ÷ 100 = ' + ncTxt(ncD(p, k + 2)) + ': процент — сотая доля, поэтому ' + X + ' = ' + ncPc(pc) + '.');
+  if (k === 1) add(ncPc(p), p, 100, ncPc(p) + ' — это ' + p + ' ÷ 100 = ' + ncTxt(ncD(p, 2)) + ', а ' + X + ' = ' + ncPc(pc) + '.');
+  else if (p < 10) add(ncPc(10 * p), 10 * p, 100, ncPc(10 * p) + ' — это ' + ncTxt(ncD(10 * p, 2)) + ': ноль сразу после запятой важен, ' + X + ' — это ' + ncParts(p, 2) + ', то есть ' + ncPc(p) + '.');
+  else if (p % 10) add(ncPc(p / 10), p, 1000, ncPc(p / 10) + ' — это ' + nf(p / 10) + ' ÷ 100 = ' + ncTxt(ncD(p, 3)) + ', а ' + X + ' = ' + ncPc(pc) + '.');
+  if (w && rp) add('$' + w + '+1/' + dg + '$', w * dg + 1, dg, '$' + w + '+1/' + dg + '$ ' + ncDecTxt(w * dg + 1, dg) + ': после запятой стоят ' + (k === 1 ? 'десятые' : 'сотые') + ', ' + X + ' = ' + w + ' + $' + rp + '/' + P + '$.');
+  return { P, w, rp, xs, X, pc, irr, fp, right, wrong };
+}
+
+topic({ id: 'nc.ecritures-nombre', ch: 'nc', lvl: 1, calc: false, variants: 4,
+  ru: 'Одно число — разные записи', fr: 'Écritures d\'un même nombre',
+  hints: [
+    'Одно и то же число можно записать по-разному, и значение от этого не меняется: $1.2=12/10=120/100=6/5=1+1/5$ = 120 %. Начинай с десятичной записи: 1,2 — это 12 десятых, то есть $12/10$.',
+    'Черта дроби — это деление: $3/2=3÷2=1.5$, а не «3,2». Дробь с одинаковыми числителем и знаменателем равна 1 ($100/100=1$), со знаменателем 1 — самому числителю ($7/1=7$).',
+    'Проценты — это сотые доли («pour cent» — «на сотню»): 35 % = $35/100$, а всё целое — $100/100$ = 100 %. Поэтому 1,2 = $120/100$ = 120 %. Целую часть можно отделить: $1.2=1+0.2=1+2/10=1+1/5$.'],
+  gen(r, vi) {
+    if (vi === 0) {   /* item 1: the decimal writing of a simple fraction (1/2 ; 1/4 ; 3/4 ; 3/2 ; 4/2 ; 5/2 ; 1/10 ; 100/100 ; 7/1) */
+      const [n, d] = r.pick(r() < 0.5 ? NC_SF_OFF : NC_SF), f = n + '/' + d, w = Math.floor(n / d), rem = n % d, sol = []; let x;
+      if (d === 1) { x = String(n); sol.push(['Знаменатель 1: делим на 1, а от деления на 1 число не меняется. $' + f + '$ — это ' + n + ' целых.', f + '=' + n + '÷1=' + n]); }
+      else if (n === d) { x = '1'; sol.push(['Числитель равен знаменателю: взяли все ' + ncPN(d, d) + ' из ' + d + ', то есть одну целую.', f + '=' + n + '÷' + d + '=1']); }
+      else if (!rem) { x = String(w); sol.push(['Черта дроби — это деление: ' + n + ' ÷ ' + d + ' = ' + w + '. По смыслу: ' + ncPN(n, d) + ' составляют ' + w + ' целых.', f + '=' + n + '÷' + d + '=' + w]); }
+      else {
+        const k = ncK(d), P = Math.pow(10, k), m = P / d, top = n * m; x = ncD(top, k);
+        if (m > 1) sol.push(['Домножим числитель и знаменатель на ' + m + ', чтобы знаменатель стал ' + P + ', — значение дроби от этого не меняется:', f + '=(' + n + '*' + m + ')/(' + d + '*' + m + ')=' + top + '/' + P]);
+        sol.push(['$' + top + '/' + P + '$ — это ' + ncParts(top, k) + ':', top + '/' + P + '=' + x]);
+        if (w) sol.push('Проверка по смыслу: $' + f + '$ — это ' + w + ' ' + ncPl(w, 'целая', 'целых', 'целых') + ' и ещё $' + rem + '/' + d + '$, то есть ' + w + ' + ' + ncTxt(ncD(rem * m, k)) + ' = ' + ncTxt(x) + '.');
+      }
+      if (d === 1 || (d < 10 && n !== d)) sol.push('Ловушка: $' + f + '$ — не «' + n + ',' + d + '». Черта дроби означает деление, а не запятую.');
+      return { q: L('Donner l\'écriture décimale de $' + f + '$.', 'Запиши число $' + f + '$ в десятичной записи.'), ans: N(x, { dec: true }), sol };
+    }
+    if (vi === 1) {   /* item 5: which writing is (is not) equal to the number — the eduscol test «0,3 s'écrit aussi …», the official example 1,2 = 12/10 = 6/5 = 1 + 1/5 = 120 % */
+      const [p, k] = r.pick(NC_WRN), W = ncWritings(p, k), neg = r() < 0.4, more = W.right.filter(o => o.f !== 'dec');
+      const ok = neg ? r.pick(W.wrong) : r.pick(more.length ? more : W.right), shown = neg ? r.sh(W.right).slice(0, 3) : r.sh(W.wrong).slice(0, 3);
+      const chain = W.xs + '=' + p + '/' + W.P + (k === 1 ? '=' + 10 * p + '/100' : '') + (W.irr.d !== W.P ? '=' + Fr.str(W.irr) : '') + (W.w && W.rp ? '=' + W.w + '+' + Fr.str(W.fp) : '');
+      const how = [];
+      if (k === 1) how.push('Десятые можно записать сотыми, умножив числитель и знаменатель на 10: $' + p + '/10=' + 10 * p + '/100$.');
+      if (W.irr.d !== W.P) how.push('Дробь сокращается на ' + W.P / W.irr.d + ' — числитель и знаменатель делим на одно и то же число: $' + p + '/' + W.P + '=' + Fr.str(W.irr) + '$.');
+      if (W.w && W.rp) how.push('Целую часть можно записать отдельно: ' + W.X + ' = ' + W.w + ' + ' + ncTxt(ncD(W.rp, k)) + ' = ' + W.w + ' + $' + Fr.str(W.fp) + '$.');
+      how.push('Проценты — это сотые доли: ' + W.X + ' = $' + W.pc + '/100$ = ' + ncPc(W.pc) + '.');
+      return { q: neg ? L('Parmi les propositions suivantes, laquelle n\'est pas égale à ' + W.X + ' ?', 'Какая из записей не равна ' + W.X + '?') : L('Parmi les propositions suivantes, laquelle est égale à ' + W.X + ' ?', 'Какая из записей равна ' + W.X + '?'),
+        ans: ncMQ(r, [ok.t].concat(shown.map(o => o.t))), sol: [
+          [W.X + ' — это ' + ncParts(p, k) + '. Остальные записи получаются из этой, значение при этом не меняется:', chain],
+          how.join(' '),
+          neg ? ok.why : shown.map(o => o.why).join(' '),
+          neg ? 'Значит, не равна ' + W.X + ' только запись ' + ok.t + '.' : 'Значит, ' + W.X + ' = ' + ok.t + '.'] };
+    }
+    if (vi === 2) {   /* item 5: a decimal number as a percentage and back */
+      const pc = r.pick([1, 2, 5, 7, 8, 12, 30, 35, 40, 45, 60, 75, 90, 105, 110, 120, 125, 150, 175, 200, 250, 300]), x = ncD(pc, 2), toPc = r() < 0.5 || pc % 100 === 0;
+      if (toPc) {
+        const sol = [['Процент — это сотая доля: 1 % = $1/100$, а всё целое, 1, — это 100 %. Значит, нужно узнать, сколько сотых в числе ' + ncTxt(x) + ':', x + '=' + pc + '/100'],
+          '$' + pc + '/100$ — это ' + ncPc(pc) + '.' + (pc > 100 ? ' Больше 100 %, потому что число больше 1.' : '')];
+        if (pc < 10) sol.push('Не ' + ncPc(10 * pc) + ': ' + ncTxt(x) + ' — это ' + ncParts(pc, 2) + ', а ' + ncPc(10 * pc) + ' — это ' + ncParts(10 * pc, 2) + ', то есть ' + ncTxt(ncD(10 * pc, 2)) + '.');
+        else if (pc % 10 === 0) sol.push('Не ' + ncPc(pc / 10) + ': ' + ncPc(pc / 10) + ' — это ' + ncTxt(ncD(pc / 10, 2)) + ', в 10 раз меньше.');
+        return { q: L('Écrire le nombre ' + ncTxt(x) + ' sous la forme d\'un pourcentage.', 'Запиши число ' + ncTxt(x) + ' в процентах.'), ans: N(pc, { unit: '%' }), sol };
+      }
+      const sol = [['«Pour cent» — «на сотню»: ' + ncPc(pc) + ' — это ' + ncParts(pc, 2) + ', то есть $' + pc + '/100$:', pc + '/100=' + x]];
+      if (pc < 10) sol.push('Не ' + ncTxt(ncD(pc, 1)) + ': это ' + ncParts(pc, 1) + ', то есть ' + ncPc(10 * pc) + '.');
+      if (pc > 100) sol.push('Больше 100 % — больше целого, поэтому число больше 1.');
+      return { q: L('Donner l\'écriture décimale de ' + ncPc(pc) + '.', 'Запиши ' + ncPc(pc) + ' в виде десятичной дроби.'), ans: N(x, { dec: true }), sol };
+    }
+    /* vi === 3: a whole number plus a fraction smaller than 1 (1,2 = 1 + 1/5 ; 7/4 = 1 + 3/4): fill in the dots */
+    const q = L('Par quel nombre faut-il remplacer les pointillés pour que l\'égalité soit vraie ?', 'Каким числом нужно заменить многоточие, чтобы равенство было верным?');
+    const right = (w, a, b, bl) => (bl === 0 ? '\\ldots' : w) + '+\\dfrac{' + (bl === 1 ? '\\ldots' : a) + '}{' + (bl === 2 ? '\\ldots' : b) + '}';
+    if (r() < 0.5) {   /* from a decimal */
+      const [a, b] = r.pick([[1, 2], [1, 4], [3, 4], [1, 5], [2, 5], [3, 5], [4, 5], [1, 10], [3, 10], [7, 10], [1, 20]]), w = r.ri(1, 4), k = ncK(b), P = Math.pow(10, k), fd = a * P / b, x = ncD(w * P + fd, k), bl = r.pick([0, 1, 2, 2]);
+      const sol = ['Отделяем целую часть: ' + ncTxt(x) + ' = ' + w + ' + ' + ncTxt(ncD(fd, k)) + '.',
+        [ncTxt(ncD(fd, k)) + ' — это ' + ncParts(fd, k) + (P / b > 1 ? '; сокращаем дробь на ' + P / b + ' (делим числитель и знаменатель на одно и то же число):' : ':'), ncD(fd, k) + '=' + fd + '/' + P + (P / b > 1 ? '=' + a + '/' + b : '')],
+        'Значит, $' + x + '=' + w + '+' + a + '/' + b + '$, и на месте точек — ' + [w, a, b][bl] + '.'];
+      return { q, tex: texNum(x) + '=' + right(w, a, b, bl), ans: N([w, a, b][bl]), sol };
+    }
+    let d, a; do { d = r.pick([2, 3, 4, 5, 10]); a = r.ri(1, d - 1); } while (gcd(a, d) !== 1);   /* from a fraction greater than 1 */
+    const w = r.ri(1, 3), n = w * d + a, bl = r.pick([0, 1, 1, 2]);
+    return { q, tex: tfr(n, d) + '=' + right(w, a, d, bl), ans: N([w, a, d][bl]), sol: [
+      ['$' + n + '/' + d + '$ — это ' + ncPN(n, d) + '. Из них ' + ncPN(w * d, d) + ' составляют ' + w + ' ' + ncPl(w, 'целую', 'целых', 'целых') + ' (' + w + ' × ' + d + ' = ' + w * d + '), и остаётся ' + ncPN(a, d) + ':', n + '/' + d + '=' + w * d + '/' + d + '+' + a + '/' + d + '=' + w + '+' + a + '/' + d],
+      'На месте точек — ' + [w, a, d][bl] + '.'] };
+  } });
+
+/* ===================== THE GRADUATED LINE (official list, item 14): read an abscissa, place a point ===================== */
+/* a graduated line with n + 1 graduations, drawn like ncLine: big(i) — a long graduation; labs — [[i, text]] under the line;
+   pts — [[i, name]] above it; hl — [i, j]: the stretch counted in the solution, in colour */
+function ncAxis(n, big, labs, pts, hl) {
+  const x0 = 22, x1 = 318, y = 36, X = i => +(x0 + i * (x1 - x0) / n).toFixed(1);
+  let s = '<line class="fl" x1="6" y1="' + y + '" x2="334" y2="' + y + '"/><line class="fl" x1="326" y1="' + (y - 5) + '" x2="334" y2="' + y + '"/><line class="fl" x1="326" y1="' + (y + 5) + '" x2="334" y2="' + y + '"/>';
+  if (hl && hl[0] !== hl[1]) s += '<line class="fhl" x1="' + X(hl[0]) + '" y1="' + y + '" x2="' + X(hl[1]) + '" y2="' + y + '"/>';
+  for (let i = 0; i <= n; i++) { const b = big(i), h = b ? 9 : 6; s += '<line class="' + (b ? 'fl' : 'fl2') + '" x1="' + X(i) + '" y1="' + (y - h) + '" x2="' + X(i) + '" y2="' + (y + h) + '"/>'; }
+  labs.forEach(([i, t]) => { s += '<text class="ftx" x="' + X(i) + '" y="' + (y + 28) + '" text-anchor="middle" font-size="15">' + t + '</text>'; });
+  pts.forEach(([i, nm]) => { s += '<circle class="fpt" cx="' + X(i) + '" cy="' + y + '" r="4.5"/><text class="ftx" x="' + X(i) + '" y="' + (y - 15) + '" text-anchor="middle" font-size="15">' + nm + '</text>'; });
+  return svgFig(340, 72, s, 'droite graduée');
+}
+/* graduations of sn · 10^-sk, k graduations between the two numbers written under the line, how many graduations the line shows,
+   the range of m: the first number under the line is m × (k graduations) */
+const NC_GRAD = [[1, 1, 10, [20], -2, 3], [2, 1, 5, [10, 15], -2, 3], [5, 1, 2, [8, 10, 12], -2, 3], [5, 1, 4, [8, 12, 16], -1, 2], [25, 2, 4, [8, 12, 16], -2, 3],
+  [2, 0, 5, [10, 15], -1, 3], [5, 0, 2, [8, 10, 12], -1, 3], [5, 0, 4, [12, 16], -1, 2], [25, 0, 4, [8, 12], -1, 2], [10, 0, 5, [10, 15], -1, 3], [1, 2, 10, [20], 0, 30]];
+const NC_PTN = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'K', 'M', 'N', 'P', 'R', 'S', 'T'];
+/* a random line: graduation i has the abscissa (c + i) graduations; the numbers are written under the graduations a and a + k */
+function ncGradLine(r) {
+  const [sn, sk, k, ns, mlo, mhi] = r.pick(NC_GRAD), n = r.pick(ns), a = r.ri(0, n - k), c = r.ri(mlo, mhi) * k - a;
+  const vs = i => ncD((c + i) * sn, sk), v3 = i => (c + i) * sn * Math.pow(10, 3 - sk);   /* the abscissa of graduation i: input syntax / in thousandths */
+  return { sn, sk, k, n, a, c, vs, v3, st: ncD(sn, sk), big: i => (i - a) % k === 0, labs: [[a, ncTxt(vs(a))], [a + k, ncTxt(vs(a + k))]],
+    gap: 296 / n < 16 ? 2 : 1,                                                                  /* points closer than that would crowd their names */
+    wst: sk ? (sn === 1 ? 0 : 100) : sn <= 5 ? 1000 : sn === 25 ? 10000 : 0,                      /* the step a pupil tends to assume (0,1 · 1 · 10), in thousandths */
+    tst: k * sn * Math.pow(10, 3 - sk) % (k + 1) ? 0 : k * sn * Math.pow(10, 3 - sk) / (k + 1) };  /* the step one gets by counting the graduations instead of the gaps */
+}
+/* the cost of one graduation, from the two numbers under the line */
+const ncGradWhy = G => ['Цена деления: между числами ' + ncTxt(G.vs(G.a)) + ' и ' + ncTxt(G.vs(G.a + G.k)) + ' — ' + ncGaps(G.k) + ' (считаем промежутки между штрихами, а не сами штрихи). Значит, одно деление равно',
+  '(' + G.vs(G.a + G.k) + '-' + ncP(G.vs(G.a)) + ')÷' + G.k + '=' + G.st];
+const ncDiv = n => n + ' ' + ncPl(n, 'деление', 'деления', 'делений');
+
+topic({ id: 'nc.droite-graduee', ch: 'nc', lvl: 1, calc: false, variants: 3,
+  ru: 'Числовая прямая: прочитать и отметить точку', fr: 'Se repérer sur une droite graduée',
+  hints: [
+    'Сначала найди цену деления: разность двух подписанных чисел раздели на число промежутков между ними (промежутков, а не штрихов). От 2 до 3 — 5 промежутков, значит, одно деление — $1÷5=0.2$.',
+    'Абсцисса точки («l\'abscisse») — подписанное число плюс столько делений, на сколько точка правее него (или минус — если левее). Правее нуля — положительные числа, левее — отрицательные.',
+    'Чтобы найти точку с данной абсциссой, начни с ближайшего подписанного числа: посчитай, сколько делений составляет разность, и отложи их в нужную сторону. Для дроби $7/4$ при четырёх делениях в единице — 7 делений от нуля вправо.'],
+  gen(r, vi) {
+    if (vi === 0) {   /* read the abscissa of a point (Amérique du Nord 2026 Q5) */
+      let G, p; do { G = ncGradLine(r); p = r.ri(0, G.n); } while (p === G.a || p === G.a + G.k || G.c + p === 0 || (G.big(p) && r() < 0.8));
+      const nm = r.pick(NC_PTN), ref = Math.abs(p - G.a) <= Math.abs(p - G.a - G.k) ? G.a : G.a + G.k, j = p - ref, v = G.vs(p), rv = G.vs(ref);
+      const sol = [ncGradWhy(G), { t: 'Точка ' + nm + ' — на ' + ncDiv(Math.abs(j)) + (j > 0 ? ' правее' : ' левее') + ' числа ' + ncTxt(rv) + ':', m: ncP(rv) + (j > 0 ? '+' : '-') + Math.abs(j) + '*' + G.st + '=' + v, svg: ncAxis(G.n, G.big, G.labs, [[p, nm]], [ref, p]) }];
+      if (G.tst) sol.push('Частая ошибка — считать штрихи вместо промежутков: от ' + ncTxt(G.vs(G.a)) + ' до ' + ncTxt(G.vs(G.a + G.k)) + ' — ' + (G.k + 1) + ' штрихов, и одно деление показалось бы равным ' + ncTxt(ncD(G.tst, 3)) + ' (разность, делённая на ' + (G.k + 1) + '); тогда вышло бы ' + ncTxt(ncD(G.v3(ref) + j * G.tst, 3)) + '.');
+      else if (G.wst) { const wv = G.v3(ref) + j * G.wst; if (wv !== G.v3(p)) sol.push('Частая ошибка — считать, что одно деление равно ' + ncTxt(ncD(G.wst, 3)) + ': тогда вышло бы ' + ncTxt(ncD(wv, 3)) + '. Цену деления не угадывают, а находят по подписанным числам.'); }
+      return { q: L('Sur cette droite graduée, quelle est l\'abscisse du point ' + nm + ' ?', 'Какова абсцисса точки ' + nm + ' на этой числовой прямой?'), fig: ncAxis(G.n, G.big, G.labs, [[p, nm]]), ans: N(v), sol };
+    }
+    /* vi 1, 2: place a point — which point has the given abscissa (a decimal / a fraction) */
+    for (let g = 0; ; g++) {
+      let G, p, ref, cands, X, Xs, pre = [];
+      if (vi === 1) {
+        do { G = ncGradLine(r); p = r.ri(0, G.n); } while (p === G.a || p === G.a + G.k || G.c + p === 0);
+        ref = Math.abs(p - G.a) <= Math.abs(p - G.a - G.k) ? G.a : G.a + G.k; X = G.vs(p); Xs = ncTxt(X);
+        const j = p - ref, rT = ncTxt(G.vs(ref)), dv = G.v3(p) - G.v3(ref);
+        cands = [[2 * ref - p, 'деления отложены от числа ' + rT + ' не в ту сторону'], [p - Math.sign(j), 'на одно деление ближе к ' + rT + ': так бывает, если считать штрихи, а не промежутки']];
+        if (G.c + p < 0) cands.push([-2 * G.c - p, 'перепутан знак: отрицательные числа — левее нуля']);
+        const oth = ref === G.a ? G.a + G.k : G.a; cands.push([oth + j, 'деления отсчитаны от числа ' + ncTxt(G.vs(oth)) + ', а не от ' + rT]);
+        if (G.wst && dv % G.wst === 0) cands.push([ref + dv / G.wst, 'так выходит, если считать, что одно деление равно ' + ncTxt(ncD(G.wst, 3))]);
+        if (G.tst && dv % G.tst === 0) cands.push([ref + dv / G.tst, 'так выходит, если считать штрихи вместо промежутков: тогда одно деление показалось бы равным ' + ncTxt(ncD(G.tst, 3))]);
+        pre = [ncGradWhy(G), [Xs + ' отличается от ' + rT + ' на ' + ncTxt(ncD(Math.abs(dv), 3)) + ' — это ' + ncDiv(Math.abs(j)) + ' по ' + ncTxt(G.st) + ':', ncD(Math.abs(dv), 3) + '÷' + G.st + '=' + Math.abs(j)]];
+        pre.push({ t: 'Откладываем ' + ncDiv(Math.abs(j)) + (j > 0 ? ' вправо' : ' влево') + ' от числа ' + rT + '.', svg: '' });
+      } else {
+        const d = r.pick([3, 4, 5, 6, 8]), U = d === 8 ? 2 : d === 6 ? r.ri(2, 3) : d === 5 ? r.ri(3, 4) : d === 4 ? r.ri(3, 5) : r.ri(3, 6), n = U * d, z = r() < 0.25 ? d * r.ri(1, U - 1) : 0, la = z && r() < 0.5 ? z - d : z;
+        let t; do t = r.ri(-z, n - z); while (!t || t % d === 0 || (z && t > 0 && r() < 0.6) || (gcd(Math.abs(t), d) > 1 && r() < 0.6));
+        G = { n, k: d, a: la, gap: 296 / n < 16 ? 2 : 1, big: i => (i - z) % d === 0, labs: [[la, nf((la - z) / d)], [la + d, nf((la + d - z) / d)]], vs: i => Fr.str(F(i - z, d)) };
+        p = z + t; ref = z; const Xf = F(t, d), u = Math.sign(t), T = Math.abs(t); X = Fr.str(Xf); Xs = '$' + X + '$';
+        cands = [[p - u, 'на одно деление ближе к нулю: так бывает, если считать штрихи, а не промежутки']];
+        if (t < 0) cands.push([z - t, 'перепутан знак: отрицательные числа — левее нуля']);
+        if (T > d) cands.push([z + u * (T % d), 'забыта целая часть ($' + X + '$ — это ' + (t < 0 ? 'минус ' : '') + Math.floor(T / d) + ' и ещё $' + (T % d) + '/' + d + '$)']);
+        cands.push([p + u * d, 'деления отсчитаны от ' + nf(u) + ', а не от 0']);
+        if (Xf.d < d) cands.push([z + Xf.n, 'отложено ' + Math.abs(Xf.n) + ' ' + ncPl(Math.abs(Xf.n), 'деление', 'деления', 'делений') + ', как будто одно деление — $1/' + Xf.d + '$, а оно здесь — $1/' + d + '$']);
+        pre = ['От ' + nf((la - z) / d) + ' до ' + nf((la + d - z) / d) + ' — ' + ncGaps(d) + ' (считаем промежутки, а не штрихи). Значит, одно деление — это $1/' + d + '$.'];
+        if (Xf.d < d) pre.push(['Запишем $' + X + '$ со знаменателем ' + d + ': числитель и знаменатель умножаем на ' + d / Xf.d + ', значение не меняется.', X + '=' + t + '/' + d]);
+        pre.push({ t: '$' + t + '/' + d + '$ — это ' + T + ' ' + ncPl(T, 'доля', 'доли', 'долей') + ' по $1/' + d + '$, то есть ' + ncDiv(T) + ' от нуля ' + (t > 0 ? 'вправо' : 'влево') + '.', svg: '' });
+      }
+      /* the wrong points: on the line, not under a number, not next to another point */
+      const used = [p], wr = [];
+      r.sh(cands).forEach(([i, why]) => { if (wr.length < 3 && i >= 0 && i <= G.n && i !== G.a && i !== G.a + G.k && used.every(u => Math.abs(u - i) >= G.gap)) { used.push(i); wr.push([i, why]); } });
+      if (wr.length < 3 && g < 40) continue;
+      while (wr.length < 3) { const i = r.ri(0, G.n); if (i !== G.a && i !== G.a + G.k && used.every(u => Math.abs(u - i) >= G.gap)) { used.push(i); wr.push([i, '']); } }
+      const nm = r.sh(NC_PTN).slice(0, 4), pts = used.map((i, j) => [i, nm[j]]), sorted = nm.slice().sort();
+      const last = pre[pre.length - 1]; last.t += ' Это точка ' + nm[0] + '.'; last.svg = ncAxis(G.n, G.big, G.labs, [[p, nm[0]]], [ref, p]);
+      const val = i => { if (vi === 1) return ncTxt(G.vs(i)); const u = i - ref, f = F(u, G.k); return '$' + (u % G.k && f.d !== G.k ? u + '/' + G.k + '=' : '') + Fr.str(f) + '$'; };
+      return { q: L('Sur cette droite graduée, quel point a pour abscisse ' + Xs + ' ?', 'У какой точки на этой числовой прямой абсцисса равна ' + Xs + '?'), fig: ncAxis(G.n, G.big, G.labs, pts),
+        ans: MQF(sorted.map(l => L('Le point ' + l, 'Точка ' + l)), sorted.indexOf(nm[0])), sol: pre.concat(wr.map(([i, why], j) => (why ? 'Точка ' + nm[j + 1] + ' (её абсцисса ' + val(i) + ') — ' + why : 'У точки ' + nm[j + 1] + ' абсцисса ' + val(i)) + '.')) };
+    }
   } });
 
 /* ===================== SIMPLIFYING AND COMPARING FRACTIONS ===================== */
@@ -9186,13 +9447,14 @@ topic({ id: 'nc.frac-muldiv', ch: 'nc', lvl: 2, calc: false, variants: 5,
     const q = L('Calculer et donner le résultat sous forme de fraction irréductible.', 'Вычисли и запиши ответ несократимой дробью.');
     const two = cross => { let a, b, c, d; do { b = r.ri(2, 9); d = r.ri(2, 9); a = r.ri(1, 9); c = r.ri(1, 9); } while (gcd(a, b) !== 1 || gcd(c, d) !== 1 || a * c === b * d || (cross && gcd(a, d) === 1 && gcd(c, b) === 1) || (a === 1 && b === 1)); return [a, b, c, d]; };
     if (vi === 0) {   /* a/b × c/d */
-      const [a, b, c, d] = two(r() < 0.75), neg = r() < 0.3 ? r.ri(1, 2) : 0, f1 = F(neg === 1 ? -a : a, b), f2 = F(neg === 2 ? -c : c, d), res = Fr.mul(f1, f2);
+      let a, b, c, d; do { [a, b, c, d] = two(r() < 0.75); } while ((a * c) % (b * d) === 0);   /* a whole result does not fit «sous forme de fraction irréductible» */
+      const neg = r() < 0.3 ? r.ri(1, 2) : 0, f1 = F(neg === 1 ? -a : a, b), f2 = F(neg === 2 ? -c : c, d), res = Fr.mul(f1, f2);
       const sol = [{ t: 'Числитель умножаем на числитель, знаменатель — на знаменатель: берём часть от части, доли дробятся.', tex: tF(f1) + '\\times ' + ncTP(f2) + ncProdTex(a, b, c, d, neg ? '-' : '') }, ncCrossWhy(a, b, c, d)];
       if (neg) sol.push('Знаки разные — произведение отрицательное.');
       return { q, tex: tF(f1) + '\\times ' + ncTP(f2), ans: FRA(res), sol };
     }
     if (vi === 1) {   /* a/b ÷ c/d */
-      let a, b, c, d; do { [a, b, d, c] = two(r() < 0.7); } while (c === 1 && d === 1);
+      let a, b, c, d; do { [a, b, d, c] = two(r() < 0.7); } while ((a * d) % (b * c) === 0);   /* no whole results */
       const neg = r() < 0.25 ? r.ri(1, 2) : 0, f1 = F(neg === 1 ? -a : a, b), f2 = F(neg === 2 ? -c : c, d), inv = F(neg === 2 ? -d : d, c), res = Fr.div(f1, f2);
       const sol = [{ t: 'Разделить на дробь — умножить на обратную ей («l\'inverse»): переворачиваем делитель. Почему так можно: деление отменяет умножение, а умножение на обратную дробь как раз отменяет умножение на исходную — их произведение равно 1.', tex: tF(f1) + '\\div ' + ncTP(f2) + '=' + tF(f1) + '\\times ' + ncTP(inv) },
         { t: ncCrossWhy(a, b, d, c), tex: tF(f1) + '\\times ' + ncTP(inv) + ncProdTex(a, b, d, c, neg ? '-' : '') }];
@@ -9200,7 +9462,7 @@ topic({ id: 'nc.frac-muldiv', ch: 'nc', lvl: 2, calc: false, variants: 5,
       return { q, tex: tF(f1) + '\\div ' + ncTP(f2), ans: FRA(res), sol };
     }
     if (vi === 2) {   /* a whole number and a fraction */
-      const t = r.ri(0, 2); let a, b, n; do { b = r.ri(2, 9); a = r.ri(1, 9); n = r.ri(2, 12); } while (gcd(a, b) !== 1 || (t === 0 && n % b === 0) || (t === 2 && a === 1 && b === 1));
+      const t = r.ri(0, 2); let a, b, n; do { b = r.ri(2, 9); a = r.ri(1, 9); n = r.ri(2, 12); } while (gcd(a, b) !== 1 || (t === 0 && n % b === 0) || (t === 2 && n % a === 0));   /* no whole results */
       if (t === 0) return { q, tex: n + '\\times ' + tfr(a, b), ans: FRA(F(n * a, b)), sol: [
         { t: 'Целое число — это дробь со знаменателем 1: $' + n + '=' + n + '/1$. Поэтому на ' + n + ' умножается только числитель — долей становится в ' + n + ' раз больше, а их размер прежний.', tex: n + '\\times ' + tfr(a, b) + '=\\dfrac{' + n + '\\times ' + a + '}{' + b + '}=' + tfr(n * a, b) + (gcd(n * a, b) > 1 ? '=' + tF(F(n * a, b)) : '') }] };
       if (t === 1) return { q, tex: tfr(a, b) + '\\div ' + n, ans: FRA(F(a, b * n)), sol: [
@@ -9286,7 +9548,7 @@ topic({ id: 'nc.frac-calc', ch: 'nc', lvl: 2, calc: false, variants: 5,
       let f1, f2, f3, Sm, R, minus, div; do { f1 = ncRF(r, 6); f2 = ncRF(r, 6); f3 = ncRF(r, 7); minus = r() < 0.4; div = r() < 0.4; Sm = minus ? Fr.sub(f1, f2) : Fr.add(f1, f2); R = div ? Fr.div(Sm, f3) : Fr.mul(Sm, f3); } while (Sm.n <= 0 || Sm.d > 20 || Sm.d === 1 || R.d > 36 || R.d === 1);
       const add = ncAddTex(f1, f2, minus), g = div ? F(f3.d, f3.n) : f3;
       return { q, tex: '\\left(' + tF(f1) + op(minus) + tF(f2) + '\\right)' + (div ? '\\div ' : '\\times ') + tF(f3), ans: FRA(R), sol: [
-        { t: 'Сначала скобки: приводим к общему знаменателю ' + add.L + '.', tex: add.tex },
+        { t: 'Сначала скобки. Складывать и вычитать можно только одинаковые доли, поэтому приводим к общему знаменателю ' + add.L + '.', tex: add.tex },
         { t: div ? 'Потом деление: делить на дробь — умножать на обратную.' : 'Потом умножение: числитель на числитель, знаменатель на знаменатель.', tex: tF(Sm) + (div ? '\\div ' + tF(f3) + '=' + tF(Sm) + '\\times ' + tF(g) : '\\times ' + tF(f3)) + ncProdTex(Sm.n, Sm.d, g.n, g.d, '') }] };
     }
     if (vi === 2) {   /* n − a/b × or ÷ c/d */
@@ -9294,14 +9556,14 @@ topic({ id: 'nc.frac-calc', ch: 'nc', lvl: 2, calc: false, variants: 5,
       const g = div ? F(f2.d, f2.n) : f2, add = ncAddTex(F(n), P, minus);
       return { q, tex: n + op(minus) + tF(f1) + (div ? '\\div ' : '\\times ') + tF(f2), ans: FRA(R), sol: [
         { t: 'Сначала ' + (div ? 'деление' : 'умножение') + ' — оно выполняется раньше ' + (minus ? 'вычитания' : 'сложения') + '. Если сначала посчитать ' + n + ' ' + (minus ? '−' : '+') + ' $' + Fr.str(f1) + '$, получится ответ на другой пример — со скобками.', tex: tF(f1) + (div ? '\\div ' + tF(f2) + '=' + tF(f1) + '\\times ' + tF(g) : '\\times ' + tF(f2)) + ncProdTex(f1.n, f1.d, g.n, g.d, '') },
-        { t: 'Теперь ' + (minus ? 'вычитание' : 'сложение') + ': целое число ' + n + ' записываем дробью с тем же знаменателем.', tex: add.tex }] };
+        { t: 'Теперь ' + (minus ? 'вычитание' : 'сложение') + ': чтобы доли были одинаковыми, целое число ' + n + ' записываем дробью с тем же знаменателем.', tex: add.tex }] };
     }
     if (vi === 3) {   /* a big fraction: (a ± u)/(b ± v) */
-      let a, b, u, v, s1, s2, top, bot, R; do { a = r.ri(1, 2); b = r.ri(1, 2); u = ncRF(r, 6); v = ncRF(r, 6); s1 = r() < 0.5; s2 = r() < 0.5; top = s1 ? Fr.sub(F(a), u) : Fr.add(F(a), u); bot = s2 ? Fr.sub(F(b), v) : Fr.add(F(b), v); R = Fr.div(top, bot); } while (top.n <= 0 || bot.n <= 0 || top.d === 1 || bot.d === 1 || R.d > 24 || (R.n === 1 && R.d === 1));
+      let a, b, u, v, s1, s2, top, bot, R; do { a = r.ri(1, 2); b = r.ri(1, 2); u = ncRF(r, 6); v = ncRF(r, 6); s1 = r() < 0.5; s2 = r() < 0.5; top = s1 ? Fr.sub(F(a), u) : Fr.add(F(a), u); bot = s2 ? Fr.sub(F(b), v) : Fr.add(F(b), v); R = Fr.div(top, bot); } while (top.n <= 0 || bot.n <= 0 || top.d === 1 || bot.d === 1 || R.d > 24 || R.d === 1);
       const t1 = ncAddTex(F(a), u, s1), t2 = ncAddTex(F(b), v, s2), g = F(bot.d, bot.n);
       return { q, tex: '\\dfrac{' + a + op(s1) + tF(u) + '}{' + b + op(s2) + tF(v) + '}', ans: FRA(R), sol: [
         'Большая черта дроби — это деление всего числителя на весь знаменатель, поэтому сначала считаем их отдельно, как будто они в скобках.',
-        { t: 'Числитель:', tex: t1.tex }, { t: 'Знаменатель:', tex: t2.tex },
+        { t: 'Числитель — целое число записываем дробью с тем же знаменателем (складывать и вычитать можно только одинаковые доли):', tex: t1.tex }, { t: 'Знаменатель — так же:', tex: t2.tex },
         { t: 'Делим числитель на знаменатель — умножаем на обратную дробь:', tex: tF(top) + '\\div ' + tF(bot) + '=' + tF(top) + '\\times ' + tF(g) + ncProdTex(top.n, top.d, g.n, g.d, '') }] };
     }
     /* vi === 4: multiple choice — the usual mistakes */
@@ -9311,7 +9573,7 @@ topic({ id: 'nc.frac-calc', ch: 'nc', lvl: 2, calc: false, variants: 5,
     return { q: L('Parmi les propositions suivantes, laquelle est égale au résultat de ce calcul ?', 'Какое из чисел равно результату этого вычисления?'), tex: tF(f1) + '+' + tF(f2) + '\\times ' + tF(f3),
       ans: ncMQ(r, [R, E1, E2, E3].map(f => '$' + Fr.str(f) + '$')), sol: [
         { t: 'Сначала умножение:', tex: tF(f2) + '\\times ' + tF(f3) + '=' + tF(P) },
-        { t: 'Потом сложение с общим знаменателем:', tex: ncAddTex(f1, P, false).tex },
+        { t: 'Потом сложение: складывать можно только одинаковые доли, поэтому приводим к общему знаменателю.', tex: ncAddTex(f1, P, false).tex },
         'Ответ $' + Fr.str(E1) + '$ — если сложить раньше, чем умножить (порядок действий нарушен).',
         'Ответ $' + Fr.str(E2) + '$ — если сложить отдельно числители и отдельно знаменатели. Так нельзя: складывать можно только одинаковые доли.',
         'Ответ $' + Fr.str(E3) + '$ — если перемножить знаменатели, а числители сложить, не домножив их: доли поменяли размер, а количество долей осталось прежним.'] };
@@ -9377,7 +9639,7 @@ topic({ id: 'nc.puissances', ch: 'nc', lvl: 2, calc: false, variants: 5,
     }
     if (vi === 3) {   /* multiple choice — the usual mistakes */
       const t = r.ri(0, 2);
-      if (t === 0) { const a = r.pick([2, 3, 5, 7]); let m, n; do { m = r.ri(2, 6); n = r.ri(2, 6); } while (m * n === m + n); const A = a * a;
+      if (t === 0) { const a = r.pick([2, 3, 5, 7]); let m, n; do { m = r.ri(2, 6); n = r.ri(2, 6); } while (m * n === m + n || m * n === 2 * (m + n)); const A = a * a;   /* m·n = 2(m + n) would make two wrong options equal: a^(mn) = (a²)^(m+n) */
         return { q: L('Parmi les propositions suivantes, laquelle est égale à $' + a + '^' + m + '*' + a + '^' + n + '$ ?', 'Какое из выражений равно $' + a + '^' + m + '*' + a + '^' + n + '$?'),
           ans: ncMQ(r, ['$' + a + '^' + (m + n) + '$', '$' + a + '^' + (m * n) + '$', '$' + A + '^' + (m + n) + '$', '$' + A + '^' + (m * n) + '$']), sol: [
             ['$' + a + '^' + m + '$ — это ' + m + ' ' + ncPl(m, 'множитель', 'множителя', 'множителей') + ' ' + a + ', а $' + a + '^' + n + '$ — ещё ' + n + '; всего ' + (m + n) + ': показатели складываются.', a + '^' + m + '*' + a + '^' + n + '=' + a + '^' + (m + n)],
@@ -9389,7 +9651,8 @@ topic({ id: 'nc.puissances', ch: 'nc', lvl: 2, calc: false, variants: 5,
             ['Отрицательный показатель — не отрицательное число, а деление:', '10^(-' + n + ')=1/10^' + n + '=1/' + P + '=' + ncD(1, n)],
             'Варианты со знаком «минус» — ошибка: $10^(-' + n + ')$ положительно, это маленькая доля единицы.',
             ncTxt(ncD(1, n + 1)) + ' — лишний ноль: единица должна стоять на ' + n + '-м месте после запятой, ведь мы делим на 10 ровно ' + ncTimes(n) + '.'] }; }
-      const a = r.ri(2, 5), n = a <= 3 ? r.ri(2, 4) : r.ri(2, 3), par = r() < 0.5, v = par ? Math.pow(-a, n) : -Math.pow(a, n), m = par ? '(-' + a + ')^' + n : '-' + a + '^' + n;
+      let a, n; do { a = r.ri(2, 5); n = a <= 3 ? r.ri(2, 4) : r.ri(2, 3); } while (a * n === Math.pow(a, n));   /* not 2²: there 2 × 2 = 2² and the «multiplied instead» options would be right */
+      const par = r() < 0.5, v = par ? Math.pow(-a, n) : -Math.pow(a, n), m = par ? '(-' + a + ')^' + n : '-' + a + '^' + n;
       return { q: L('Parmi les propositions suivantes, laquelle est égale à $' + m + '$ ?', 'Какое из чисел равно $' + m + '$?'),
         ans: ncMQ(r, [v, -v, a * n, -a * n].map(x => '$' + x + '$')), sol: [
           par ? ['В скобках — число −' + a + ', в степень возводится оно целиком:', m + '=' + Array(n).fill('(-' + a + ')').join('*') + '=' + v] : ['Без скобок степень относится только к ' + a + ', а минус ставится потом:', m + '=-(' + Array(n).fill(a).join('*') + ')=' + v],
@@ -9441,7 +9704,7 @@ topic({ id: 'nc.sci', ch: 'nc', lvl: 2, calc: false, variants: 5,
         { t: 'Ответ:', tex: fmtBig(x.s) + '=' + x.tex }] };
     }
     if (vi === 1) {   /* multiple choice (Métropole 2026 Q6, Asie 2026 Q1) */
-      const k = r.ri(2, 4), D = ncDig(r, k), small = r() < 0.6, e = small ? -r.ri(2, 6) : r.ri(k + 1, 8), x = ncSci(D, e), shift = r() < 0.5;
+      const k = r.ri(2, 4), D = ncDig(r, k), small = r() < 0.6, e = small ? -r.ri(2, 6) : r.ri(k + 1, 8), x = ncSci(D, e), shift = k > 2 && r() < 0.5;   /* with two digits the shifted writing would repeat the option D × 10^(e−1) */
       const S_ = x.a + '*10^(' + (-e) + ')', N1 = D + '*10^(' + (e - k + 1) + ')', N2 = shift ? D.slice(0, 2) + (k > 2 ? '.' + D.slice(2) : '') + '*10^(' + (e - 1) + ')' : D + '*10^(' + e + ')';
       return { q: L('Parmi les propositions suivantes, laquelle est la notation scientifique du nombre ' + ncTxt(x.s) + ' ?', 'Какая из записей — научная запись («notation scientifique») числа ' + ncTxt(x.s) + '?'),
         ans: ncMQ(r, [x.key, S_, N1, N2].map(o => '$' + o + '$')), sol: [
@@ -9543,7 +9806,7 @@ topic({ id: 'nc.racines', ch: 'nc', lvl: 2, calc: false, variants: 5,
           ['Сначала считаем под корнем, потом извлекаем корень:', m + '=√' + c * c + '=' + c],
           (p + s) + ' — извлекли корень из каждого слагаемого. Но корень из суммы не равен сумме корней: ' + (p + s) + '² = ' + (p + s) * (p + s) + ', а не ' + c * c + '.',
           c * c + ' — забыли извлечь корень; ' + nf(c * c / 2) + ' — спутали корень с делением пополам.'] }; }
-      const [x, y] = r.pick([['0.04', 2], ['0.09', 3], ['0.16', 4], ['0.25', 5], ['0.36', 6], ['0.49', 7], ['0.64', 8], ['0.81', 9]]), v = ncD(y, 1);
+      const [x, y] = r.pick([['0.09', 3], ['0.16', 4], ['0.25', 5], ['0.36', 6], ['0.49', 7], ['0.64', 8], ['0.81', 9]]), v = ncD(y, 1);   /* not 0,04: its half 0,02 is also the «wrong place» option */
       return { q: L('Parmi les propositions suivantes, laquelle est égale à $√' + x + '$ ?', 'Какое из чисел равно $√' + x + '$?'), ans: ncMQ(r, [ncTxt(v), ncTxt(ncD(y, 2)), ncTxt(String(+x / 2)), String(y)]), sol: [
         ncTxt(v) + ' × ' + ncTxt(v) + ' = ' + ncTxt(x) + ': десятые × десятые = сотые. Значит, $√' + x + '=' + v + '$.',
         ncTxt(ncD(y, 2)) + ' — ошибка в разрядах: ' + ncTxt(ncD(y, 2)) + '² = ' + ncTxt(ncD(y * y, 4)) + '. ' + y + ' — потеряна запятая: ' + y + '² = ' + y * y + '. ' + ncTxt(String(+x / 2)) + ' — корень спутали с делением пополам.'] };
@@ -9734,13 +9997,13 @@ const ncTrunc = (n, t, k) => Math.floor(n / Math.pow(10, t - k));
 function ncRoundWhy(n, t, k) {
   const P = Math.pow(10, t - k), lo = ncTrunc(n, t, k), next = Math.floor(n / Math.pow(10, t - k - 1)) % 10, mid = dec(lo * 10 + 5, k + 1), up = next >= 5, exact = n % P === P / 2;
   return 'Число ' + ncN(n, t) + ' лежит между ' + ncTxt(dec(lo, k)) + ' и ' + ncTxt(dec(lo + 1, k)) + '; середина — ' + ncTxt(mid) + '. Следующая цифра после разряда ' + NC_PREC[k][2] + ' — ' + next
-    + (exact ? ': число ровно посередине, а в этом случае по правилу округляют вверх — до ' + ncTxt(dec(lo + 1, k)) + '.' : up ? ': это 5 или больше, значит, число больше середины — ближе к ' + ncTxt(dec(lo + 1, k)) + ', округляем вверх.' : ': это меньше 5, значит, число меньше середины — ближе к ' + ncTxt(dec(lo, k)) + '.');
+    + (exact ? ': число ровно посередине, а в этом случае договорились округлять вверх — до ' + ncTxt(dec(lo + 1, k)) + '.' : up ? ': это 5 или больше, значит, число больше середины — ближе к ' + ncTxt(dec(lo + 1, k)) + ', округляем вверх.' : ': это меньше 5, значит, число меньше середины — ближе к ' + ncTxt(dec(lo, k)) + '.');
 }
 topic({ id: 'nc.arrondi', ch: 'nc', lvl: 1, calc: false, variants: 5,
   ru: 'Округление и усечение', fr: 'Arrondi et troncature',
   hints: [
     'Найди разряд, до которого округляешь (десятые — первая цифра после запятой, сотые — вторая), и посмотри на следующую цифру справа.',
-    'Округлить — найти ближайшее число с нужной точностью. Если следующая цифра 0–4, число ближе к меньшему значению: разряд не меняется. Если 5–9 — ближе к большему (или ровно посередине): разряд увеличиваем на 1.',
+    'Округлить — найти ближайшее число с нужной точностью. Если следующая цифра 0–4, число ближе к меньшему значению: разряд не меняется. Если 5–9 — ближе к большему: разряд увеличиваем на 1. Число ровно посередине тоже округляют вверх — так договорились.',
     'Усечение («troncature») — просто отбросить цифры после нужного разряда, ничего не увеличивая. При округлении бывает перенос: $4.96$ до десятых — это $5.0$ (9 десятых + 1 десятая = 10 десятых = 1 единица).'],
   gen(r, vi) {
     if (vi === 0) {   /* round a decimal */
@@ -9764,7 +10027,7 @@ topic({ id: 'nc.arrondi', ch: 'nc', lvl: 1, calc: false, variants: 5,
           tr === ro ? 'Здесь усечение и округление совпали: следующая цифра меньше 5.' : 'Здесь они различаются: усечение никогда не увеличивает число, а округление может.'] };
     }
     if (vi === 2) {   /* round a fraction */
-      let p, q; do { q = r.pick([3, 6, 7, 9, 11, 12]); p = r.ri(1, 3 * q); } while (p % q === 0 || 1000 % q === 0);
+      let p, q; do { q = r.pick([3, 6, 7, 9, 11, 12]); p = r.ri(1, 3 * q); } while (gcd(p, q) !== 1);   /* in lowest terms: the decimal writing never ends, so there is always something to round and never an exact half (3/6, 9/12 …) */
       const k = r.ri(1, 2), digits = Math.floor(p * Math.pow(10, k + 1) / q), key = dec(Math.floor((2 * p * Math.pow(10, k) + q) / (2 * q)), k);
       return { q: L('Donner l\'arrondi ' + NC_PREC[k][0] + ' de $' + p + '/' + q + '$.', 'Округли $' + p + '/' + q + '$ ' + NC_PREC[k][1] + '.'), ans: N(key, { dp: k }), sol: [
         'Делим ' + p + ' на ' + q + ' столбиком, пока не получим на одну цифру больше, чем нужно: ' + p + ' ÷ ' + q + ' = ' + ncTxt(dec(digits, k + 1)) + '…',
@@ -9773,7 +10036,7 @@ topic({ id: 'nc.arrondi', ch: 'nc', lvl: 1, calc: false, variants: 5,
     }
     if (vi === 3) {   /* multiple choice: carrying over, rounding twice */
       if (r() < 0.5) {   /* x = w,9de with d ≥ 5 → (w+1),0 */
-        const w = r.ri(1, 19), d = r.ri(5, 9), e = r.ri(1, 9), n = w * 1000 + 900 + d * 10 + e;
+        const w = r.ri(1, 19), d = r.ri(5, 8), e = r.ri(1, 9), n = w * 1000 + 900 + d * 10 + e;   /* d ≤ 8: with w,99e the «rounded to hundredths» option would be (w+1),00 — the right value */
         const opts = [dec(w * 10 + 10, 1), dec(w * 10 + 9, 1), w + ',10', dec(ncRound(n, 3, 2), 2)].map(s => s.includes(',') ? s : ncTxt(s));
         return { q: L('L\'arrondi au dixième de ' + ncN(n, 3) + ' est :', 'Округление числа ' + ncN(n, 3) + ' до десятых равно:'), ans: ncMQ(r, opts), sol: [
           ncRoundWhy(n, 3, 1),
@@ -9792,7 +10055,7 @@ topic({ id: 'nc.arrondi', ch: 'nc', lvl: 1, calc: false, variants: 5,
     const lo = Math.floor(n / P) * P, hi = lo + P, mid = lo + P / 2, res = n >= mid ? hi : lo;
     return { q: L('Arrondir ' + nf(n) + ' ' + name[0] + '.', 'Округли ' + nf(n) + ' ' + name[1] + '.'), ans: N(res), sol: [
       'Число ' + nf(n) + ' лежит между ' + nf(lo) + ' и ' + nf(hi) + ' — соседними «круглыми» числами, кратными ' + nf(P) + '. Середина между ними — ' + nf(mid) + '.',
-      n === mid ? nf(n) + ' ровно посередине — в этом случае по правилу округляют вверх.' : n > mid ? nf(n) + ' больше середины — значит, ближе к ' + nf(hi) + ': округляем вверх.' : nf(n) + ' меньше середины — значит, ближе к ' + nf(lo) + '.',
+      n === mid ? nf(n) + ' ровно посередине — в этом случае договорились округлять вверх.' : n > mid ? nf(n) + ' больше середины — значит, ближе к ' + nf(hi) + ': округляем вверх.' : nf(n) + ' меньше середины — значит, ближе к ' + nf(lo) + '.',
       ['', n + '≈' + res]] };
   } });
 
@@ -9803,42 +10066,72 @@ fiche({ ch: 'nc', id: 'nc.relatifs', ru: 'Относительные числа'
   'Вычитание — сложение с противоположным: $a-b=a+(-b)$. Поэтому $5-(-2)=5+2$: списать долг — всё равно что получить деньги.',
   'Умножение и деление: числа без знаков перемножаем (делим), а знак — по правилу: одинаковые знаки — «плюс», разные — «минус». Много множителей: чётное число минусов — «плюс», нечётное — «минус».',
   'Сравнение: из двух отрицательных больше то, которое ближе к нулю: $-2.1 > -2.5$.'],
-  ex: [['Сложение', '-4.7+3.5=-1.2'], ['Вычитание', '3-(-5)=3+5=8'], ['Умножение', '(-4)*(-9)=36'], ['Деление', '(-42)÷6=-7']] });
+  ex: [['Сложение', '-4.7+3.5=-1.2'], ['Вычитание', '3-(-5)=3+5=8'], ['Умножение', '(-4)*(-9)=36'], ['Деление', '(-42)÷6=-7']],
+  frs: [
+    'Pour additionner deux nombres relatifs de même signe, on additionne leurs distances à zéro et on garde ce signe. S\'ils sont de signes contraires, on soustrait la plus petite distance à zéro de la plus grande et on prend le signe du nombre qui a la plus grande distance à zéro.',
+    'Soustraire un nombre relatif revient à additionner son opposé : $a-b=a+(-b)$.',
+    'Le produit (ou le quotient) de deux nombres relatifs de même signe est positif ; celui de deux nombres relatifs de signes contraires est négatif.',
+    'Un produit de nombres relatifs non nuls est positif s\'il comporte un nombre pair de facteurs négatifs, et négatif s\'il en comporte un nombre impair.'] });
 fiche({ ch: 'nc', id: 'nc.ordre', ru: 'Порядок действий', fr: 'Les priorités opératoires', body: [
   'Порядок: 1) скобки (начиная с внутренних); 2) степени; 3) умножение и деление; 4) сложение и вычитание.',
   'Действия одного уровня выполняют слева направо: $20-5+3=18$, а не 12.',
   'Черта дроби работает как скобки: числитель и знаменатель считают отдельно, потом делят.',
   'Названия: сумма — «la somme», разность — «la différence», произведение — «le produit», частное — «le quotient». Выражение называют по последнему действию: $5+3*4$ — сумма, $(5+3)*4$ — произведение.'],
-  ex: [['Умножение раньше', '5+3*4=5+12=17'], ['Скобки', '(5+3)*4=8*4=32'], ['Слева направо', '20-5+3=15+3=18'], ['Черта дроби', '(12+8)/(7-3)=20/4=5']] });
+  ex: [['Умножение раньше', '5+3*4=5+12=17'], ['Скобки', '(5+3)*4=8*4=32'], ['Слева направо', '20-5+3=15+3=18'], ['Черта дроби', '(12+8)/(7-3)=20/4=5']],
+  frs: [
+    'Dans un calcul sans parenthèses, on effectue d\'abord les puissances, puis les multiplications et les divisions, enfin les additions et les soustractions.',
+    'On effectue en priorité les calculs entre parenthèses, en commençant par les parenthèses les plus intérieures.',
+    'Lorsque les opérations ont la même priorité, on effectue les calculs de gauche à droite.',
+    'Une expression est une somme, une différence, un produit ou un quotient selon la dernière opération à effectuer : $5+3*4$ est une somme, $(5+3)*4$ est un produit.'] });
 fiche({ ch: 'nc', id: 'nc.ecritures', ru: 'Дроби: записи, сравнение, доля от числа', fr: 'Écritures et comparaison des fractions', body: [
-  'Десятичная запись — дробь со знаменателем 10, 100, 1000…: $0.75=75/100=3/4$, $1.2=12/10=6/5$.',
-  'Дробь → десятичная: раздели числитель на знаменатель или домножь дробь до знаменателя 10, 100, 1000: $7/4=175/100=1.75$. Бывает и бесконечная запись: $1/3$ = 0,333… — тогда берут округлённое значение.',
+  'Десятичная запись — дробь со знаменателем 10, 100, 1000…: $0.75=75/100=3/4$. Одно и то же число можно записать по-разному, значение от этого не меняется: $1.2=12/10=120/100=6/5=1+1/5$ = 120\u00a0% (проценты — это сотые доли).',
+  'Дробь → десятичная: черта дроби — это деление, поэтому делим числитель на знаменатель или домножаем дробь до знаменателя 10, 100, 1000: $7/4=175/100=1.75$. Бывает и бесконечная запись: $1/3$ = 0,333… — тогда берут округлённое значение.',
+  'Простые дроби полезно узнавать сразу: $1/2=0.5$, $1/4=0.25$, $3/4=0.75$, $3/2=1.5$, $5/2=2.5$, $1/10=0.1$; $4/2=2$, $100/100=1$, $7/1=7$. Не путай черту дроби с запятой: $3/2$ — это 1,5, а не 3,2.',
   'Дробь от количества: «$3/4$ от 20» — это 20 : 4 × 3 = 15. «Дробь от дроби» — произведение: $2/3$ от $3/4$ — это $$\\frac{2}{3}\\times\\frac{3}{4}=\\frac{1}{2}$$.',
   'Сравнение: приведи к общему знаменателю или переведи в десятичную запись. При одинаковых знаменателях больше та дробь, у которой больше числитель; при одинаковых числителях — та, у которой меньше знаменатель (доли крупнее).',
-  'На числовой прямой единицу делят на $b$ равных частей (считаем промежутки, а не штрихи); точка на $a$-м делении от нуля имеет абсциссу $a/b$.',
+  'На числовой прямой сначала находят цену деления: разность двух подписанных чисел делят на число промежутков между ними (промежутков, а не штрихов). Если единица разделена на $b$ равных частей, точка на $a$-м делении правее нуля имеет абсциссу $a/b$.',
   'Обратное число («l\'inverse») к $a/b$ — это $b/a$: их произведение равно 1. Противоположное («l\'opposé») — с другим знаком: к $2/5$ противоположное $-2/5$, а обратное $5/2$.'],
-  ex: [['Десятичная → дробь', '0.75=75/100=3/4'], ['Дробь → десятичная', '7/4=175/100=1.75'], ['Доля от числа', '3/4*20=15'], ['Сравнение', '5/6=15/18>14/18=7/9']] });
+  ex: [['Десятичная → дробь', '0.75=75/100=3/4'], ['Дробь → десятичная', '7/4=175/100=1.75'], ['Целая часть отдельно', '1.2=1+0.2=1+1/5'], ['Доля от числа', '3/4*20=15'], ['Сравнение', '5/6=15/18>14/18=7/9']],
+  frs: [
+    'Le quotient de $a$ par $b$ ($b$ non nul) est le nombre qui, multiplié par $b$, donne $a$ ; on le note $a/b$. Ainsi $3/4=3÷4=0.75$.',
+    'Un même nombre peut avoir plusieurs écritures : $1.2=12/10=6/5=1+1/5$ = 120\u00a0%.',
+    'Si deux fractions ont le même dénominateur, alors elles sont rangées dans le même ordre que leurs numérateurs. Sinon, on les écrit d\'abord avec le même dénominateur.',
+    'Prendre une fraction d\'une quantité revient à multiplier cette quantité par la fraction : les $3/4$ de 20 élèves, c\'est $3/4*20=15$ élèves.'] });
 fiche({ ch: 'nc', id: 'nc.puissances-sci', ru: 'Степени и научная запись', fr: 'Puissances et notation scientifique', body: [
   '$a^n$ — произведение $n$ множителей, равных $a$: $2^3=2*2*2=8$. По определению $a^1=a$, $a^0=1$ (при $a ≠ 0$) и $a^(-n)=1/a^n$.',
   'Знак: $(-2)^4=16$, $(-2)^3=-8$ — чётная степень отрицательного числа положительна, нечётная отрицательна. А $-2^4=-16$: без скобок степень относится только к 2.',
   'Степени 10: $10^n$ — единица и $n$ нулей, $10^(-n)$ — единица на $n$-м месте после запятой. $10^a*10^b=10^(a+b)$, $10^a/10^b=10^(a-b)$, $(10^a)^b=10^(a*b)$.',
   'Научная запись («notation scientifique»): $a*10^n$, где $1 ≤ a < 10$. Число больше 10 — показатель положительный, меньше 1 — отрицательный.',
   'Приставки: кило- (k) $10^3$, мега- (M) $10^6$, гига- (G) $10^9$, тера- (T) $10^12$; милли- (m) $10^(-3)$, микро- (µ) $10^(-6)$, нано- (n) $10^(-9)$.'],
-  ex: [['Умножение', '10^3*10^(-5)=10^(-2)'], ['Степень степени', '(10^2)^3=10^6'], ['Научная запись', '0.00458=4.58*10^(-3)'], ['Произведение', '(5*10^4)*(3*10^(-2))=15*10^2=1.5*10^3']] });
-fiche({ ch: 'nc', id: 'nc.racine-carree', ru: 'Квадратный корень', fr: 'La racine carrée', body: [
+  ex: [['Умножение', '10^3*10^(-5)=10^(-2)'], ['Степень степени', '(10^2)^3=10^6'], ['Научная запись', '0.00458=4.58*10^(-3)'], ['Произведение', '(5*10^4)*(3*10^(-2))=15*10^2=1.5*10^3']],
+  frs: [
+    'Si $a$ est un nombre et $n$ un entier positif non nul, $a^n$ est le produit de $n$ facteurs égaux à $a$. Pour $a$ non nul : $a^0=1$ et $a^(-n)=1/a^n$.',
+    'Pour tous entiers relatifs $m$ et $n$ : $10^m*10^n=10^(m+n)$ ; $10^m/10^n=10^(m-n)$ ; $(10^m)^n=10^(m*n)$.',
+    'La notation scientifique d\'un nombre décimal non nul est son écriture sous la forme $a*10^n$, où $1 ≤ a < 10$ et $n$ est un entier relatif.',
+    'La notation scientifique de 0,00458 est $4.58*10^(-3)$.'] });
+fiche({ ch: 'nc', id: 'nc.racine-carree', ru: 'Квадраты и квадратный корень', fr: 'Les carrés et la racine carrée', body: [
   '$√a$ (при $a ≥ 0$) — положительное число, квадрат которого равен $a$: $√49=7$, потому что $7^2=49$. $√0=0$, $√1=1$.',
-  'Полные квадраты: 1, 4, 9, 16, 25, 36, 49, 64, 81, 100, 121, 144, 169, 196, 225.',
+  'Квадрат числа — число, умноженное само на себя: $7^2=7*7=49$ (не удвоение: $7*2=14$). Квадраты от 1 до 12 нужны без калькулятора — на них держатся корни и теорема Пифагора: 1, 4, 9, 16, 25, 36, 49, 64, 81, 100, 121, 144 (дальше: 169, 196, 225).',
   '$(√a)^2=a$ и $√(a^2)=a$ (при $a ≥ 0$). Корень из суммы — не сумма корней: $√(9+16)=5$, а $√9+√16=7$.',
-  'Оценка: если $49 < 50 < 64$, то $7 < √50 < 8$ — у большего числа и корень больше.',
-  'Сверх программы 3e: $√(a*b)=√a*√b$, поэтому $√50=√25*√2=5√2$.'],
-  ex: [['Квадрат корня', '(2√5)^2=4*5=20'], ['Сначала под корнем', '√(36+64)=√100=10'], ['Сумма на разность', '(5+2√3)(5-2√3)=25-12=13'], ['Упрощение', '√50=√25*√2=5√2']] });
+  'Оценка: если $49 < 50 < 64$, то $7 < √50 < 8$ — у большего числа и корень больше.'],
+  ex: [['Сначала квадраты', '6^2+8^2=36+64=100'], ['Квадрат корня', '(2√5)^2=4*5=20'], ['Сначала под корнем', '√(36+64)=√100=10'], ['Сумма на разность', '(5+2√3)(5-2√3)=25-12=13']],
+  frs: [
+    'La racine carrée d\'un nombre positif $a$ est le nombre positif dont le carré est égal à $a$. On la note $√a$.',
+    'Pour tout nombre positif $a$ : $(√a)^2=a$ et $√(a^2)=a$.',
+    'Un nombre négatif n\'a pas de racine carrée, car le carré d\'un nombre est toujours positif.',
+    'Le carré a une aire de 49 cm² ; son côté mesure donc $√49$ cm, soit 7 cm.'] });
 fiche({ ch: 'nc', id: 'nc.arithmetique', ru: 'Делители и простые числа', fr: 'Arithmétique', body: [
   'Если $a=b*k$ ($k$ — целое), то $b$ — делитель $a$ («un diviseur»), а $a$ — кратное $b$ («un multiple»). Деление с остатком («la division euclidienne»): $a=b*q+r$, где $0 ≤ r < b$.',
   'Признаки делимости: на 2 — последняя цифра чётная; на 5 — оканчивается на 0 или 5; на 10 — на 0; на 3 и на 9 — сумма цифр делится на 3 (на 9).',
   'Простое число («un nombre premier») имеет ровно два делителя: 1 и само себя. Простые до 30: 2, 3, 5, 7, 11, 13, 17, 19, 23, 29. 1 — не простое; 2 — единственное чётное простое.',
   'Разложение на простые множители: делим на 2, 3, 5, 7… пока не дойдём до 1. Каждое целое число больше 1 раскладывается единственным образом.',
   'Наибольшее число одинаковых наборов — наибольший общий делитель: общие простые множители в наименьшей степени. Первая встреча двух циклов — наименьшее общее кратное: все простые множители в наибольшей степени.'],
-  ex: [['Разложение', '360=2^3*3^2*5'], ['Общий делитель', '126=2*3^2*7; 90=2*3^2*5; 2*3^2=18'], ['Общее кратное', '12=2^2*3; 18=2*3^2; 2^2*3^2=36']] });
+  ex: [['Разложение', '360=2^3*3^2*5'], ['Общий делитель', '126=2*3^2*7; 90=2*3^2*5; 2*3^2=18'], ['Общее кратное', '12=2^2*3; 18=2*3^2; 2^2*3^2=36']],
+  frs: [
+    'Si $a=b*k$ avec $k$ entier, on dit que $b$ est un diviseur de $a$, que $a$ est un multiple de $b$ ou que $a$ est divisible par $b$.',
+    'Un nombre entier est divisible par 2 s\'il se termine par 0, 2, 4, 6 ou 8 ; par 5 s\'il se termine par 0 ou 5 ; par 3 (par 9) si la somme de ses chiffres est divisible par 3 (par 9).',
+    'Un nombre premier est un nombre entier qui a exactement deux diviseurs : 1 et lui-même.',
+    'Tout nombre entier supérieur ou égal à 2 se décompose en un produit de facteurs premiers, et cette décomposition est unique : $360=2^3*3^2*5$.'] });
 
 /* ===================== DICTIONARY ===================== */
 gloss('un nombre relatif', 'относительное число', 'число со знаком «+» или «−»: −4,7 ; 3');
@@ -9852,6 +10145,10 @@ gloss('les priorités opératoires', 'порядок действий', 'ско�
 gloss('la moitié, le tiers, le quart', 'половина, треть, четверть');
 gloss('le dixième, le centième, le millième', 'десятая, сотая, тысячная', 'доли единицы и разряды после запятой');
 gloss('l\'abscisse', 'абсцисса', 'число, которым отмечена точка на числовой прямой');
+gloss('une droite graduée', 'числовая прямая с делениями', 'цена деления — разность двух подписанных чисел, делённая на число промежутков между ними');
+gloss('l\'écriture décimale', 'десятичная запись', 'запись числа с запятой: 3/4 = 0,75');
+gloss('le carré d\'un nombre', 'квадрат числа', '7² = 7 × 7 = 49 (не удвоение: 7 × 2 = 14)');
+gloss('le double, le triple', 'удвоенное и утроенное число', 'n × 2 и n × 3');
 gloss('l\'ordre croissant', 'порядок возрастания', 'от меньшего к большему; décroissant — от большего к меньшему');
 gloss('une puissance', 'степень', '2⁵ — пятая степень числа 2');
 gloss('l\'exposant', 'показатель степени', 'в 2⁵ это 5');
@@ -14311,6 +14608,9 @@ const ppgU = (v, u) => nf(v) + ppgSp + u;                                  /* 12
 const ppgPc = v => nf(v) + ppgSp + '%';                                    /* 20 % */
 const ppgTx = v => nf(v).replace('−', '-').replace(',', '{,}').replace(/[\s\u202f\u00a0]/g, '\\,');   /* a number as TeX: 2{,}5 · 25\,000 */
 const ppgRd = (v, dp) => { const p = Math.pow(10, dp); return (Math.round(v * p + (v >= 0 ? 1e-9 : -1e-9)) / p).toFixed(dp); };
+/* a value fit to be rounded to dp decimals in a question: not close to a half-way point (the answer must not depend on how
+   precisely π was taken), something is really rounded, and the key does not end with 0 (a key like «7,0» must be typed with its 0) */
+const ppgSafe = (v, dp) => { const x = v * Math.pow(10, dp), f = x - Math.floor(x); return Math.abs(f - 0.5) > 0.06 && f > 0.02 && f < 0.98 && !(dp > 0 && /0$/.test(ppgRd(v, dp))); };
 /* money answer: 40.5 is shown as 40,50 € */
 function ppgEurAns(v) { const s = fx(v); return N(s, { unit: '€', show: Number.isInteger(+s) ? s : (+s).toFixed(2).replace('.', '{,}') }); }
 /* durations and clock times in words */
@@ -14354,11 +14654,11 @@ function ppgSegLab(x1, y1, x2, y2, s, d) {
 
 
 /* ---------- pp.tableau ---------- */
-topic({ id: 'pp.tableau', ch: 'pp', lvl: 1, calc: false, variants: 4,
+topic({ id: 'pp.tableau', ch: 'pp', lvl: 1, calc: false, variants: 5,
   ru: 'Таблица пропорциональности', fr: 'Tableau de proportionnalité, quatrième proportionnelle',
   hints: [
     'Две величины пропорциональны, если одна получается из другой умножением на одно и то же число — «coefficient de proportionnalité». Поэтому если одна величина выросла в 3 раза, то и другая выросла в 3 раза.',
-    'Ищи самое простое: во сколько раз одно известное число больше другого в той же строке — во столько же раз отличаются и парные им числа. Или найди, сколько приходится на одну единицу («passage par l\'unité»), и умножь.',
+    'Ищи самое простое: во сколько раз одно известное число больше другого в той же строке — во столько же раз отличаются и парные им числа. Количества можно и складывать: если 3 кг стоят 6 €, а 5 кг — 10 €, то 8 кг стоят $6+10=16$ €. Или найди, сколько приходится на одну единицу («passage par l\'unité»), и умножь.',
     'Универсальный способ — «produit en croix». Если в таблице столбцы $6$ над $12$ и $18$ над $a$, то $12/6=a/18$, поэтому $6×a=12×18$ и $a=12×18÷6$: перемножаем числа по диагонали без неизвестного и делим на число, стоящее на одной диагонали с ним.'],
   gen(r, vi) {
     if (vi === 0) {   /* Métropole 2026, Q3: a 2×2 table without headings */
@@ -14418,6 +14718,21 @@ topic({ id: 'pp.tableau', ch: 'pp', lvl: 1, calc: false, variants: 4,
           ['Нижнее число = верхнее × ' + nf(k) + ':', 'y=' + xs[i2] + '*' + fx(k) + '=' + fx(ys[i2])],
           ['Верхнее число = нижнее ÷ ' + nf(k) + ' (деление отменяет умножение):', 'x=' + fx(ys[i1]) + '÷' + fx(k) + '=' + fx(xs[i1])]] };
     }
+    if (vi === 4) {   /* linearity for the addition (official list, item 34): the values for a and for b are known, the value for a + b or b − a is asked */
+      const C = r.pick([
+        { u: [2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 4.25, 3.75], money: true, fr: (a, x, b, y) => 'Au marché, ' + a + ' kg de tomates coûtent ' + eur(x) + ' et ' + b + ' kg coûtent ' + eur(y) + '.', q: c => 'Combien coûtent ' + c + ' kg de ces tomates ?',
+          ru: (a, x, b, y) => 'На рынке ' + a + ' кг помидоров стоят ' + eur(x) + ', а ' + b + ' кг — ' + eur(y) + '.', qru: c => 'Сколько стоят ' + c + ' кг этих помидоров?', why: 'Каждый килограмм стоит одинаково, поэтому цена пропорциональна массе.', w: c => 'цена ' + c + ' кг' },
+        { u: [7.5, 8.5, 9.5, 6.5, 12.5], money: true, fr: (a, x, b, y) => a + ' places de cinéma coûtent ' + eur(x) + ' et ' + b + ' places coûtent ' + eur(y) + '.', q: c => 'Combien coûtent ' + c + ' places au même tarif ?',
+          ru: (a, x, b, y) => ppgPl(a, 'билет', 'билета', 'билетов') + ' в кино стоят ' + eur(x) + ', а ' + ppgPl(b, 'билет', 'билета', 'билетов') + ' — ' + eur(y) + '.', qru: c => 'Сколько стоят ' + ppgPl(c, 'билет', 'билета', 'билетов') + ' по той же цене?', why: 'Все билеты стоят одинаково, поэтому цена пропорциональна числу билетов.', w: c => 'цена ' + ppgPl(c, 'билета', 'билетов', 'билетов') },
+        { u: [20, 25, 30, 35, 40], unit: 'g', fr: (a, x, b, y) => 'Pour ' + a + ' crêpes, il faut ' + x + ' g de farine ; pour ' + b + ' crêpes, il en faut ' + y + ' g.', q: c => 'Quelle masse de farine faut-il pour ' + c + ' crêpes ?',
+          ru: (a, x, b, y) => 'На ' + ppgPl(a, 'блин', 'блина', 'блинов') + ' нужно ' + x + ' г муки, а на ' + ppgPl(b, 'блин', 'блина', 'блинов') + ' — ' + y + ' г.', qru: c => 'Сколько граммов муки нужно на ' + ppgPl(c, 'блин', 'блина', 'блинов') + '?', why: 'На каждый блин уходит одинаково муки, поэтому масса муки пропорциональна числу блинов.', w: c => 'мука на ' + ppgPl(c, 'блин', 'блина', 'блинов') }]);
+      const [a, b] = r.pick([[2, 3], [2, 5], [3, 4], [3, 5], [4, 5], [2, 7], [3, 7], [4, 7], [5, 6], [5, 7], [3, 8], [5, 8], [4, 9], [5, 9]]), u = r.pick(C.u), diff = b - a >= 2 && r() < 0.35;
+      const c = diff ? b - a : a + b, x = +fx(a * u), y = +fx(b * u), z = +fx(c * u), uT = C.money ? '€' : C.unit;
+      return { q: L(C.fr(a, x, b, y) + ' ' + C.q(c), C.ru(a, x, b, y) + ' ' + C.qru(c)), ans: C.money ? ppgEurAns(z) : N(fx(z), { unit: C.unit }), sol: [
+        C.why + ' Значит, значения можно складывать и вычитать вместе с количествами (линейность): ' + (diff ? '$' + b + '=' + a + '+' + c + '$, поэтому ' + C.w(c) + ' = ' + C.w(b) + ' − ' + C.w(a) + '.' : '$' + c + '=' + a + '+' + b + '$, поэтому ' + C.w(c) + ' = ' + C.w(a) + ' + ' + C.w(b) + '.'),
+        [diff ? 'Вычитаем:' : 'Складываем:', (diff ? fx(y) + '-' + fx(x) : fx(x) + '+' + fx(y)) + '=' + fx(z), uT],
+        'Проверка через одну единицу: $' + fx(x) + '÷' + a + '=' + fx(u) + '$ ' + uT + ' на единицу, и $' + c + '×' + fx(u) + '=' + fx(z) + '$ ✓'] };
+    }
     /* vi 3: which calculation gives a — the cross product */
     const k = r.pick([2, 3, 4, 5, 1.5, 2.5]), m = r.pick([2, 3, 4, 5, 6].filter(x => x !== k));
     const p = k % 1 ? r.pick([2, 4, 6, 8]) : r.pick([3, 4, 5, 6, 7, 8, 9]);
@@ -14459,10 +14774,10 @@ topic({ id: 'pp.reconnaitre', ch: 'pp', lvl: 1, calc: false, variants: 3,
   gen(r, vi) {
     if (vi === 0) {   /* a table: proportional or not */
       const C = r.pick([
-        { a: 'Nombre de places', b: 'Prix (€)', k: [6, 8, 9, 12], c: [2, 3, 5] },
-        { a: 'Masse (kg)', b: 'Prix (€)', k: [2, 3, 4], c: [1, 2] },
-        { a: 'Durée (h)', b: 'Distance (km)', k: [15, 20, 50, 60], c: [10, 20, 30] },
-        { a: 'Nombre de tickets', b: 'Prix (€)', k: [2, 3, 5], c: [1, 4] }]);
+        { a: 'Nombre de places', b: 'Prix (€)', k: [6, 8, 9, 12], c: [2, 3, 5], ru: 'число мест и цена в евро' },
+        { a: 'Masse (kg)', b: 'Prix (€)', k: [2, 3, 4], c: [1, 2], ru: 'масса в килограммах и цена в евро' },
+        { a: 'Durée (h)', b: 'Distance (km)', k: [15, 20, 50, 60], c: [10, 20, 30], ru: 'время в часах и расстояние в километрах' },
+        { a: 'Nombre de tickets', b: 'Prix (€)', k: [2, 3, 5], c: [1, 4], ru: 'число билетов и цена в евро' }]);
       const prop = r() < 0.5, k = r.pick(C.k), c = prop ? 0 : r.pick(C.c);
       const x1 = prop ? r.pick([1, 2, 3, 4, 5]) : r.pick([1, 2, 4, 5]);
       const xs = [x1].concat(r.distinct(2, x1 + 1, 10).sort((p, q) => p - q)), ys = xs.map(x => k * x + c);
@@ -14475,10 +14790,10 @@ topic({ id: 'pp.reconnaitre', ch: 'pp', lvl: 1, calc: false, variants: 3,
         L('Oui, car les nombres des deux lignes augmentent.', 'Да, потому что числа в обеих строках растут.'),
         L('Non, car on n\'ajoute pas toujours le même nombre d\'une colonne à l\'autre.', 'Нет, потому что от столбца к столбцу прибавляют не одно и то же число.')];
       const sol = [['Делим каждое число второй строки на число над ним — получаем, на что умножали в каждом столбце:', xs.map((x, i) => qv(i)).join(';')]];
-      if (prop) sol.push('Все частные равны ' + k + ': вторая строка — это первая, умноженная на ' + k + '. Таблица пропорциональна.');
-      else sol.push('Первый столбец: $' + ys[0] + '/' + xs[0] + '=' + fx(kA) + '$. Будь таблица пропорциональной, во втором столбце стояло бы $' + xs[1] + '×' + fx(kA) + '=' + fx(xs[1] * kA) + '$, а там ' + ys[1] + '. Частные разные — таблица не пропорциональна. Здесь нижнее число = верхнее × ' + k + ' + ' + c + ': постоянная добавка ' + c + ' и ломает пропорциональность (0 превратился бы в ' + c + ', а не в 0).');
+      if (prop) sol.push('Все частные равны ' + k + ': вторая строка — это первая, умноженная на ' + k + '. Таблица пропорциональна, поэтому вариант «Non, car $' + qt(1) + '≠' + qt(0) + '$» неверен: эти частные как раз равны.');
+      else sol.push('Первый столбец: $' + ys[0] + '/' + xs[0] + '=' + fx(kA) + '$. Будь таблица пропорциональной, во втором столбце стояло бы $' + xs[1] + '×' + fx(kA) + '=' + fx(xs[1] * kA) + '$, а там ' + ys[1] + '. Частные разные — таблица не пропорциональна. Здесь нижнее число = верхнее × ' + k + ' + ' + c + ': постоянная добавка ' + c + ' и ломает пропорциональность (0 превратился бы в ' + c + ', а не в 0). Вариант «Oui, … en multipliant toujours par ' + nf(kA) + '» неверен: на ' + nf(kA) + ' умножается только первый столбец.');
       sol.push('Доводы «обе строки растут» и «прибавляют не одно и то же» не годятся: пропорциональность — это умножение на одно и то же число, рост и прибавление тут ни при чём.');
-      return { q: L('Ce tableau est-il un tableau de proportionnalité ? Choisir la réponse correctement justifiée.', 'Это таблица пропорциональности? Выбери ответ с верным обоснованием.'),
+      return { q: L('Ce tableau est-il un tableau de proportionnalité ? Choisir la réponse correctement justifiée.', 'Это таблица пропорциональности (в ней ' + C.ru + ')? Выбери ответ с верным обоснованием.'),
         fig: ppgTab([[C.a].concat(xs), [C.b].concat(ys)], true), ans: MQ(r, opts, prop ? 0 : 1), sol };
     }
     if (vi === 1) {   /* a graph */
@@ -14543,11 +14858,11 @@ function ppgPcWay(t, n) {
   if (Number.isInteger(ten)) return [t + ' % = ' + ten + ' × 10 %, а 10 % — это $' + p(n / 10) + '$:', ten + '*' + p(n / 10) + '=' + res];
   return [t + ' % — это $' + t + '/100$:', t + '/100*' + n + '=' + res];
 }
-topic({ id: 'pp.pourcent-appliquer', ch: 'pp', lvl: 1, calc: false, variants: 4,
+topic({ id: 'pp.pourcent-appliquer', ch: 'pp', lvl: 1, calc: false, variants: 5,
   ru: 'Процент от количества', fr: 'Appliquer un pourcentage',
   hints: [
     '«Pourcent» — «на сотню»: 25 % значит 25 из каждых 100, то есть $25/100$ всего количества.',
-    'Поэтому $t$ % от числа $N$ — это $t/100×N$. Удобные опоры для счёта в уме: 50 % — половина, 25 % — четверть, 10 % — десятая часть, 1 % — сотая часть.',
+    'Поэтому $t$ % от числа $N$ — это $t/100×N$. Удобные опоры для счёта в уме: 100 % — всё количество ($100/100=1$), 50 % — половина, 25 % — четверть, 10 % — десятая часть, 1 % — сотая часть.',
     'Остальные проценты собирай из опор: 30 % = 3 × 10 %, 5 % — половина от 10 %, 15 % = 10 % + 5 %, 75 % = 50 % + 25 %. Если спрашивают про «остальных», вычти найденное из всего количества.'],
   gen(r, vi) {
     if (vi === 0) {
@@ -14571,8 +14886,8 @@ topic({ id: 'pp.pourcent-appliquer', ch: 'pp', lvl: 1, calc: false, variants: 4,
           yes: ['Combien de personnes ont répondu «' + ppgSp + 'oui' + ppgSp + '» ?', 'Сколько человек ответили «да»?'], no: ['Combien de personnes n\'ont pas répondu «' + ppgSp + 'oui' + ppgSp + '» ?', 'Сколько человек ответили не «да»?'], wy: 'ответивших «да»', wn: 'остальных' },
         { tot: [800, 600, 1200, 400, 2000], t: [75, 80, 90, 60, 85], fr: (n, t) => 'Une salle de concert de ' + nf(n) + ' places est remplie à ' + ppgPc(t) + '.', ru: (n, t) => 'Концертный зал на ' + nf(n) + ' мест заполнен на ' + ppgPc(t) + '.',
           yes: ['Combien de places sont occupées ?', 'Сколько мест занято?'], no: ['Combien de places sont libres ?', 'Сколько мест свободно?'], wy: 'занятых мест', wn: 'свободных мест' }]);
-      let n, t, g = 0; do { n = r.pick(C.tot); t = r.pick(C.t); } while (n * t % 100 && g++ < 50);
-      const part = n * t / 100, rest = n - part, no = r() < 0.6;
+      const no = r() < 0.6; let n, t, g = 0; do { n = r.pick(C.tot); t = r.pick(C.t); } while ((n * t % 100 || (no ? n - n * t / 100 : n * t / 100) === t) && g++ < 50);
+      const part = n * t / 100, rest = n - part;
       const sol = [['Сначала находим ' + t + ' % от ' + nf(n) + ' — это число ' + C.wy + ':', t + '/100*' + n + '=' + part]];
       if (no) {
         sol.push(['Но спрашивают про ' + C.wn + ' — это все остальные:', n + '-' + part + '=' + rest]);
@@ -14587,9 +14902,20 @@ topic({ id: 'pp.pourcent-appliquer', ch: 'pp', lvl: 1, calc: false, variants: 4,
         ['«' + t + ' %» — это $' + t + '/100=' + fx(t / 100) + '$, а «процент от числа» — это умножение на эту долю:', fx(t / 100) + '*' + n + '=' + fx(t * n / 100)],
         'Ошибки в других вариантах: $' + t + '×' + n + '$ — забыли разделить на 100, ответ получится в 100 раз больше; $' + n + '÷' + t + '$ и $' + n + '-' + t + '$ — проценты так не считают: процент — это доля целого, а не число, которое делят или вычитают.'] };
     }
+    if (vi === 4) {   /* the five reference percentages of the official list (item 4): 100 %, 50 %, 25 %, 10 %, 1 % of the same number */
+      const c = r.pick([40, 60, 80, 120, 160, 200, 240, 280, 320, 360, 400, 480, 500, 600, 800, 1000, 1200, 36, 44, 48, 52, 64, 72, 84, 88, 96]);
+      const P = [100, 50, 25, 10, 1], v = t => fx(t * c / 100);
+      return { q: L('Calculer mentalement ' + [100, 50, 25, 10].map(ppgPc).join(', ') + ' et ' + ppgPc(1) + ' de ' + nf(c) + '.', 'Вычисли в уме ' + [100, 50, 25, 10].map(ppgPc).join(', ') + ' и ' + ppgPc(1) + ' от ' + nf(c) + '.'), ans: multi(...P.map(t => [L(ppgPc(t) + ' de ' + nf(c) + ' =', ppgPc(t) + ' от ' + nf(c) + ' ='), N(v(t))])), sol: [
+        ['100 % — это все сто сотых, $100/100=1$: всё количество целиком.', '100/100*' + c + '=' + c],
+        ['50 % — это $50/100=1/2$, половина:', c + '÷2=' + v(50)],
+        ['25 % — это $25/100=1/4$, четверть, то есть половина от половины:', v(50) + '÷2=' + v(25)],
+        ['10 % — это $10/100=1/10$, десятая часть:', c + '÷10=' + v(10)],
+        ['1 % — это $1/100$, сотая часть, то есть десятая часть от 10 %:', v(10) + '÷10=' + v(1)],
+        'Из этих опор собирают другие проценты: 75 % = 50 % + 25 %, 20 % = 2 × 10 %, 5 % — половина от 10 %.'] };
+    }
     /* vi 3: fraction ↔ percentage */
     const [a, b, t] = r.pick([[1, 2, 50], [1, 4, 25], [3, 4, 75], [1, 5, 20], [2, 5, 40], [3, 5, 60], [4, 5, 80], [1, 10, 10], [3, 10, 30], [7, 10, 70], [9, 10, 90], [1, 20, 5], [3, 20, 15], [1, 50, 2], [1, 25, 4]]);
-    if (r() < 0.5) return { q: L('Compléter : prendre les $' + a + '/' + b + '$ d\'une quantité, c\'est en prendre … %.', 'Дополни: взять $' + a + '/' + b + '$ количества — значит взять … %.'), ans: N(t, { unit: '%' }), sol: [
+    if (r() < 0.5) return { q: L('Compléter : prendre ' + (a === 1 ? '' : 'les ') + '$' + a + '/' + b + '$ d\'une quantité, c\'est en prendre … %.', 'Дополни: взять $' + a + '/' + b + '$ количества — значит взять … %.'), ans: N(t, { unit: '%' }), sol: [
       'Процент — это доля со знаменателем 100: «сотые» части. Значит, дробь нужно записать со знаменателем 100.',
       ['Умножаем числитель и знаменатель на ' + (100 / b) + ' — значение дроби не меняется:', a + '/' + b + '=' + t + '/100'],
       '$' + t + '/100$ — это ' + t + ' %.'] };
@@ -14615,11 +14941,14 @@ topic({ id: 'pp.pourcent-evol', ch: 'pp', lvl: 2, calc: false, variants: 4,
       const T = up ? r.pick([
         ['Le prix d\'un casque audio est de ' + eur(X) + '. Ce prix augmente de ' + ppgPc(t) + '. Quel est le nouveau prix du casque ?', 'Наушники стоят ' + eur(X) + '. Их цена повышается на ' + ppgPc(t) + '. Какой станет цена наушников?'],
         ['Le prix d\'un abonnement est de ' + eur(X) + ' par mois. Il augmente de ' + ppgPc(t) + '. Quel est le nouveau prix ?', 'Абонемент стоит ' + eur(X) + ' в месяц. Его цена выросла на ' + ppgPc(t) + '. Какова новая цена?'],
-        ['Un vélo coûtait ' + eur(X) + '. Son prix a subi une hausse de ' + ppgPc(t) + '. Calculer son nouveau prix.', 'Велосипед стоил ' + eur(X) + '. Его цена выросла на ' + ppgPc(t) + '. Вычисли новую цену.']])
+        ['Un vélo coûtait ' + eur(X) + '. Son prix a subi une hausse de ' + ppgPc(t) + '. Calculer son nouveau prix.', 'Велосипед стоил ' + eur(X) + '. Его цена выросла на ' + ppgPc(t) + '. Вычисли новую цену.'],
+        ['Un article coûte ' + eur(X) + '. Quel sera son prix après une augmentation de ' + ppgPc(t) + ' ?', 'Товар стоит ' + eur(X) + '. Какой будет его цена после повышения на ' + ppgPc(t) + '?']])
         : r.pick([
         ['Le prix d\'une trottinette affichée à ' + eur(X) + ' baisse de ' + ppgPc(t) + '. Calculer, en euro, son nouveau prix.', 'Самокат стоил ' + eur(X) + ', его цена снизилась на ' + ppgPc(t) + '. Вычисли новую цену в евро.'],
         ['Un magasin accorde une réduction de ' + ppgPc(t) + ' sur un jeu vendu ' + eur(X) + '. Combien paie-t-on ce jeu après la réduction ?', 'Магазин даёт скидку ' + ppgPc(t) + ' на игру, которая стоит ' + eur(X) + '. Сколько стоит игра со скидкой?'],
-        ['Pendant les soldes, un manteau à ' + eur(X) + ' bénéficie d\'une remise de ' + ppgPc(t) + '. Quel est son prix soldé ?', 'На распродаже на пальто за ' + eur(X) + ' дают скидку ' + ppgPc(t) + '. Сколько оно стоит со скидкой?']]);
+        ['Pendant les soldes, un manteau à ' + eur(X) + ' bénéficie d\'une remise de ' + ppgPc(t) + '. Quel est son prix soldé ?', 'На распродаже на пальто за ' + eur(X) + ' дают скидку ' + ppgPc(t) + '. Сколько оно стоит со скидкой?'],
+        ['Un article coûte ' + eur(X) + '. Calculer son nouveau prix après une baisse de ' + ppgPc(t) + '.', 'Товар стоит ' + eur(X) + '. Вычисли его новую цену после снижения на ' + ppgPc(t) + '.'],
+        ['Un article coûte ' + eur(X) + '. Quel sera son prix après une réduction de ' + ppgPc(t) + ' ?', 'Товар стоит ' + eur(X) + '. Какой будет его цена после скидки ' + ppgPc(t) + '?']]);
       return { q: L(T[0], T[1]), ans: ppgEurAns(res), sol: [
         ['Само изменение — это ' + t + ' % от старой цены:', t + '/100*' + X + '=' + fx(d), '€'],
         up ? ['Повышение — цена растёт, прибавляем:', X + '+' + fx(d) + '=' + fx(res), '€'] : ['Снижение — цена уменьшается, вычитаем:', X + '-' + fx(d) + '=' + fx(res), '€'],
@@ -14633,7 +14962,8 @@ topic({ id: 'pp.pourcent-evol', ch: 'pp', lvl: 2, calc: false, variants: 4,
         : L('Diminuer un prix de ' + ppgPc(t) + ' revient à le multiplier par :', 'Снизить цену на ' + ppgPc(t) + ' — то же самое, что умножить её на:'), ans: MQ(r, opts, 0), sol: [
         up ? 'Новая цена = старая + ' + t + ' % старой = (100 % + ' + t + ' %) старой = ' + (100 + t) + ' % старой.' : 'Новая цена = старая − ' + t + ' % старой = (100 % − ' + t + ' %) старой = ' + (100 - t) + ' % старой.',
         [(up ? 100 + t : 100 - t) + ' % — это:', (up ? 100 + t : 100 - t) + '/100=' + fx(c)],
-        'Умножить на $' + fx(t / 100) + '$ — значит найти только само изменение (' + t + ' % цены), а не новую цену. ' + (up ? 'А $' + fx(t >= 10 ? 1 + t / 1000 : 1 + t / 10) + '$ — это повышение на ' + (t >= 10 ? nf(t / 10) : t * 10) + ' %, а не на ' + t + ' %.' : 'А $' + fx(1 + t / 100) + '$ — это повышение на ' + t + ' %, а не снижение.')] };
+        'Умножить на $' + fx(t / 100) + '$ — значит найти только само изменение (' + t + ' % цены), а не новую цену. ' + (up ? 'А $' + fx(t >= 10 ? 1 + t / 1000 : 1 + t / 10) + '$ — это повышение на ' + (t >= 10 ? nf(t / 10) : t * 10) + ' %, а не на ' + t + ' %.' : 'А $' + fx(1 + t / 100) + '$ — это повышение на ' + t + ' %, а не снижение.')
+          + ' Умножить на ' + (up ? 100 + t : 100 - t) + ' — ошибка в записи процента: ' + (up ? 100 + t : 100 - t) + ' % — это $' + (up ? 100 + t : 100 - t) + '/100=' + fx(c) + '$, а не ' + (up ? 100 + t : 100 - t) + '; цена стала бы в ' + (up ? 100 + t : 100 - t) + ' ' + ppgPw(up ? 100 + t : 100 - t, 'раз', 'раза', 'раз') + ' больше.'] };
     }
     if (vi === 2) {   /* Centres étrangers 2026, Q8: which calculation */
       const up = r() < 0.35, X = r.pick([80, 60, 120, 45, 30, 200, 50, 70, 90, 150]), t = r.pick([10, 20, 30, 15, 25, 5, 40]);
@@ -14652,7 +14982,8 @@ topic({ id: 'pp.pourcent-evol', ch: 'pp', lvl: 2, calc: false, variants: 4,
     return { q: L('Le prix d\'un article est multiplié par ' + nf(c) + '. Cela correspond à :', 'Цену товара умножили на ' + nf(c) + '. Это означает:'), ans: MQ(r, opts, 0), sol: [
       ['Умножить на ' + nf(c) + ' — значит взять ' + C100 + ' % старой цены:', fx(c) + '=' + C100 + '/100'],
       up ? 'Это больше 100 % на ' + t + ' %: цена выросла на ' + t + ' %.' : 'Это меньше 100 % на ' + t + ' %: цена уменьшилась на ' + t + ' %.',
-      'Ошибка «на ' + C100 + ' %»: ' + C100 + ' % — это вся новая цена, а изменение — только разница с 100 %. ' + (up ? 'Коэффициент больше 1 — всегда повышение.' : 'Коэффициент меньше 1 — всегда снижение.')] };
+      'Ошибка «на ' + C100 + ' %»: ' + C100 + ' % — это вся новая цена, а изменение — только разница с 100 %. ' + (up ? '«Снижение» — неверно: коэффициент больше 1, цена растёт.' : '«Повышение» — неверно: коэффициент меньше 1, цена уменьшается.')
+        + ' «' + (up ? nf(c) : nf(+fx(t / 100))) + ' %» — ' + (up ? 'сам коэффициент приписали к знаку %, а ' + nf(c) + ' % — это всего $' + fx(c) + '/100$ цены.' : 'изменение $' + fx(t / 100) + '$ записали с процентом, а $' + fx(t / 100) + '$ — это уже ' + t + ' %, а не ' + nf(+fx(t / 100)) + ' %.')] };
   } });
 
 /* «a augmenté de 21 %» / «вырос на 21 %» */
@@ -14683,7 +15014,7 @@ topic({ id: 'pp.pourcent-taux', ch: 'pp', lvl: 2, calc: false, variants: 3,
         { T: [200, 300, 400, 500, 800], pc: [12, 35], fr: (T, p) => 'Un village compte ' + T + ' habitants, dont ' + p + ' ont moins de 18 ans. Quel pourcentage des habitants a moins de 18 ans ?', ru: (T, p) => 'В деревне ' + T + ' жителей, из них ' + p + ' младше 18 лет. Какой процент жителей младше 18 лет?' },
         { T: [20, 25, 50], pc: [8, 60], fr: (T, p) => 'Une boîte contient ' + T + ' crayons, dont ' + p + ' sont rouges. Quel pourcentage des crayons de la boîte sont rouges ?', ru: (T, p) => 'В коробке ' + T + ' карандашей, ' + p + ' из них красные. Какой процент карандашей в коробке красные?' }]);
       const T = r.pick(C.T); let pc, g = 0;
-      do pc = r.ri(1, 19) * 5 - (T === 25 || T === 50 || T >= 200 ? r.pick([0, 1, 2, 3, 4]) : 0); while ((T * pc % 100 || pc < C.pc[0] || pc > C.pc[1]) && g++ < 200);
+      do pc = r.ri(1, 19) * 5 - (T === 25 || T === 50 || T >= 200 ? r.pick([0, 1, 2, 3, 4]) : 0); while ((T * pc % 100 || pc < C.pc[0] || pc > C.pc[1] || pc === T || pc === 18) && g++ < 200);   /* 18 %: the same number as «moins de 18 ans» */
       if (T * pc % 100 || pc < C.pc[0] || pc > C.pc[1]) pc = 40;
       const p = T * pc / 100;
       return { q: L(C.fr(T, p), C.ru(T, p)), ans: N(pc, { unit: '%' }), sol: ppgRateSteps(p, T, pc) };
@@ -14694,7 +15025,7 @@ topic({ id: 'pp.pourcent-taux', ch: 'pp', lvl: 2, calc: false, variants: 3,
         { o: [20, 25, 40, 50, 80], fr: (a, b) => 'Le prix d\'un billet de concert passe de ' + eur(a) + ' à ' + eur(b) + '. De quel pourcentage ce prix a-t-il ' + (up ? 'augmenté' : 'baissé') + ' ?', ru: (a, b) => 'Билет на концерт стоил ' + eur(a) + ', а теперь стоит ' + eur(b) + '. На сколько процентов цена ' + (up ? 'выросла' : 'снизилась') + '?' },
         { o: [20, 25, 40, 50], fr: (a, b) => 'Une équipe avait gagné ' + a + ' médailles à une compétition ; l\'année suivante, elle en a gagné ' + b + '. Quel est le pourcentage ' + (up ? 'd\'augmentation' : 'de baisse') + ' du nombre de médailles ?', ru: (a, b) => 'На соревнованиях команда завоевала ' + ppgPl(a, 'медаль', 'медали', 'медалей') + ', а через год — ' + b + '. На сколько процентов ' + (up ? 'выросло' : 'уменьшилось') + ' число медалей?' },
         { o: [200, 250, 400, 500, 800], fr: (a, b) => 'Le nombre d\'abonnés d\'une chaîne passe de ' + a + ' à ' + b + '. De quel pourcentage a-t-il ' + (up ? 'augmenté' : 'baissé') + ' ?', ru: (a, b) => 'Число подписчиков канала изменилось с ' + a + ' до ' + b + '. На сколько процентов оно ' + (up ? 'выросло' : 'уменьшилось') + '?' }]);
-      do { old = r.pick(C.o); pc = r.pick([10, 20, 25, 30, 40, 50, 5, 15, 60, 75]); } while ((old * pc % 100 || (!up && pc >= 100)) && g++ < 60);
+      do { old = r.pick(C.o); pc = r.pick([10, 20, 25, 30, 40, 50, 5, 15, 60, 75]); } while ((old * pc % 100 || (!up && pc >= 100) || pc === old || pc === old + (up ? 1 : -1) * old * pc / 100) && g++ < 60);
       if (old * pc % 100) { old = 20; pc = 30; }
       const diff = old * pc / 100, nw = up ? old + diff : old - diff;
       return { q: L(C.fr(old, nw), C.ru(old, nw)), ans: N(pc, { unit: '%' }), sol: [
@@ -14789,9 +15120,10 @@ topic({ id: 'pp.echelle', ch: 'pp', lvl: 2, calc: false, variants: 3,
   gen(r, vi) {
     if (vi === 0 || vi === 1) {
       const C = r.pick([
-        { E: [25000, 50000, 100000, 200000, 20000, 10000], d: [2, 3, 4, 5, 6, 8, 10, 12, 1.5, 2.5, 7], u: 'km', f: 100000, w: ['une carte', 'карте'] },
-        { E: [50, 100, 200, 20], d: [3, 4, 5, 6, 8, 10, 12, 15, 2.5, 7.5], u: 'm', f: 100, w: ['un plan', 'плане'] },
-        { E: [100, 50, 200], d: [20, 25, 30, 45, 15, 12, 60], u: 'm', f: 100, w: ['une maquette', 'макете'] }]);
+        /* no 1/100 000 with km and no 1/100 with m: 1 cm would be 1 km (1 m), and the answer would repeat the length on the map */
+        { E: [25000, 50000, 200000, 20000, 10000], d: [2, 3, 4, 5, 6, 8, 10, 12, 1.5, 2.5, 7], u: 'km', f: 100000, w: ['une carte', 'карте'] },
+        { E: [50, 200, 20], d: [3, 4, 5, 6, 8, 10, 12, 15, 2.5, 7.5], u: 'm', f: 100, w: ['un plan', 'плане'] },
+        { E: [50, 200, 400], d: [20, 25, 30, 45, 15, 12, 60], u: 'm', f: 100, w: ['une maquette', 'макете'] }]);
       let E, d, g = 0; do { E = r.pick(C.E); d = r.pick(C.d); } while (!Number.isInteger(+fx(d * E / C.f * 100)) && g++ < 40);
       const realCm = d * E, real = +fx(realCm / C.f), cmTo = C.u === 'km' ? 'км' : 'м', sc = '1/' + nf(E).replace(/ /g, ppgSp);
       if (vi === 0) {
@@ -14806,19 +15138,18 @@ topic({ id: 'pp.echelle', ch: 'pp', lvl: 2, calc: false, variants: 3,
         : L('Sur un plan à l\'échelle ' + sc + ', quelle longueur, en cm, représente un mur de ' + nf(real) + ' m ?', 'Какой длины в сантиметрах будет на плане масштаба ' + sc + ' стена длиной ' + nf(real) + ' м?'),
         ans: N(fx(d), { unit: 'cm' }), sol: [
           ['Сначала переводим реальную длину в сантиметры — масштаб сравнивает длины в одинаковых единицах:', fx(real) + '*' + C.f + '=' + realCm, 'cm'],
-          ['На плане всё в ' + nf(E) + ' раз меньше:', realCm + '÷' + E + '=' + fx(d), 'cm']] };
+          ['На ' + (C.u === 'km' ? 'карте' : 'плане') + ' всё в ' + nf(E) + ' раз меньше:', realCm + '÷' + E + '=' + fx(d), 'cm']] };
     }
     /* vi 2: find the scale */
     const [L1, l, E] = r.pick([[25, 5, 500], [12, 6, 200], [10, 5, 200], [8, 4, 200], [20, 4, 500], [30, 6, 500], [15, 3, 500], [40, 8, 500], [50, 5, 1000], [60, 6, 1000], [80, 8, 1000], [14, 7, 200], [35, 7, 500], [100, 4, 2500]]);
     const C = r.pick([['une piscine de ' + L1 + ' m de long', 'бассейн длиной ' + L1 + ' м'], ['un mur de ' + L1 + ' m', 'стена длиной ' + L1 + ' м'], ['un terrain de ' + L1 + ' m de large', 'участок шириной ' + L1 + ' м']]);
     const opt = e => '$1/' + e + '$';
-    const ds = [L1 / l, E * 10, E / 10].map(x => +fx(x)).filter(x => x !== E && x >= 1 && Number.isInteger(x));
-    const pool = [E].concat(ds); [E * 100, 5 * E].forEach(x => { if (pool.length < 4 && !pool.includes(x)) pool.push(x); });
+    const pool = [E, L1 / l, E * 10, E / 10];   /* for every pair of the list these are four different whole numbers */
     return { q: L('Sur un plan, ' + C[0] + ' est représenté' + (C[0].startsWith('une') ? 'e' : '') + ' par un segment de ' + l + ' cm. Quelle est l\'échelle de ce plan ?', 'На плане ' + C[1] + ' изображ' + (C[1].startsWith('бассейн') ? 'ён' : C[1].startsWith('стена') ? 'ена' : 'ён') + ' отрезком ' + l + ' см. Каков масштаб плана?'),
-      ans: MQ(r, pool.slice(0, 4).map(opt), 0), sol: [
+      ans: MQ(r, pool.map(opt), 0), sol: [
         ['Сравнивать длины можно только в одинаковых единицах. Переводим ' + L1 + ' м в сантиметры:', L1 + '*100=' + L1 * 100, 'cm'],
         ['Масштаб — во сколько раз длина на плане меньше реальной:', L1 * 100 + '÷' + l + '=' + E],
-        'Значит, 1 см на плане — это ' + nf(E) + ' см в реальности: масштаб $1/' + E + '$. Если забыть перевести метры в сантиметры, получится $1/' + fx(L1 / l) + '$ — знаменатель в 100 раз меньше верного.'] };
+        'Значит, 1 см на плане — это ' + nf(E) + ' см в реальности: масштаб $1/' + E + '$. Если забыть перевести метры в сантиметры, получится $1/' + fx(L1 / l) + '$ — знаменатель в 100 раз меньше верного. $1/' + E * 10 + '$ и $1/' + E / 10 + '$ — ошибка в переводе: в 1 м ровно 100 см, а не 1 000 и не 10.'] };
   } });
 
 /* ---------- pp.vitesse ---------- */
@@ -14854,7 +15185,7 @@ topic({ id: 'pp.vitesse', ch: 'pp', lvl: 2, calc: false, variants: 4,
     }
     const M = ppgMover(r), who = M.who, whoRu = M.ru.who || M.who;
     const ts = [15, 20, 30, 45, 90, 75, 150, 120, 180, 40, 105, 135];
-    let v, t, g = 0; do { v = r.pick(M.v); t = r.pick(ts); } while (!Number.isInteger(v * t / 60) && g++ < 80);
+    let v, t, g = 0; do { v = r.pick(M.v); t = r.pick(ts); } while ((!Number.isInteger(v * t / 60) || (v === 60 && t < 60)) && g++ < 80);   /* 60 km/h for less than an hour: the distance would repeat the minutes */
     if (!Number.isInteger(v * t / 60)) { v = M.v[0]; t = 60; }
     const d = v * t / 60, th = t / 60, exact = Number.isInteger(th * 100), tf = F(t, 60);
     const thM = exact ? fx(th) : '(' + Fr.str(tf) + ')';
@@ -14874,7 +15205,7 @@ topic({ id: 'pp.vitesse', ch: 'pp', lvl: 2, calc: false, variants: 4,
     }
     /* vi 2: the duration */
     return { q: L(who + ' ' + M.fr.go + ' à la vitesse moyenne de ' + v + ' km/h. Combien de temps ' + M.fr.lui + ' ' + nf(d) + ' km ?', whoRu + ' ' + M.ru.go + ' со средней скоростью ' + v + ' км/ч. Сколько времени ' + M.ru.need + ' ' + nf(d) + ' км?'),
-      ans: ppgDurAns(t), sol: [
+      ans: ppgDurAns(t), sol: t % 60 === 0 ? [['Из $d=v×t$: время = расстояние ÷ скорость. Получаем время в часах:', fx(d) + '÷' + v + '=' + t / 60, 'h'], 'Получилось целое число часов: ' + ppgHM(t, true) + '. Проверка: $' + v + '×' + t / 60 + '=' + fx(d) + '$ км ✓'] : [
         ['Из $d=v×t$: время = расстояние ÷ скорость. Получаем время в часах:', fx(d) + '÷' + v + '=' + (exact ? fx(th) : Fr.str(tf)), 'h'],
         ['Переводим часы в минуты (в часе 60 минут):', (exact ? fx(th) : Fr.str(tf)) + '*60=' + t, 'min'],
         t >= 60 ? t + ' мин = ' + ppgHM(t, true) + '.' + (exact && t % 60 ? ' Внимание: ' + nf(th) + ' h — это не ' + Math.floor(th) + ' ч ' + String(fx(th)).split('.')[1] + ' мин: после запятой — доли часа, а не минуты.' : '') : 'Ответ меньше часа — даём его в минутах.'] };
@@ -14899,12 +15230,18 @@ const ppgUT = u => u ? '\\;\\text{' + u.replace(/²/g, '}^2\\text{').replace(/³
 const ppgOpT = (a, op, b, c, u) => ppgTx(+a) + (op === '*' ? '\\times ' : op === '÷' ? '\\div ' : op) + ppgTx(+b) + '=' + ppgTx(+c) + ppgUT(u);
 /* a converted value as an answer: the key, the unit, and the value shown with grouped digits */
 const ppgConvAns = (res, u) => N(res, { unit: u, show: ppgTx(+res) });
-/* a value n·10^-d to convert by 10^s, with at most 3 decimals in the result */
+/* a value to convert by 10^s and the result: to a smaller unit (s > 0) the value has at most 2 decimals and the result at most
+   7 digits; to a larger unit (s < 0) the result is chosen first — at most 3 decimals — and the value is result × 10^-s
+   (at most 7 digits, at most 2 decimals): 2 500 cm² = 0,25 m², not 5 cm² = 0,0005 m² */
 function ppgConvVal(r, s) {
+  const NS = [2, 3, 5, 6, 7, 8, 9, 12, 15, 18, 25, 36, 45, 48, 65, 75, 125, 250, 350];
   let n, d, g = 0;
-  do { n = r.pick([2, 3, 5, 6, 7, 8, 9, 12, 15, 18, 25, 36, 45, 48, 65, 75, 125, 250, 350]); d = r.pick([0, 1, 1, 2]); }
-  while ((d - s > 3 || (s - d >= 0 && String(n).length + s - d > 7) || (n % 10 === 0 && d > 0)) && g++ < 100);
-  return { v: ppgSh(n, -d), res: ppgSh(n, s - d) };
+  if (s >= 0) {
+    do { n = r.pick(NS); d = r.pick([0, 1, 1, 2]); } while ((String(n).length + s - d > 7 || (n % 10 === 0 && d > 0)) && g++ < 100);
+    return { v: ppgSh(n, -d), res: ppgSh(n, s - d) };
+  }
+  do { n = r.pick(NS); d = r.pick([0, 1, 2, 2, 3]); } while ((String(n).length - d - s > 7 || d + s > 2 || (n % 10 === 0 && d > 0)) && g++ < 100);
+  return { v: ppgSh(n, -d - s), res: ppgSh(n, -d) };
 }
 const PPG_CONV = {
   len: [['km', 'm'], ['m', 'km'], ['m', 'cm'], ['cm', 'm'], ['cm', 'mm'], ['mm', 'cm'], ['m', 'mm'], ['mm', 'm'], ['dm', 'cm'], ['m', 'dm'], ['hm', 'm'], ['dam', 'm']],
@@ -14939,12 +15276,15 @@ topic({ id: 'gm.conversions', ch: 'gm', lvl: 1, calc: false, variants: 4,
       return { q, ans: ppgConvAns(res, b), sol: ppgConvSteps(fam, a, b, v, res) };
     }
     /* vi 3: multiple choice (Polynésie 2026, Q7 style) */
-    const k = Math.abs(s), cands = [res, ppgSh(+v.replace('.', ''), s + 1 - (v.split('.')[1] || '').length), ppgSh(+v.replace('.', ''), s - 1 - (v.split('.')[1] || '').length), ppgSh(+v.replace('.', ''), -s - (v.split('.')[1] || '').length)];
-    const vals = []; cands.forEach(x => { if (!vals.includes(+x)) vals.push(+x); });
-    if (vals.length < 4) vals.push(+ppgSh(+v.replace('.', ''), s + 2 - (v.split('.')[1] || '').length));
-    const opts = vals.slice(0, 4).map(x => L(nf(x) + ' ' + b, nf(x) + ' ' + ppgRu(b)));
+    /* the wrong options: one step too many, one step too few, the wrong direction (the four values are always different) */
+    const dg = +v.replace('.', ''), dv = (v.split('.')[1] || '').length, sh = e => +ppgSh(dg, e - dv);
+    const vals = [+res, sh(s + 1), sh(s - 1), sh(-s)];
+    const opts = vals.map(x => L(nf(x) + ' ' + b, nf(x) + ' ' + ppgRu(b)));
+    const why = (e, x) => '«' + nf(x) + ' ' + ppgRu(b) + '» — ' + (e === 0 ? 'число не изменилось: единицы не перевели, а ' + ppgRu(a) + ' и ' + ppgRu(b) + ' — разные единицы'
+      : e === -s ? (s > 0 ? 'разделили вместо умножения: но ' + ppgRu(b) + ' мельче, их должно получиться больше' : 'умножили вместо деления: но ' + ppgRu(b) + ' крупнее, их должно получиться меньше')
+        : e === s + 1 ? 'в 10 раз больше верного: на один шаг таблицы больше, чем от ' + ppgRu(a) + ' до ' + ppgRu(b) : 'в 10 раз меньше верного: на один шаг таблицы меньше, чем от ' + ppgRu(a) + ' до ' + ppgRu(b));
     return { q: L('Parmi les propositions suivantes, laquelle complète l\'égalité ' + nf(+v) + ' ' + a + ' = … ' + b + ' ?', 'Какой вариант дополняет равенство ' + nf(+v) + ' ' + ppgRu(a) + ' = … ' + ppgRu(b) + '?'), ans: MQ(r, opts, 0),
-      sol: ppgConvSteps(fam, a, b, v, res).concat(['Остальные варианты — ошибка на один шаг таблицы (в 10 раз) или в направлении: ' + (s > 0 ? 'единица мельче, значит, число должно стать больше' : 'единица крупнее, значит, число должно стать меньше') + '.']) };
+      sol: ppgConvSteps(fam, a, b, v, res).concat([[s + 1, vals[1]], [s - 1, vals[2]], [-s, vals[3]]].map(([e, x]) => why(e, x)).join('; ') + '.') };
   } });
 
 /* ---------- gm.conversions-aires-volumes ---------- */
@@ -14979,10 +15319,12 @@ topic({ id: 'gm.conversions-aires-volumes', ch: 'gm', lvl: 2, calc: false, varia
       const opts = exps.map(e => { const x = +ppgSh(n, e - d); return L(nf(x) + ' ' + b, nf(x) + ' ' + ppgRu(b)); });
       const link = { mL: ' 1 мл — тысячная часть литра, а 1 см³ — тысячная часть дм³, поэтому 1 мл = 1 см³.', cL: ' 1 сл = 10 мл, а 1 мл = 1 см³, поэтому 1 сл = 10 см³.', 'cm³': ' А 1 дм³ = 1 000 см³ (куб 10 см × 10 см × 10 см), поэтому 1 л = 1 000 см³.', 'm³': ' А 1 м³ = 1 000 дм³, поэтому 1 м³ = 1 000 л.', 'dm³': '' };
       const res = ppgSh(n, eF - d), f = ppgP10(Math.abs(eF));
+      /* each wrong option is what one gets with a wrong correspondence «1 a = 10^e b» */
+      const rel = e => e >= 0 ? '1 ' + ppgRu(a) + ' = ' + ppgN(+ppgP10(e)) + ' ' + ppgRu(b) : '1 ' + ppgRu(b) + ' = ' + ppgN(+ppgP10(-e)) + ' ' + ppgRu(a);
       return { q: L('Parmi les propositions suivantes, laquelle complète l\'égalité ' + nf(+v) + ' ' + a + ' = … ' + b + ' ?', 'Какой вариант дополняет равенство ' + nf(+v) + ' ' + ppgRu(a) + ' = … ' + ppgRu(b) + '?'), ans: MQ(r, opts, 0), sol: [
         'Главная связь: 1 л — это объём куба с ребром 1 дм, то есть 1 л = 1 дм³.' + (link[a === 'L' ? b : a] || ''),
-        eF === 0 ? 'Литр и кубический дециметр — одно и то же, поэтому число не меняется: ' + nf(+v) + ' ' + ppgRu(a) + ' = ' + nf(+v) + ' ' + ppgRu(b) + '.' : eF > 0 ? ['1 ' + ppgRu(a) + ' = ' + nf(+f) + ' ' + ppgRu(b) + ', поэтому умножаем на ' + nf(+f) + ':', v + '*' + f + '=' + res, b] : ['1 ' + ppgRu(b) + ' = ' + nf(+f) + ' ' + ppgRu(a) + ', поэтому делим на ' + nf(+f) + ':', v + '÷' + f + '=' + res, b],
-        'Неверные варианты получаются, если считать, что 1 л = 1 см³, или шагать по объёмам в 10 раз вместо 1 000.'] };
+        eF === 0 ? (a === 'mL' ? '1 мл и 1 см³ — один и тот же объём' : 'Литр и кубический дециметр — одно и то же') + ', поэтому число не меняется: ' + nf(+v) + ' ' + ppgRu(a) + ' = ' + nf(+v) + ' ' + ppgRu(b) + '.' : eF > 0 ? ['1 ' + ppgRu(a) + ' = ' + nf(+f) + ' ' + ppgRu(b) + ', поэтому умножаем на ' + nf(+f) + ':', v + '*' + f + '=' + res, b] : ['1 ' + ppgRu(b) + ' = ' + nf(+f) + ' ' + ppgRu(a) + ', поэтому делим на ' + nf(+f) + ':', v + '÷' + f + '=' + res, b],
+        'Остальные варианты получаются из неверной связи единиц: ' + exps.slice(1).map(e => '«' + nf(+ppgSh(n, e - d)) + ' ' + ppgRu(b) + '» — если считать, что ' + rel(e)).join('; ') + '. На деле ' + rel(eF) + '.'] };
     }
     /* vi 3: capacity of a box, in litres */
     const C = r.pick([['Un aquarium', 'Аквариум', 'его'], ['Un réservoir d\'eau', 'Бак для воды', 'его'], ['Une glacière', 'Сумка-холодильник', 'её'], ['Un bac à fleurs', 'Ящик для цветов', 'его']]);
@@ -14996,10 +15338,10 @@ topic({ id: 'gm.conversions-aires-volumes', ch: 'gm', lvl: 2, calc: false, varia
   } });
 
 /* ---------- gm.durees ---------- */
-topic({ id: 'gm.durees', ch: 'gm', lvl: 1, calc: false, variants: 4,
+topic({ id: 'gm.durees', ch: 'gm', lvl: 1, calc: false, variants: 5,
   ru: 'Длительности и время на часах', fr: 'Durées et horaires',
   hints: [
-    'В часе 60 минут, а не 100: время считают «по 60». Поэтому 135 мин = 120 мин + 15 мин = 2 ч 15 мин, а не 1 ч 35 мин.',
+    'В часе 60 минут, а не 100: время считают «по 60». Поэтому 135 мин = 120 мин + 15 мин = 2 ч 15 мин, а не 1 ч 35 мин. Так же в минуте 60 секунд, а в сутках («jour») 24 часа.',
     'Складывай отдельно часы и минуты; если минут набралось 60 или больше, 60 минут превращай в 1 час. При вычитании, если минут не хватает, «займи» 1 час = 60 минут.',
     'Доли часа: $1/2$ ч = 30 мин, $1/4$ ч = 15 мин, $1/10$ ч = 6 мин. Поэтому 0,5 ч = 30 мин, 1,5 ч = 1 ч 30 мин (а не 1 ч 50 мин), 0,2 ч = 12 мин.'],
   gen(r, vi) {
@@ -15056,21 +15398,43 @@ topic({ id: 'gm.durees', ch: 'gm', lvl: 1, calc: false, variants: 4,
       sol.push('Полёты заняли ' + ppgHM(res, true) + '. Проверка: ' + ppgHM(res, true) + ' + ' + ppgHM(W, true) + ' = ' + ppgHM(Tt, true) + ' ✓');
       return { q: L('Un voyage en avion a duré ' + ppgHM(Tt) + ' au total, en comptant une escale de ' + ppgHM(W) + '. Combien de temps ont duré les vols ?', 'Путешествие на самолёте заняло всего ' + ppgHM(Tt, true) + ', включая пересадку ' + ppgHM(W, true) + '. Сколько времени заняли сами полёты?'), ans: ppgDurAns(res), sol };
     }
-    /* vi 3: parts of an hour (Antilles 2026, Q6 style) */
-    const I = r.pick([
-      ['$1/10$ h', '$1/10$ ч', '1/10 h', [6, 10, 0.1, 1], 'Час — это 60 минут, $1/10$ часа — десятая часть: $60÷10=6$ мин.'],
-      ['$1/4$ h', '$1/4$ ч', '', [15, 25, 4, 0.25], 'Четверть часа: $60÷4=15$ мин. «25 мин» получится, если читать $1/4=0.25$ как 25 минут.'],
-      ['$3/4$ h', '$3/4$ ч', '', [45, 75, 0.75, 30], 'Три четверти часа: $60÷4×3=45$ мин.'],
-      ['$1/3$ h', '$1/3$ ч', '', [20, 33, 30, 3], 'Треть часа: $60÷3=20$ мин.'],
-      ['0,2 h', '0,2 ч', '', [12, 20, 2, 0.2], '0,2 ч — это две десятых часа: $0.2×60=12$ мин. «20 мин» — ошибка: после запятой стоят доли часа, а не минуты.'],
-      ['0,5 h', '0,5 ч', '', [30, 50, 5, 0.5], '0,5 ч — полчаса: $0.5×60=30$ мин.'],
-      ['1,5 h', '1,5 ч', '', ['1 h 30 min', '1 h 50 min', '1 h 5 min', '15 min'], '1,5 ч = 1 ч + 0,5 ч, а 0,5 ч = 30 мин. «1 ч 50 мин» — ошибка: 0,5 — это половина часа, а не 50 минут.'],
-      ['2,25 h', '2,25 ч', '', ['2 h 15 min', '2 h 25 min', '2 h 2 min', '225 min'], '2,25 ч = 2 ч + 0,25 ч, а 0,25 ч = $0.25×60=15$ мин.'],
-      ['1,2 h', '1,2 ч', '', ['1 h 12 min', '1 h 20 min', '1 h 2 min', '120 min'], '1,2 ч = 1 ч + 0,2 ч, а 0,2 ч = $0.2×60=12$ мин.'],
-      ['0,75 h', '0,75 ч', '', [45, 75, 7.5, 0.75], '0,75 ч — три четверти часа: $0.75×60=45$ мин.']]);
-    const opt = x => typeof x === 'number' ? L(nf(x) + ' min', nf(x) + ' мин') : L(x, x.replace(/h/g, 'ч').replace(/min/g, 'мин'));
-    return { q: L('Parmi les durées suivantes, laquelle est égale à ' + I[0] + ' ?', 'Какая из длительностей равна ' + I[1] + '?'), ans: MQ(r, I[3].map(opt), 0), sol: [
-      'В часе 60 минут, поэтому часть часа переводят в минуты умножением на 60.', I[4]] };
+    if (vi === 3) {   /* parts of an hour (Antilles 2026, Q6): every wrong option is a typical mistake, explained */
+      const I = r.pick([
+        ['$1/10$ d\'heure', '$1/10$ часа', [6, 10, 0.1, 1], '$1/10$ часа — десятая часть от 60 минут: $60÷10=6$ мин.', ['«10 мин» и «1 мин» — числа из дроби, принятые за минуты', '«0,1 мин» — $1/10=0.1$, но это доля часа, а не минуты: её ещё нужно умножить на 60']],
+        ['$1/4$ d\'heure', '$1/4$ часа', [15, 25, 4, 0.25], 'Четверть часа: $60÷4=15$ мин.', ['«25 мин» — $1/4=0.25$ прочитали как 25 минут, а это 25 сотых часа', '«4 мин» — знаменатель принят за минуты', '«0,25 мин» — 0,25 — доля часа, её не умножили на 60']],
+        ['$3/4$ d\'heure', '$3/4$ часа', [45, 75, 0.75, 15], 'Три четверти часа: четверть — $60÷4=15$ мин, три четверти — $15×3=45$ мин.', ['«75 мин» — $3/4=0.75$ прочитали как 75 минут, но это больше часа, а $3/4$ часа меньше часа', '«0,75 мин» — доля часа, не умноженная на 60', '«15 мин» — это только одна четверть: забыли умножить на 3']],
+        ['$1/3$ d\'heure', '$1/3$ часа', [20, 33, 30, 3], 'Треть часа: $60÷3=20$ мин.', ['«33 мин» — $1/3≈0.33$ прочитали как 33 минуты', '«30 мин» — это половина часа, $1/2$, а не треть', '«3 мин» — знаменатель принят за минуты']],
+        ['0,2 h', '0,2 ч', [12, 20, 2, 0.2], '0,2 ч — две десятых часа, а десятая часть часа — 6 минут: $0.2×60=12$ мин.', ['«20 мин» — цифры после запятой приняли за минуты, а это доли часа', '«2 мин» — как будто десятая часть часа — 1 минута, а она 6 минут', '«0,2 мин» — доля часа, не умноженная на 60']],
+        ['0,5 h', '0,5 ч', [30, 50, 5, 0.5], '0,5 ч — половина часа: $0.5×60=30$ мин.', ['«50 мин» — цифру после запятой приняли за минуты', '«5 мин» — как будто десятая часть часа — 1 минута, а она 6 минут', '«0,5 мин» — доля часа, не умноженная на 60']],
+        ['1,5 h', '1,5 ч', ['1 h 30 min', '1 h 50 min', '1 h 5 min', '15 min'], '1,5 ч = 1 ч + 0,5 ч, а 0,5 ч — половина часа, 30 мин.', ['«1 ч 50 мин» и «1 ч 5 мин» — цифру после запятой приняли за минуты', '«15 мин» — запятую просто убрали: 15 мин меньше даже одного часа']],
+        ['2,25 h', '2,25 ч', ['2 h 15 min', '2 h 25 min', '2 h 4 min', '225 min'], '2,25 ч = 2 ч + 0,25 ч, а 0,25 ч — четверть часа: $0.25×60=15$ мин.', ['«2 ч 25 мин» — цифры после запятой приняли за минуты', '«2 ч 4 мин» — из $0.25=1/4$ взяли знаменатель 4 как минуты', '«225 мин» — запятую просто убрали; 225 мин — это почти 4 часа']],
+        ['1,2 h', '1,2 ч', ['1 h 12 min', '1 h 20 min', '1 h 2 min', '120 min'], '1,2 ч = 1 ч + 0,2 ч, а 0,2 ч = $0.2×60=12$ мин.', ['«1 ч 20 мин» и «1 ч 2 мин» — цифру после запятой приняли за минуты', '«120 мин» — умножили на 100, как будто в часе 100 минут; 120 мин — это 2 часа']],
+        ['0,75 h', '0,75 ч', [45, 75, 7.5, 0.75], '0,75 ч — три четверти часа: $0.75×60=45$ мин.', ['«75 мин» — цифры после запятой приняли за минуты, но 75 мин больше часа, а 0,75 ч меньше часа', '«7,5 мин» — умножили на 10 вместо 60', '«0,75 мин» — доля часа, не умноженная на 60']]]);
+      const opt = x => typeof x === 'number' ? L(nf(x) + ' min', nf(x) + ' мин') : L(x, x.replace(/h/g, 'ч').replace(/min/g, 'мин'));
+      return { q: L('Parmi les propositions suivantes, quelle durée correspond à ' + I[0] + ' ?', 'Какая из длительностей равна ' + I[1] + '?'), ans: MQ(r, I[2].map(opt), 0), sol: [
+        'В часе 60 минут, поэтому часть часа переводят в минуты умножением на 60.', I[3], 'Ошибки: ' + I[4].join('; ') + '.'] };
+    }
+    /* vi 4: seconds, minutes, hours, days (official list, item 19) */
+    const kind = r.pick(['min-s', 's-min', 'h-s', 'j-h', 'h-j', 'j-min', 'ms', 'jh']), sut = n => ppgPl(n, 'сутки', 'суток', 'суток');
+    if (kind === 'ms' || kind === 'jh') {   /* with a remainder: … min … s, … jours … h */
+      const B = kind === 'ms' ? 60 : 24, qq = r.ri(1, kind === 'ms' ? 4 : 2), rr = kind === 'ms' ? 5 * r.ri(1, 11) : r.ri(1, 23), n = qq * B + rr;
+      const q = kind === 'ms' ? L('Une course a duré ' + n + ' s. Exprimer cette durée en minutes et secondes.', 'Забег длился ' + n + ' с. Вырази это время в минутах и секундах.')
+        : L('Un voyage a duré ' + n + ' h. Exprimer cette durée en jours et heures.', 'Путешествие длилось ' + n + ' ч. Вырази это время в сутках и часах.');
+      return { q, ans: multi([null, N(qq, { unit: kind === 'ms' ? 'min' : (qq > 1 ? 'jours' : 'jour') })], [null, N(rr, { unit: kind === 'ms' ? 's' : 'h' })]), sol: [
+        [(kind === 'ms' ? 'В минуте 60 секунд. Сколько полных минут помещается в ' + n + ' секундах? Делим на 60 с остатком:' : 'В сутках («jour») 24 часа. Сколько полных суток помещается в ' + n + ' часах? Делим на 24 с остатком:'), n + '=' + qq + '*' + B + '+' + rr],
+        'Значит, ' + n + (kind === 'ms' ? ' с = ' + qq + ' мин ' + rr + ' с.' : ' ч = ' + sut(qq) + ' ' + rr + ' ч.') + ' Делить нужно на ' + B + ', а не на 100: ' + (kind === 'ms' ? 'секунды' : 'часы') + ' собирают в ' + (kind === 'ms' ? 'минуты по 60' : 'сутки по 24') + '.'] };
+    }
+    const D = {   /* [from, to, factor (×) or divisor (÷), the reason] */
+      'min-s': ['min', 's', 60, 'В 1 минуте 60 секунд'], 's-min': ['s', 'min', -60, 'В 1 минуте 60 секунд'],
+      'h-s': ['h', 's', 3600, '1 ч = 60 мин, а каждая минута — 60 с, поэтому 1 ч = $60×60=3600$ с'], 'j-h': ['jour', 'h', 24, 'В сутках («jour») 24 часа'],
+      'h-j': ['h', 'jour', -24, 'В сутках («jour») 24 часа'], 'j-min': ['jour', 'min', 1440, 'В сутках 24 ч, в каждом часе 60 мин, поэтому в сутках $24×60=1440$ мин'] }[kind];
+    const [a, b, f, why] = D, big = f > 0;
+    const n = { 'min-s': r.ri(2, 12), 's-min': 60 * r.ri(2, 12), 'h-s': r.ri(1, 4), 'j-h': r.ri(2, 7), 'h-j': 24 * r.ri(2, 6), 'j-min': r.ri(1, 3) }[kind], res = big ? n * f : n / -f;
+    const fu = (u, k) => u === 'jour' ? (k > 1 ? 'jours' : 'jour') : u, ru = (u, k) => u === 'jour' ? sut(k).replace(/^\S+\s/, '') : ppgRu(u).replace('min', 'мин').replace(/^s$/, 'с').replace(/^h$/, 'ч');
+    return { q: L('Compléter : ' + n + ' ' + fu(a, n) + ' = … ' + fu(b, res) + '.', 'Дополни: ' + n + ' ' + ru(a, n) + ' = … ' + ru(b, res) + '.'), ans: N(res, { unit: fu(b, res) }), sol: [
+      why + '.',
+      big ? ['Переходим к более мелкой единице — их нужно больше, умножаем на ' + nf(f) + ':', n + '*' + f + '=' + res, fu(b, res)]
+        : ['Переходим к более крупной единице — их получится меньше: сколько раз ' + (-f) + ' помещается в ' + n + '?', n + '÷' + (-f) + '=' + res, fu(b, res)]] };
   } });
 
 /* ---------- drawing kit for plane figures (maths coordinates, y up → screen) ---------- */
@@ -15139,14 +15503,18 @@ topic({ id: 'gm.perimetres-aires', ch: 'gm', lvl: 1, calc: false, variants: 4,
     }
     if (vi === 1) {   /* perimeter or area, and the unit (Métropole 2026, Q8 style) */
       const u = r.pick(['mm', 'cm']); let W, H, w, h, P, A, Lsh = r() < 0.5, g = 0;
-      do { W = r.ri(5, 12); H = r.ri(3, 9); w = r.ri(2, W - 2); h = r.ri(1, H - 2); if (!Lsh) { w = 0; h = 0; } P = 2 * (W + H); A = W * H - w * h; } while ((P === A || W === H) && g++ < 50);
+      /* an L shape: the cut corner must be large enough on the picture (scale kL of ppgLFig) for the labels of its two sides not to overlap */
+      let bad; do { W = r.ri(5, 12); H = r.ri(3, 9); w = r.ri(2, W - 2); h = r.ri(1, H - 2); if (!Lsh) { w = 0; h = 0; } P = 2 * (W + H); A = W * H - w * h; const kL = Math.min(228 / W, 142 / H); bad = P === A || W === H || (Lsh && (h * kL < 62 || w * kL < 40)); } while (bad && g++ < 300);
+      if (bad) { Lsh = false; W = 7; H = 4; w = 0; h = 0; P = 22; A = 28; }
       const askP = r() < 0.6, fig = Lsh ? ppgLFig(W, H, w, h, u, [0, 1, 2, 3, 4, 5]) : ppgRectFig(W, H, u, false);
       const opts = [[P, u], [P, u + '²'], [A, u], [A, u + '²']].map(([v, uu]) => L(v + ' ' + uu, v + ' ' + ppgRu(uu)));
       return { q: askP ? L('Parmi les propositions suivantes, laquelle est le périmètre de la figure ci-dessous ?', 'Какой из вариантов — периметр фигуры на рисунке?') : L('Parmi les propositions suivantes, laquelle est l\'aire de la figure ci-dessous ?', 'Какой из вариантов — площадь фигуры на рисунке?'),
         fig, ans: MQ(r, opts, askP ? 0 : 3), sol: [
           Lsh ? ['Периметр — сумма длин всех шести сторон:', W + '+' + (H - h) + '+' + w + '+' + h + '+' + (W - w) + '+' + H + '=' + P, u] : ['Периметр — длина границы:', '2*(' + W + '+' + H + ')=' + P, u],
           Lsh ? ['Площадь: из прямоугольника ' + W + ' × ' + H + ' вырезан угол ' + w + ' × ' + h + ':', W + '*' + H + '-' + w + '*' + h + '=' + A, u + '²'] : ['Площадь:', W + '*' + H + '=' + A, u + '²'],
-          'Периметр — это длина, поэтому он в ' + ppgRu(u) + '; площадь измеряют квадратиками, поэтому она в ' + ppgRu(u) + '². Ответ: ' + (askP ? P + ' ' + ppgRu(u) : A + ' ' + ppgRu(u) + '²') + '.' + (Lsh ? ' Заметь: «ступенька» не меняет периметр — её стороны можно сдвинуть наружу, и получится прямоугольник ' + W + ' × ' + H + ' с тем же периметром.' : '')] };
+          'Периметр — это длина, поэтому он в ' + ppgRu(u) + '; площадь измеряют квадратиками, поэтому она в ' + ppgRu(u) + '². Ответ: ' + (askP ? P + ' ' + ppgRu(u) : A + ' ' + ppgRu(u) + '²') + '. '
+            + (askP ? '«' + A + ' ' + ppgRu(u) + '²» — это площадь, а не периметр; «' + P + ' ' + ppgRu(u) + '²» — верное число, но периметр не измеряют в квадратных единицах; «' + A + ' ' + ppgRu(u) + '» — площадь, да ещё с единицей длины.'
+              : '«' + P + ' ' + ppgRu(u) + '» — это периметр, а не площадь; «' + A + ' ' + ppgRu(u) + '» — верное число, но площадь измеряют в квадратных единицах; «' + P + ' ' + ppgRu(u) + '²» — периметр, да ещё с единицей площади.') + (Lsh ? ' Заметь: «ступенька» не меняет периметр — её стороны можно сдвинуть наружу, и получится прямоугольник ' + W + ' × ' + H + ' с тем же периметром.' : '')] };
     }
     if (vi === 2) {   /* triangle with a height */
       const [ah, h, s] = r.pick([[3, 4, 5], [4, 3, 5], [6, 8, 10], [8, 6, 10], [5, 12, 13], [9, 12, 15], [12, 5, 13], [12, 9, 15]]);
@@ -15194,7 +15562,7 @@ topic({ id: 'gm.perimetres-aires', ch: 'gm', lvl: 1, calc: false, variants: 4,
       fig: svgFig(340, 230, g, 'patron'), ans: MQ(r, opts, 0), sol: [
         'Прямоугольник развёртки — это боковая поверхность цилиндра. Когда её сворачивают, длина прямоугольника обходит круг основания ровно один раз.',
         { t: 'Значит, длина прямоугольника равна длине окружности основания:', tex: '2\\times\\pi\\times ' + R + '=' + 2 * R + '\\pi' + ppgUT('cm') + '\\approx ' + ppgTx(+ppgRd(2 * Math.PI * R, 1)) + ppgUT('cm') },
-        'Высота ' + Hc + ' см — это ширина прямоугольника, а не длина; $$' + R * R + '\\pi$$ — площадь круга основания.'] };
+        'Высота ' + Hc + ' см — это ширина прямоугольника, а не длина; $$' + R * R + '\\pi$$ — площадь круга основания, а не длина; $$' + R + '\\pi$$ — только половина окружности: взяли $$\\pi\\times r$$ вместо $$2\\pi\\times r$$.'] };
   } });
 
 /* ---------- gm.aires-composees ---------- */
@@ -15229,7 +15597,8 @@ topic({ id: 'gm.aires-composees', ch: 'gm', lvl: 2, calc: false, variants: 4,
         ['Вся фигура:', Ar + '+' + At + '=' + (Ar + At), u + '²']] };
     }
     if (vi === 2) {   /* rectangle + half-disc (calculator) */
-      const Wd = r.pick([4, 6, 8, 10, 12]), Lr = r.pick([6, 8, 9, 10, 12, 15].filter(x => x !== Wd)), R = Wd / 2, u = 'cm';
+      let Wd, Lr, g0 = 0; do { Wd = r.pick([4, 6, 8, 10, 12]); Lr = r.pick([6, 8, 9, 10, 12, 15].filter(x => x !== Wd)); } while (!ppgSafe(Lr * Wd + Math.PI * Wd * Wd / 8, 1) && g0++ < 50);
+      const R = Wd / 2, u = 'cm';
       const P = [[0, 0], [Lr, 0], [Lr + R, R], [Lr, Wd], [0, Wd]], f = ppgFit(P, 340, 200, 56, 34), k = f.k;
       const S = [[0, 0], [Lr, 0], [Lr, Wd], [0, Wd]].map(f);
       const d = 'M' + S[0][0].toFixed(1) + ' ' + S[0][1].toFixed(1) + ' L' + S[1][0].toFixed(1) + ' ' + S[1][1].toFixed(1) + ' A' + (R * k).toFixed(1) + ' ' + (R * k).toFixed(1) + ' 0 0 0 ' + S[2][0].toFixed(1) + ' ' + S[2][1].toFixed(1) + ' L' + S[3][0].toFixed(1) + ' ' + S[3][1].toFixed(1) + ' Z';
@@ -15244,7 +15613,8 @@ topic({ id: 'gm.aires-composees', ch: 'gm', lvl: 2, calc: false, variants: 4,
           'Частая ошибка — взять радиус ' + Wd + ' вместо ' + nf(R) + ': ' + Wd + ' — это диаметр полукруга.'] };
     }
     /* vi 3: a square with a round hole (calculator) */
-    const c = r.pick([6, 8, 10, 12, 20]), rad = r.pick([1, 2, 3, 4, 5].filter(x => 2 * x < c - 1)), u = 'cm';
+    let c, rad, g0 = 0; do { c = r.pick([6, 8, 10, 12, 20]); rad = r.pick([1, 2, 3, 4, 5].filter(x => 2 * x < c - 1)); } while (!ppgSafe(c * c - Math.PI * rad * rad, 1) && g0++ < 50);
+    const u = 'cm';
     const f = ppgFit([[0, 0], [c, c]], 340, 210, 34), k = f.k, S = [[0, 0], [c, 0], [c, c], [0, c]].map(f), O = f([c / 2, c / 2]);
     const sq = 'M' + S.map(p => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' L') + ' Z', ci = 'M' + (O[0] - rad * k).toFixed(1) + ' ' + O[1].toFixed(1) + ' a' + (rad * k).toFixed(1) + ' ' + (rad * k).toFixed(1) + ' 0 1 0 ' + (2 * rad * k).toFixed(1) + ' 0 a' + (rad * k).toFixed(1) + ' ' + (rad * k).toFixed(1) + ' 0 1 0 ' + (-2 * rad * k).toFixed(1) + ' 0 Z';
     let g = '<path d="' + sq + ' ' + ci + '" fill-rule="evenodd" class="ffill"/>' + ppgPath(sq, 'fl') + ppgCirc(O, rad * k, 'fl') + ppgDot(O[0], O[1]) + ppgLn(O[0], O[1], O[0] + rad * k, O[1], 'fl');
@@ -15327,7 +15697,7 @@ topic({ id: 'gm.volumes', ch: 'gm', lvl: 2, calc: false, variants: 5,
       if (r() < 0.3) {
         const a = r.pick([3, 4, 5, 10]), opts = [a * a * a, a * a, 6 * a * a, 12 * a].map(v => L(nf(v) + ' cm³', nf(v) + ' см³'));
         return { q: L('Quel est le volume d\'un cube d\'arête ' + a + ' cm ?', 'Каков объём куба с ребром ' + a + ' см?'), fig: ppgBoxFig(a, a, a, 'cm'), ans: MQ(r, opts, 0), sol: [
-          ['Куб — параллелепипед, у которого все рёбра равны: в нём ' + a + ' слоя(ёв) по $' + a + '×' + a + '$ кубиков 1 см³:', a + '*' + a + '*' + a + '=' + a * a * a, 'cm³'],
+          ['Куб — параллелепипед, у которого все рёбра равны: в нём ' + ppgPl(a, 'слой', 'слоя', 'слоёв') + ' по $' + a + '×' + a + '$ кубиков 1 см³:', a + '*' + a + '*' + a + '=' + a * a * a, 'cm³'],
           a * a + ' см² — площадь одной грани, ' + 6 * a * a + ' см² — площадь всей поверхности (6 граней), ' + 12 * a + ' см — сумма длин 12 рёбер. Это не объём.'] };
       }
       let A, B, C, g = 0, vals;
@@ -15345,8 +15715,18 @@ topic({ id: 'gm.volumes', ch: 'gm', lvl: 2, calc: false, variants: 5,
         ['Площадь основания — половина прямоугольника ' + a + ' × ' + c + ':', a + '*' + c + '÷2=' + B, 'cm²'],
         ['Объём:', B + '*' + Lp + '=' + B * Lp, 'cm³']] };
     }
-    if (vi === 2) {   /* cylinder, calculator */
-      const R = r.pick([2, 3, 4, 5, 1.5, 2.5]), H = r.pick([4, 5, 6, 8, 10, 12]), V = Math.PI * R * R * H;
+    if (vi === 2) {   /* cylinder: the exact value without a calculator (official list, item 23), or rounded with a calculator */
+      if (r() < 0.5) {
+        const R = r.pick([3, 4, 5, 6]), H = r.pick([2, 3, 4, 5, 6, 7, 8, 10].filter(x => x !== R)), pi = v => '$$' + v + '\\pi$$';   /* h ≠ r: «r × h» must not look like the base r² */
+        /* the volume, the lateral area 2πRh, the radius not squared, the diameter instead of the radius: four different numbers for R ≥ 3 */
+        const opts = [R * R * H, 2 * R * H, R * H, 4 * R * R * H].map(v => L(pi(v) + ' cm³', pi(v) + ' см³'));
+        return { q: L('Quel est le volume exact d\'un cylindre de rayon ' + R + ' cm et de hauteur ' + H + ' cm ?', 'Каков точный объём цилиндра радиуса ' + R + ' см и высоты ' + H + ' см?'),
+          fig: ppgRoundFig('cyl', R, H, 'cm'), ans: MQ(r, opts, 0), sol: [
+            'Цилиндр — «прямое» тело, стопка одинаковых круглых слоёв: объём = площадь основания × высота. Основание — круг площадью $$\\pi\\times R^2$$.',
+            { t: 'Точное значение оставляем с $$\\pi$$:', tex: '\\pi\\times ' + R + '^2\\times ' + H + '=' + R * R * H + '\\pi' + ppgUT('cm³') },
+            'Ошибки: $$' + 2 * R * H + '\\pi$$ — это площадь боковой поверхности (длина окружности $$2\\pi R$$ × высота), а не объём; $$' + R * H + '\\pi$$ — радиус не возвели в квадрат; $$' + 4 * R * R * H + '\\pi$$ — подставили диаметр ' + 2 * R + ' см вместо радиуса.'] };
+      }
+      let R, H, V, g = 0; do { R = r.pick([2, 3, 4, 5, 1.5, 2.5]); H = r.pick([4, 5, 6, 8, 10, 12]); V = Math.PI * R * R * H; } while (!ppgSafe(V, 0) && g++ < 50);
       return { q: L('Calculer le volume d\'un cylindre de rayon ' + nf(R) + ' cm et de hauteur ' + H + ' cm. Arrondir au cm³. On rappelle : $$V=\\pi\\times R^2\\times h$$.', 'Вычисли объём цилиндра радиуса ' + nf(R) + ' см и высоты ' + H + ' см. Округли до 1 см³. Напоминание: $$V=\\pi\\times R^2\\times h$$.'),
         fig: ppgRoundFig('cyl', R, H, 'cm'), calc: true, ans: N(ppgRd(V, 0), { dp: 0, unit: 'cm³' }), sol: [
           'Цилиндр — тоже «прямое» тело: площадь круга-основания × высота.',
@@ -15364,7 +15744,7 @@ topic({ id: 'gm.volumes', ch: 'gm', lvl: 2, calc: false, variants: 5,
             ['Объём пирамиды — треть объёма призмы с тем же основанием и той же высотой:', B + '*' + h + '÷3=' + V, 'cm³'],
             'Почему треть: куб можно разрезать на 3 одинаковые пирамиды с вершиной в одном углу куба — у каждой основание и высота такие же, как у куба.'] };
       }
-      const R = r.pick([2, 3, 4, 5, 6]), H = r.pick([4, 5, 6, 8, 9, 10, 12]), V = Math.PI * R * R * H / 3;
+      let R, H, V, g = 0; do { R = r.pick([2, 3, 4, 5, 6]); H = r.pick([4, 5, 6, 8, 9, 10, 12]); V = Math.PI * R * R * H / 3; } while (!ppgSafe(V, 0) && g++ < 50);
       return { q: L('Calculer le volume d\'un cône de révolution de rayon ' + R + ' cm et de hauteur ' + H + ' cm. Arrondir au cm³. On rappelle : $$V=\\dfrac{\\pi\\times R^2\\times h}{3}$$.', 'Вычисли объём конуса радиуса ' + R + ' см и высоты ' + H + ' см. Округли до 1 см³. Напоминание: $$V=\\dfrac{\\pi\\times R^2\\times h}{3}$$.'),
         fig: ppgRoundFig('cone', R, H, 'cm'), calc: true, ans: N(ppgRd(V, 0), { dp: 0, unit: 'cm³' }), sol: [
           'Конус — треть цилиндра с тем же основанием и той же высотой.',
@@ -15372,7 +15752,7 @@ topic({ id: 'gm.volumes', ch: 'gm', lvl: 2, calc: false, variants: 5,
           'Не забудь разделить на 3: без деления получится объём цилиндра, а не конуса.'] };
     }
     /* vi 4: a ball (Métropole 2026, ex. 3 style) */
-    const R = r.pick([1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 6, 7, 8, 10, 12]), V = 4 / 3 * Math.PI * Math.pow(R, 3);
+    let R, V, g = 0; do { R = r.pick([1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 6, 7, 8, 10, 12]); V = 4 / 3 * Math.PI * Math.pow(R, 3); } while (!ppgSafe(V, 0) && g++ < 50);
     return { q: L('Calculer le volume d\'une boule de rayon ' + nf(R) + ' cm, arrondi au cm³. On rappelle : $$V=\\dfrac{4}{3}\\times\\pi\\times R^3$$.', 'Вычисли объём шара радиуса ' + nf(R) + ' см, округлив до 1 см³. Напоминание: $$V=\\dfrac{4}{3}\\times\\pi\\times R^3$$.'),
       fig: ppgRoundFig('ball', R, 0, 'cm'), calc: true, ans: N(ppgRd(V, 0), { dp: 0, unit: 'cm³' }), sol: [
         { t: 'Радиус возводим в куб:', tex: ppgTx(R) + '^3=' + ppgTx(+fx(Math.pow(R, 3))) },
@@ -15456,74 +15836,61 @@ topic({ id: 'gm.agrandissement', ch: 'gm', lvl: 2, calc: false, variants: 3,
     /* vi 2: by how much are areas / volumes multiplied */
     const vol = r() < 0.5;
     if (r() < 0.3) {   /* a reduction */
-      const n = r.pick([2, 3]), kf = F(1, n), m = vol ? n * n * n : n * n;
-      const opts = (vol ? [n * n * n, n * n, n, 3 * n] : [n * n, n, 2 * n, n * n * n]).filter((v, i, a) => a.indexOf(v) === i).map(v => '$1/' + v + '$');
+      const n = r.pick([2, 3]), kf = F(1, n), m = vol ? n * n * n : n * n, o = vol ? n * n : n * n * n;
+      /* the right factor, the factor of the lengths, the factor of the other kind of quantity, and an enlargement instead of a reduction: always four different values */
+      const opts = ['$1/' + m + '$', '$1/' + n + '$', '$1/' + o + '$', String(m)];
       return { q: L('Lors d\'une réduction de rapport $1/' + n + '$, ' + (vol ? 'les volumes sont multipliés' : 'les aires sont multipliées') + ' par :', 'При уменьшении с коэффициентом $1/' + n + '$ ' + (vol ? 'объёмы' : 'площади') + ' умножаются на:'), ans: MQ(r, opts, 0), sol: [
         ppgWhyK(kf, vol ? 3 : 2),
-        [(vol ? 'Объёмы умножаются на $k^3$' : 'Площади умножаются на $k^2$') + ':', '(1/' + n + ')^' + (vol ? 3 : 2) + '=1/' + m]] };
+        [(vol ? 'Объёмы умножаются на $k^3$' : 'Площади умножаются на $k^2$') + ':', '(1/' + n + ')^' + (vol ? 3 : 2) + '=1/' + m],
+        '$1/' + n + '$ — коэффициент для длин; $1/' + o + '$ — для ' + (vol ? 'площадей' : 'объёмов') + '; ' + m + ' — это увеличение, а при уменьшении ' + (vol ? 'объём' : 'площадь') + ' становится меньше: умножают на число меньше 1.'] };
     }
     const n = vol ? r.pick([2, 4, 5, 10]) : r.pick([3, 4, 5, 10]), opts = (vol ? [n * n * n, n * n, n, 3 * n] : [n * n, n, 2 * n, n * n * n]).map(String);
     return { q: L('Lors d\'un agrandissement de rapport ' + n + ', ' + (vol ? 'les volumes sont multipliés' : 'les aires sont multipliées') + ' par :', 'При увеличении с коэффициентом ' + n + ' ' + (vol ? 'объёмы' : 'площади') + ' умножаются на:'), ans: MQ(r, opts, 0), sol: [
       ppgWhyK(F(n), vol ? 3 : 2),
-      'Умножить на ' + n + ' — это только для длин; ' + (vol ? n * n + ' — для площадей.' : n * n * n + ' — для объёмов.')] };
+      'Умножить на ' + n + ' — это только для длин; ' + (vol ? n * n + ' — для площадей; ' + 3 * n + ' — ошибка: $k^3$ — это $k×k×k$, а не $3×k$.' : n * n * n + ' — для объёмов; ' + 2 * n + ' — ошибка: $k^2$ — это $k×k$, а не $2×k$.')] };
   } });
 
-/* ---------- gm.agrandissement-rapport (lvl 3) ---------- */
-/* a pyramid or a cone cut by a plane parallel to the base at the fraction t of the height from the apex */
-function ppgSectionFig(kind, t) {
-  if (kind === 'cone') {
-    const cx = 170, rx = 95, ry = 30, ty = 14, by = 190, ys = ty + t * (by - ty), rs = t * rx, qs = t * ry;
-    const half = (y, a, b, up, cls) => '<path d="M' + (cx - a).toFixed(1) + ' ' + y.toFixed(1) + ' A' + a.toFixed(1) + ' ' + b.toFixed(1) + ' 0 0 ' + (up ? 1 : 0) + ' ' + (cx + a).toFixed(1) + ' ' + y.toFixed(1) + '" class="' + cls + '"/>';
-    let g = '<path d="M' + cx + ' ' + ty + ' L' + (cx - rx) + ' ' + by + ' A' + rx + ' ' + ry + ' 0 0 0 ' + (cx + rx) + ' ' + by + ' Z" class="ffill"/>';
-    g += '<path d="M' + cx + ' ' + ty + ' L' + (cx - rs).toFixed(1) + ' ' + ys.toFixed(1) + ' A' + rs.toFixed(1) + ' ' + qs.toFixed(1) + ' 0 0 0 ' + (cx + rs).toFixed(1) + ' ' + ys.toFixed(1) + ' Z" class="ffill"/>';
-    g += ppgLn(cx, ty, cx - rx, by, 'fl') + ppgLn(cx, ty, cx + rx, by, 'fl') + half(by, rx, ry, false, 'fl') + half(by, rx, ry, true, 'fdash') + half(ys, rs, qs, false, 'fl') + half(ys, rs, qs, true, 'fdash') + ppgLn(cx, ty, cx, by, 'fdash') + ppgDot(cx, by) + ppgDot(cx, ys);
-    return svgFig(340, 230, g, 'cône coupé');
-  }
-  const c = 10, Hp = 9, T = [c / 2, Hp, c / 2], B = [[0, 0, 0], [c, 0, 0], [c, 0, c], [0, 0, c]], S = B.map(p => [T[0] + t * (p[0] - T[0]), T[1] + t * (p[1] - T[1]), T[2] + t * (p[2] - T[2])]);
-  const E = [[B[0], B[1]], [B[1], B[2]], [B[2], B[3], 1], [B[3], B[0], 1], [T, B[0]], [T, B[1]], [T, B[2]], [T, B[3], 1], [S[0], S[1]], [S[1], S[2]], [S[2], S[3], 1], [S[3], S[0], 1], [T, [c / 2, 0, c / 2], 1]];
-  return ppgSolid(E, [[T, B[0], B[1]], [T, B[1], B[2]], [T, S[0], S[1]], [T, S[1], S[2]]], [], m => { const q = m([c / 2, 0, c / 2]); return ppgDot(q[0], q[1]); });
-}
-topic({ id: 'gm.agrandissement-rapport', ch: 'gm', lvl: 2, calc: false, variants: 4,
+/* ---------- gm.agrandissement-rapport ---------- */
+/* Exam-level types only (owner's decision, November 2026): the ratio k from two areas or two volumes, from «les aires sont
+   multipliées par 25» / «le volume est multiplié par 8», from two lengths. The two types above the brevet (from the area factor
+   to the volume factor, sections of a pyramid or a cone) are kept in _sverh-pp-gm.js. */
+topic({ id: 'gm.agrandissement-rapport', ch: 'gm', lvl: 2, calc: false, variants: 3,
   ru: 'Увеличение и уменьшение: найти коэффициент', fr: 'Agrandissement et réduction : retrouver le rapport',
   hints: [
-    'Если известны площади до и после, то их отношение равно $k^2$, и $k$ — число, квадрат которого равен этому отношению. Для объёмов отношение равно $k^3$.',
-    'Площади и объёмы связаны через $k$: площадь умножилась на 25 → $k=5$ → объём умножился на $5^3=125$.',
-    'Сечение пирамиды или конуса плоскостью, параллельной основанию, отрезает маленькую пирамиду (конус) — уменьшенную копию большой с коэффициентом $k$ = (высота маленькой) ÷ (высота большой). Её объём = объём большой × $k^3$.'],
+    'При увеличении или уменьшении с коэффициентом $k$ длины умножаются на $k$, площади — на $k^2$, объёмы — на $k^3$. Значит, если известны площади до и после, то их отношение равно $k^2$, а $k$ — число, квадрат которого равен этому отношению. Для объёмов отношение равно $k^3$.',
+    'Площадь умножилась на 25 — значит, $k×k=25$ и $k=5$ (не 25 и не 12,5). Объём умножился на 8 — значит, $k×k×k=8$ и $k=2$. При уменьшении множитель меньше 1: площадь умножилась на $1/9$ — значит, $k=1/3$.',
+    'Если известны две соответствующие длины, коэффициент — их отношение: новая длина ÷ старая. Площадь потом умножается на $k^2$: длина фото выросла с 10 до 15 см — $k=1.5$, площадь умножилась на $1.5^2=2.25$.'],
   gen(r, vi) {
     if (vi === 0) {   /* the ratio from two areas or two volumes */
-      const vol = r() < 0.4, down = !vol && r() < 0.35, n = vol ? r.pick([2, 3, 4, 5]) : r.pick([2, 3, 4, 5, 10]), m = r.pick([2, 3, 4, 5, 6, 7, 8]);
-      const p = vol ? 3 : 2, f = Math.pow(n, p), a = down ? f * m : m, b = down ? m : f * m, u = vol ? 'cm³' : 'cm²', w = vol ? ['un volume', 'объём'] : ['une aire', 'площадь'];
-      const kf = down ? F(1, n) : F(n);
-      return { q: L('Une figure' + (vol ? ' en 3D' : '') + ' a ' + w[0] + ' de ' + a + ' ' + u + '. Après ' + (down ? 'une réduction' : 'un agrandissement') + ', la figure obtenue a ' + w[0] + ' de ' + b + ' ' + u + '. Quel est le rapport de ' + (down ? 'cette réduction' : 'cet agrandissement') + ' ?',
-        (vol ? 'Объёмная фигура' : 'Фигура') + ' имеет ' + w[1] + ' ' + a + ' ' + ppgRu(u) + '. После ' + (down ? 'уменьшения' : 'увеличения') + ' её ' + w[1] + ' стал' + (vol ? '' : 'а') + ' ' + b + ' ' + ppgRu(u) + '. Каков коэффициент ' + (down ? 'уменьшения' : 'увеличения') + '?'),
-        ans: N(Fr.str(kf), { show: tF(kf) }), sol: [
+      const vol = r() < 0.4, down = r() < 0.35, n = vol ? r.pick(down ? [2, 3] : [2, 3, 4, 5]) : r.pick([2, 3, 4, 5, 10]), m = r.pick([2, 3, 4, 5, 6, 7, 8].filter(x => x !== n));
+      const p = vol ? 3 : 2, f = Math.pow(n, p), a = down ? f * m : m, b = down ? m : f * m, u = vol ? 'cm³' : 'cm²', kf = down ? F(1, n) : F(n);
+      const fr = vol ? 'Un solide a un volume de ' + a + ' ' + u + '. Après ' + (down ? 'une réduction' : 'un agrandissement') + ', le solide obtenu a un volume de ' + b + ' ' + u + '.'
+        : 'Une figure a une aire de ' + a + ' ' + u + '. Après ' + (down ? 'une réduction' : 'un agrandissement') + ', la figure obtenue a une aire de ' + b + ' ' + u + '.';
+      const ru = (vol ? 'Объём тела — ' : 'Площадь фигуры — ') + a + ' ' + ppgRu(u) + '. После ' + (down ? 'уменьшения' : 'увеличения') + ' ' + (vol ? 'объём полученного тела' : 'площадь полученной фигуры') + ' — ' + b + ' ' + ppgRu(u) + '.';
+      return { q: L(fr + ' Quel est le rapport de ' + (down ? 'cette réduction ? Donner le résultat sous forme de fraction irréductible.' : 'cet agrandissement ?'), ru + ' Каков коэффициент ' + (down ? 'уменьшения? Запиши его несократимой дробью.' : 'увеличения?')),
+        ans: down ? FRA(kf) : N(n), sol: [
           [(vol ? 'Объём умножился' : 'Площадь умножилась') + ' на $k^' + p + '$ — находим, во сколько раз ' + (vol ? 'он изменился' : 'она изменилась') + ':', b + '÷' + a + '=' + Fr.str(F(b, a))],
           ['Ищем $k$: число, ' + (vol ? 'куб' : 'квадрат') + ' которого равен $' + Fr.str(F(b, a)) + '$:', ppgKtx(kf) + '^' + p + '=' + Fr.str(F(b, a))],
-          'Значит, $k=' + Fr.str(kf) + '$. Ошибка — ответить $' + Fr.str(F(b, a)) + '$: это коэффициент для ' + (vol ? 'объёмов' : 'площадей') + ', а не для длин.'] };
+          'Значит, $k=' + Fr.str(kf) + '$' + (down ? ' — меньше 1, как и должно быть при уменьшении.' : '.') + ' Ошибка — ответить $' + Fr.str(F(b, a)) + '$: это множитель для ' + (vol ? 'объёмов' : 'площадей') + ', а не для длин.'] };
     }
-    if (vi === 1) {   /* from the area ratio to the volume ratio and back */
-      const kf = r.pick([F(2), F(3), F(4), F(5), F(10), F(1, 2), F(1, 3)]), k2 = F(kf.n * kf.n, kf.d * kf.d), k3 = F(Math.pow(kf.n, 3), Math.pow(kf.d, 3)), fromA = r() < 0.6;
-      const ks = f => f.d === 1 ? String(f.n) : '$' + Fr.str(f) + '$';
-      return { q: fromA ? L('Lors d\'un agrandissement ou d\'une réduction, les aires sont multipliées par ' + ks(k2) + '. Par combien les volumes sont-ils multipliés ?', 'При увеличении или уменьшении площади умножились на ' + ks(k2) + '. На сколько умножились объёмы?')
-        : L('Lors d\'un agrandissement ou d\'une réduction, les volumes sont multipliés par ' + ks(k3) + '. Par combien les aires sont-elles multipliées ?', 'При увеличении или уменьшении объёмы умножились на ' + ks(k3) + '. На сколько умножились площади?'),
-        ans: N(Fr.str(fromA ? k3 : k2), { show: tF(fromA ? k3 : k2) }), sol: [
-          fromA ? ['Площади умножаются на $k^2$. Находим длины — коэффициент $k$:', ppgKtx(kf) + '^2=' + Fr.str(k2)] : ['Объёмы умножаются на $k^3$. Находим коэффициент $k$ для длин:', ppgKtx(kf) + '^3=' + Fr.str(k3)],
-          fromA ? ['Значит, $k=' + Fr.str(kf) + '$, а объёмы умножаются на $k^3$:', ppgKtx(kf) + '^3=' + Fr.str(k3)] : ['Значит, $k=' + Fr.str(kf) + '$, а площади умножаются на $k^2$:', ppgKtx(kf) + '^2=' + Fr.str(k2)],
-          'Нельзя просто умножить или поделить на ' + ks(fromA ? k2 : k3) + ': всё идёт через коэффициент длин $k$.'] };
+    if (vi === 1) {   /* «les aires sont multipliées par 25», «le volume est multiplié par 8», as in the sujets: the ratio of the lengths */
+      if (r() < 0.5) {   /* QCM: k, the factor of the areas itself, half of it, its square — four different numbers for n ≥ 3 */
+        const n = r.pick([3, 4, 5, 6, 7, 8, 9, 10]), A2 = n * n;
+        return { q: L('Lors d\'un agrandissement, les aires sont multipliées par ' + A2 + '. Par quel nombre les longueurs sont-elles multipliées ?', 'При увеличении площади умножились на ' + A2 + '. На какое число умножились длины?'),
+          ans: MQ(r, [n, A2, A2 / 2, A2 * A2].map(v => L(nf(v), nf(v))), 0), sol: [
+            'Длины умножаются на $k$, а площади — на $k^2=k×k$: квадратик со стороной 1 становится квадратом со стороной $k$, а в нём $k×k$ таких квадратиков.',
+            ['Ищем число, квадрат которого равен ' + A2 + ':', n + '*' + n + '=' + A2],
+            'Значит, длины умножились на ' + n + '. Ошибки: ' + A2 + ' — это множитель для площадей, а не для длин; ' + nf(A2 / 2) + ' — разделили на 2, но $k^2$ — это $k×k$, а не $2×k$; ' + nf(A2 * A2) + ' — возвели в квадрат ещё раз вместо того, чтобы найти число, квадрат которого равен ' + A2 + '.'] };
+      }
+      const vol = r() < 0.5, down = r() < 0.35, p = vol ? 3 : 2, n = vol ? r.pick(down ? [2, 3, 5, 10] : [2, 3, 4, 5, 10]) : r.pick([2, 3, 4, 5, 6, 7, 8, 9, 10]), f = Math.pow(n, p);
+      const kf = down ? F(1, n) : F(n), fT = down ? '$1/' + f + '$' : String(f), w = vol ? ['les volumes sont multipliés', 'объёмы умножились'] : ['les aires sont multipliées', 'площади умножились'];
+      return { q: L('Lors d\'' + (down ? 'une réduction' : 'un agrandissement') + ', ' + w[0] + ' par ' + fT + '. Quel est le rapport de ' + (down ? 'cette réduction ? Donner le résultat sous forme de fraction irréductible.' : 'cet agrandissement ?'),
+        'При ' + (down ? 'уменьшении' : 'увеличении') + ' ' + w[1] + ' на ' + fT + '. Каков коэффициент ' + (down ? 'уменьшения? Запиши его несократимой дробью.' : 'увеличения?')),
+        ans: down ? FRA(kf) : N(n), sol: [
+          [(vol ? 'Объёмы умножаются на $k^3=k×k×k$' : 'Площади умножаются на $k^2=k×k$') + '. Ищем число, ' + (vol ? 'куб' : 'квадрат') + ' которого равен ' + fT + ':', ppgKtx(kf) + '^' + p + '=' + (down ? '1/' + f : f)],
+          'Значит, $k=' + Fr.str(kf) + '$' + (down ? ' — меньше 1, как и должно быть при уменьшении.' : '.') + ' Ошибка — ответить ' + fT + ': это множитель для ' + (vol ? 'объёмов' : 'площадей') + ', а длины меняются меньше. Делить на ' + p + ' тоже неверно: $k^' + p + '$ — это ' + (vol ? '$k×k×k$, а не $3×k$.' : '$k×k$, а не $2×k$.')] };
     }
-    if (vi === 2) {   /* a section of a pyramid or a cone (Asie 2026, ex. 2 style) */
-      const kind = r.pick(['pyr', 'cone']), [kn, kd] = r.pick([[1, 2], [1, 3], [1, 4], [2, 3], [3, 4]]), Ht = kd * r.pick([2, 3, 4, 5, 6]), h = Ht * kn / kd;
-      const V = Math.pow(kd, 3) * r.pick([1, 2, 3, 4, 5, 10]), v = V * Math.pow(kn, 3) / Math.pow(kd, 3), tronc = r() < 0.3, k = F(kn, kd), k3 = F(Math.pow(kn, 3), Math.pow(kd, 3));
-      const w = kind === 'pyr' ? ['Une pyramide', 'la petite pyramide', 'Пирамида', 'маленькой пирамиды', 'большой пирамиды', 'усечённой пирамиды', 'de la grande', 'de la petite pyramide', 'Её'] : ['Un cône', 'le petit cône', 'Конус', 'маленького конуса', 'большого конуса', 'усечённого конуса', 'du grand', 'du petit cône', 'Его'];
-      return { q: L(w[0] + ' de hauteur ' + Ht + ' cm a un volume de ' + V + ' cm³. On ' + (kind === 'pyr' ? 'la' : 'le') + ' coupe par un plan parallèle à sa base, à ' + h + ' cm du sommet : ' + w[1] + ' obtenu' + (kind === 'pyr' ? 'e' : '') + ' est une réduction ' + w[6] + '. ' + (tronc ? 'Quel est le volume de la partie restante, du côté de la base ?' : 'Quel est le volume ' + w[7] + ' ?'),
-        w[2] + ' высотой ' + Ht + ' см имеет объём ' + V + ' см³. ' + w[8] + ' разрезали плоскостью, параллельной основанию, на расстоянии ' + h + ' см от вершины; верхняя часть — уменьшенная копия ' + w[4] + '. ' + (tronc ? 'Каков объём оставшейся нижней части (' + w[5] + ')?' : 'Каков объём ' + w[3] + '?')),
-        fig: ppgSectionFig(kind === 'pyr' ? 'pyr' : 'cone', kn / kd), ans: N(fx(tronc ? V - v : v), { unit: 'cm³' }), sol: [
-          ['Верхняя часть — уменьшение с коэффициентом $k$ = отношение высот:', h + '/' + Ht + '=' + Fr.str(k)],
-          ['Объёмы умножаются на $k^3$:', ppgKtx(k) + '^3=' + Fr.str(k3)],
-          ['Объём верхней части:', V + '*' + ppgKtx(k3) + '=' + fx(v), 'cm³'],
-          tronc ? ['Нижняя часть — большой объём минус верхний:', V + '-' + fx(v) + '=' + fx(V - v), 'cm³'] : 'Ошибка — умножить объём на $k$: объём уменьшается во всех трёх направлениях, то есть в $' + kd + '^3$ раз' + (kn > 1 ? ' и умножается на $' + kn + '^3$' : '') + '.'] };
-    }
-    /* vi 3: a photo enlarged: the ratio from one length, then the area */
+    /* vi 2: a photo enlarged or reduced: the ratio from two lengths, then the area (Amérique du Nord 2025: k given, the area asked) */
     const kf = r.pick([F(2), F(3), F(4), F(3, 2), F(1, 2), F(5, 2)]), [a, b] = r.pick(kf.d === 2 ? [[10, 12], [8, 10], [20, 30], [12, 18], [16, 20], [10, 14]] : [[10, 15], [9, 13], [10, 12], [13, 18], [8, 10], [20, 30], [15, 20]]);
     const b2 = b * kf.n / kf.d, A = a * b, A2 = A * kf.n * kf.n / (kf.d * kf.d), up = kf.n > kf.d;
     return { q: L('Une photo rectangulaire de ' + a + ' cm sur ' + b + ' cm est ' + (up ? 'agrandie' : 'réduite') + ' : sa longueur passe de ' + b + ' cm à ' + nf(b2) + ' cm. Quelle est l\'aire de la photo ' + (up ? 'agrandie' : 'réduite') + ' ?', 'Прямоугольную фотографию ' + a + ' см на ' + b + ' см ' + (up ? 'увеличили' : 'уменьшили') + ': её длина стала ' + nf(b2) + ' см вместо ' + b + ' см. Какова площадь новой фотографии?'),
@@ -15531,7 +15898,7 @@ topic({ id: 'gm.agrandissement-rapport', ch: 'gm', lvl: 2, calc: false, variants
         ['Коэффициент — во сколько раз изменилась длина:', fx(b2) + '/' + b + '=' + Fr.str(kf)],
         ['Площадь исходной фотографии:', a + '*' + b + '=' + A, 'cm²'],
         ['Площади умножаются на $k^2=' + Fr.str(F(kf.n * kf.n, kf.d * kf.d)) + '$:', A + '*' + ppgKtx(F(kf.n * kf.n, kf.d * kf.d)) + '=' + fx(A2), 'cm²'],
-        'Проверка: ширина тоже умножается на ' + ppgKfr(kf) + ' и становится ' + nf(a * kf.n / kf.d) + ' см; $' + fx(a * kf.n / kf.d) + '×' + fx(b2) + '=' + fx(A2) + '$ ✓'] };
+        'Проверка: ширина тоже умножается на ' + ppgKfr(kf) + ' и становится ' + nf(a * kf.n / kf.d) + ' см; $' + fx(a * kf.n / kf.d) + '×' + fx(b2) + '=' + fx(A2) + '$ ✓ Ошибка — умножить площадь на ' + ppgKfr(kf) + ': так изменилась бы площадь, если бы менялась только длина, а меняется и ширина.'] };
   } });
 
 /* ---------- gm.grandeurs-composees ---------- */
@@ -15547,8 +15914,9 @@ topic({ id: 'gm.grandeurs-composees', ch: 'gm', lvl: 2, calc: false, variants: 5
         { fr: 'Une médaille en argent', ru: 'Серебряная медаль', rho: 10.5, mat: ['l\'argent', 'серебра'], V: [46.8, 50.3, 55.4, 60.8] },
         { fr: 'Une boule en plastique', ru: 'Пластиковый шар', rho: 0.9, mat: ['ce plastique', 'этого пластика'], V: [14.1, 33.5, 113.1, 268.1] },
         { fr: 'Un lingot d\'or', ru: 'Золотой слиток', rho: 19.3, mat: ['l\'or', 'золота'], V: [51.8, 25.9, 12.4] },
-        { fr: 'Une planche de bois', ru: 'Деревянная доска', rho: 0.7, mat: ['ce bois', 'этого дерева'], V: [1250, 2400, 3600] }]);
-      const V = r.pick(C.V), m = C.rho * V, rev = r() < 0.3;
+        { fr: 'Une planche de bois', ru: 'Деревянная доска', rho: 0.7, mat: ['ce bois', 'этого дерева'], V: [1243, 2416, 3582] }]);
+      /* something to round, and not close to a half-way point */
+      const rev = r() < 0.3; let V, m, g0 = 0; do { V = r.pick(C.V); m = C.rho * V; } while (!ppgSafe(rev ? Math.round(m) / C.rho : m, 0) && g0++ < 30);
       if (rev) {
         const mm = Math.round(m), V2 = mm / C.rho;
         return { q: L(C.fr + ' a une masse de ' + nf(mm) + ' g. La masse volumique de ' + C.mat[0] + ' est ' + nf(C.rho) + ' g/cm³. Calculer son volume, arrondi au cm³.', C.ru + ' имеет массу ' + nf(mm) + ' г. Плотность ' + C.mat[1] + ' — ' + nf(C.rho) + ' г/см³. Вычисли объём, округлив до 1 см³.'), calc: true,
@@ -15565,7 +15933,7 @@ topic({ id: 'gm.grandeurs-composees', ch: 'gm', lvl: 2, calc: false, variants: 5
     if (vi === 1) {   /* flow */
       const kind = r.pick(['remplir', 'fuite', 'piscine']);
       if (kind === 'remplir') {
-        const d = r.pick([8, 10, 12, 15, 20]), t = r.pick([6, 8, 9, 10, 12, 15]), V = d * t;
+        const d = r.pick([8, 10, 12, 15, 20]), t = r.pick([6, 8, 9, 10, 12, 15].filter(x => x !== d)), V = d * t;   /* the time must not repeat the flow */
         return { q: L('Un robinet a un débit de ' + d + ' L par minute. Combien de temps faut-il pour remplir une baignoire de ' + V + ' L ?', 'Из крана вытекает ' + d + ' л в минуту. Сколько времени нужно, чтобы наполнить ванну на ' + V + ' л?'), ans: N(t, { unit: 'min' }), sol: [
           'Расход ' + d + ' л/мин: за каждую минуту — ' + d + ' л. Объём пропорционален времени, поэтому время = объём ÷ расход.',
           [ 'Время:', V + '÷' + d + '=' + t, 'min']] };
@@ -15604,8 +15972,9 @@ topic({ id: 'gm.grandeurs-composees', ch: 'gm', lvl: 2, calc: false, variants: 5
         ['Плотность:', P + '÷' + S + '=' + dens, 'hab/km²']] };
     }
     /* vi 4: electric energy */
-    const dev = r.pick([['Un radiateur', 'Обогреватель', [1000, 1500, 2000, 2500]], ['Un four', 'Духовка', [2000, 2500, 3000]], ['Une ampoule', 'Лампочка', [10, 20, 50]]]);
-    const P = r.pick(dev[2]), t = P < 100 ? r.pick([20, 50, 100, 200]) : r.pick([2, 3, 4, 5, 6]), E = P * t / 1000, cost = r() < 0.35, price = 0.2;
+    const dev = r.pick([['Un radiateur', 'Обогреватель', [1500, 2000, 2500]],   /* not 1 000 W: 1 kW × t h = t kWh would repeat the hours */ ['Un four', 'Духовка', [2000, 2500, 3000]], ['Une ampoule', 'Лампочка', [10, 20, 50]]]);
+    let P, t, g0 = 0; do { P = r.pick(dev[2]); t = P < 100 ? r.pick([20, 50, 100, 200]) : r.pick([2, 3, 4, 5, 6]); } while (P * t === 1000 && g0++ < 20);   /* 1 kWh: the cost would repeat the price of 1 kWh */
+    const E = P * t / 1000, cost = r() < 0.35, price = 0.2;
     const q = L(dev[0] + ' de puissance ' + nf(P) + ' W fonctionne pendant ' + t + ' h. ' + (cost ? 'Le kWh coûte ' + eur(price) + '. Combien coûte cette utilisation ?' : 'Quelle énergie consomme-t-' + (dev[0].startsWith('Une') ? 'elle' : 'il') + ', en kWh ?'), dev[1] + ' мощностью ' + nf(P) + ' Вт работает ' + t + ' ч. ' + (cost ? '1 кВт·ч стоит ' + eur(price) + '. Сколько стоит это электричество?' : 'Сколько энергии (в кВт·ч) ' + (dev[1] === 'Духовка' || dev[1] === 'Лампочка' ? 'она расходует' : 'он расходует') + '?'));
     return { q, ans: cost ? ppgEurAns(E * price) : N(fx(E), { unit: 'kWh' }), sol: [
       ['Мощность переводим в киловатты (1 кВт = 1 000 Вт):', P + '÷1000=' + fx(P / 1000), 'kW'],
@@ -15618,37 +15987,64 @@ fiche({ ch: 'pp', id: 'pp.proportionnalite', ru: 'Пропорционально
   'Таблица пропорциональна, если все частные «нижнее ÷ верхнее» одинаковы. График пропорциональной зависимости — прямая, проходящая через начало координат. «Обе величины растут» — ещё не пропорциональность.',
   'Четвёртое пропорциональное («quatrième proportionnelle») находят через коэффициент, через «passage par l\'unité» (сначала значение для одной единицы) или «produit en croix»: если $a/b=c/d$, то $a×d=b×c$.',
   'Ratio 2 : 3 — делим на 2 + 3 = 5 одинаковых долей. Масштаб 1/25 000 — 1 см на карте соответствует 25 000 см в реальности (длины пропорциональны).'],
-  ex: [['Четвёртое пропорциональное', 'a=18*12÷6=36'], ['Цена одной штуки', '7.5÷5=1.5'], ['Ratio 2 : 3 от 45 €', '45÷5*3=27'], ['Масштаб 1/25 000, 8 см', '8*25000=200000']] });
+  ex: [['Четвёртое пропорциональное', 'a=18*12÷6=36'], ['Цена одной штуки', '7.5÷5=1.5'], ['Ratio 2 : 3 от 45 €', '45÷5*3=27'], ['Масштаб 1/25 000, 8 см', '8*25000=200000']],
+  frs: [
+    'Deux grandeurs sont proportionnelles si on obtient les valeurs de l\'une en multipliant les valeurs de l\'autre par un même nombre : ce nombre est le coefficient de proportionnalité.',
+    'Un tableau est un tableau de proportionnalité si on passe de la première ligne à la deuxième en multipliant toujours par un même nombre.',
+    'Une situation de proportionnalité est représentée graphiquement par des points alignés avec l\'origine du repère.',
+    'Dans un tableau de proportionnalité, si $a/b=c/d$, alors $a*d=b*c$ (produit en croix).'] });
 fiche({ ch: 'pp', id: 'pp.pourcentages', ru: 'Проценты', fr: 'Les pourcentages', body: [
-  '$t$ % — это $t/100$. Найти $t$ % от числа $N$ — умножить: $t/100×N$. Опоры для счёта в уме: 50 % — половина, 25 % — четверть, 10 % — десятая часть, 1 % — сотая.',
+  '$t$ % — это $t/100$. Найти $t$ % от числа $N$ — умножить: $t/100×N$. Опоры для счёта в уме: 100 % — всё количество, 50 % — половина, 25 % — четверть, 10 % — десятая часть, 1 % — сотая. Остальные собирают из них: 15 % = 10 % + 5 %, 75 % = 50 % + 25 %.',
   'Повышение на $t$ % — умножение на $1+t/100$ (+20 % → ×1,2), снижение — на $1-t/100$ (−15 % → ×0,85). Процент берут от величины ДО изменения.',
   'Какой это процент: часть ÷ целое × 100. Процент изменения: (новое − старое) ÷ старое × 100 — делим на СТАРОЕ значение.',
-  'Исходную цену находят делением на коэффициент: после +20 % цена 36 € — значит, было $36÷1.2=30$ €. Два изменения подряд — перемножаем коэффициенты: +10 %, потом −10 % → ×0,99, то есть −1 %, а не 0.'],
-  ex: [['20 % от 300', '0.2*300=60'], ['15 € после +20 %', '15*1.2=18'], ['80 € после −10 %', '80*0.9=72'], ['Рост с 20 до 26', '6/20=0.3=30/100']] });
+  'Ловушки: «+20 %» — это 20 % от цены, а не 20 €; после снижения на 15 % остаётся 85 % цены, то есть умножаем на 0,85, а не на 0,15; процент изменения делят на старое значение, а не на новое.'],
+  ex: [['20 % от 300', '0.2*300=60'], ['15 € после +20 %', '15*1.2=18'], ['80 € после −10 %', '80*0.9=72'], ['Рост с 20 до 26', '6/20=0.3=30/100']],
+  frs: [
+    'Prendre $t$ % d\'une quantité revient à multiplier cette quantité par $t/100$.',
+    'Augmenter une quantité de $t$ % revient à la multiplier par $1+t/100$ ; la diminuer de $t$ % revient à la multiplier par $1-t/100$.',
+    'Pour exprimer une proportion en pourcentage, on divise la partie par le tout, puis on multiplie par 100.',
+    'Pour calculer un pourcentage d\'augmentation ou de baisse, on divise l\'augmentation (ou la baisse) par la valeur de départ, puis on multiplie par 100.'] });
 fiche({ ch: 'pp', id: 'pp.vitesses', ru: 'Скорость, расстояние, время', fr: 'Vitesse moyenne', body: [
   'Средняя скорость — расстояние за единицу времени: $v=d/t$. Отсюда $d=v×t$ и $t=d/v$. При постоянной скорости расстояние пропорционально времени.',
   'Время подставляй в часах: 30 мин = 0,5 ч, 15 мин = 0,25 ч, 45 мин = 0,75 ч, 20 мин = $1/3$ ч. 1 ч 15 мин = 1,25 ч, а не 1,15 ч: после запятой — доли часа.',
   '1 м/с = 3,6 км/ч (за 3 600 с проходят 3 600 м = 3,6 км). Из км/ч в м/с — делим на 3,6, из м/с в км/ч — умножаем на 3,6.'],
-  ex: [['Расстояние', 'd=80*2.5=200'], ['Скорость: 9 км за 45 мин', 'v=9÷0.75=12'], ['Перевод 72 км/ч', '72÷3.6=20']] });
+  ex: [['Расстояние', 'd=80*2.5=200'], ['Скорость: 9 км за 45 мин', 'v=9÷0.75=12'], ['Перевод 72 км/ч', '72÷3.6=20']],
+  frs: [
+    'La vitesse moyenne est le quotient de la distance parcourue par la durée du trajet : $v=d/t$.',
+    'À vitesse constante, la distance parcourue est proportionnelle à la durée : $d=v*t$ et $t=d/v$.',
+    'Une vitesse de 1 m/s correspond à 3,6 km/h : en une heure, soit 3 600 s, on parcourt 3 600 m, soit 3,6 km.'] });
 fiche({ ch: 'gm', id: 'gm.unites', ru: 'Единицы и перевод', fr: 'Unités et conversions', body: [
   'Длина: km, hm, dam, m, dm, cm, mm — соседние единицы отличаются в 10 раз. Так же масса (kg, hg, dag, g, dg, cg, mg; 1 t = 1 000 kg) и вместимость (hL, daL, L, dL, cL, mL). К более мелкой единице — умножаем, к более крупной — делим.',
   'Площадь: соседние единицы отличаются в 100 раз (1 m² = 100 dm² = 10 000 cm², ведь это квадрат 100 cm × 100 cm); 1 ha = 10 000 m². Объём: в 1 000 раз (1 m³ = 1 000 dm³).',
   '1 L = 1 dm³, 1 mL = 1 cm³, 1 m³ = 1 000 L.',
-  'Время: 1 h = 60 min, 1 min = 60 s. 135 min = 2 h 15 min (делим на 60 с остатком). Часы и минуты складывают отдельно; 60 минут превращают в 1 час.'],
-  ex: [['3,5 km в m', '3.5*1000=3500'], ['2,5 m² в cm²', '2.5*10000=25000'], ['3,57 L в cm³', '3.57*1000=3570'], ['135 min', '135=2*60+15']] });
+  'Время: 1 h = 60 min, 1 min = 60 s, поэтому 1 h = 3 600 s; сутки («jour») — 24 h. 135 min = 2 h 15 min (делим на 60 с остатком). Часы и минуты складывают отдельно; 60 минут превращают в 1 час.'],
+  ex: [['3,5 km в m', '3.5*1000=3500'], ['2,5 m² в cm²', '2.5*10000=25000'], ['3,57 L в cm³', '3.57*1000=3570'], ['135 min', '135=2*60+15']],
+  frs: [
+    'Pour passer d\'une unité à l\'unité suivante, plus petite, on multiplie par 10 pour les longueurs, par 100 pour les aires et par 1 000 pour les volumes.',
+    '1 L = 1 dm³ ; 1 mL = 1 cm³ ; 1 m³ = 1 000 L.',
+    '1 h = 60 min ; 1 min = 60 s ; 1 h = 3 600 s ; 1 jour = 24 h.'] });
 fiche({ ch: 'gm', id: 'gm.aires-volumes', ru: 'Площади и объёмы: формулы', fr: 'Aires et volumes', body: [
   'Прямоугольник: $A=L×l$, $P=2×(L+l)$. Квадрат: $A=c^2$, $P=4×c$. Треугольник: $A=b×h÷2$ (высота перпендикулярна основанию).',
   'Окружность и круг: длина $$2\\pi r=\\pi d$$, площадь $$\\pi r^2$$. Без калькулятора ответ оставляют с $$\\pi$$, с калькулятором — округляют в самом конце.',
   'Параллелепипед: $V=L×l×h$; куб: $V=a^3$. Призма и цилиндр: $V=B×h$ — площадь основания × высота; цилиндр: $$V=\\pi r^2 h$$.',
   'Пирамида и конус — треть «своей» призмы или цилиндра: $$V=\\dfrac{B\\times h}{3}$$. Шар: $$V=\\dfrac{4}{3}\\pi r^3$$ (формулы пирамиды, конуса и шара обычно даны в условии).',
   'Составные величины: масса = плотность × объём ($$m=\\rho\\times V$$, g/cm³ × cm³ = g); энергия (kWh) = мощность (kW) × время (h); расход 6 L / 100 km — литров на каждые 100 км.'],
-  ex: [['Треугольник', '8*5÷2=20'], ['Пирамида: основание 6 × 6, h = 5', '36*5÷3=60'], ['Параллелепипед 4,5 × 4 × 10', '4.5*4*10=180']] });
+  ex: [['Треугольник', '8*5÷2=20'], ['Пирамида: основание 6 × 6, h = 5', '36*5÷3=60'], ['Параллелепипед 4,5 × 4 × 10', '4.5*4*10=180']],
+  frs: [
+    'L\'aire d\'un triangle est égale au produit d\'une base par la hauteur relative à cette base, divisé par 2 : $$A=\\dfrac{b\\times h}{2}$$.',
+    'La longueur d\'un cercle de rayon $r$ est égale à $$2\\times\\pi\\times r$$ ; l\'aire d\'un disque de rayon $r$ est égale à $$\\pi\\times r^2$$.',
+    'Le volume d\'un prisme droit ou d\'un cylindre est égal au produit de l\'aire d\'une base par la hauteur : $V=B*h$.',
+    'Le volume d\'une pyramide ou d\'un cône est égal au tiers du produit de l\'aire de la base par la hauteur : $$V=\\dfrac{B\\times h}{3}$$.'] });
 fiche({ ch: 'gm', id: 'gm.agrandir', ru: 'Увеличение и уменьшение', fr: 'Agrandissement et réduction', body: [
   'При увеличении или уменьшении с коэффициентом $k$ длины умножаются на $k$, площади — на $k^2$, объёмы — на $k^3$; углы не меняются.',
   'Почему: квадратик со стороной 1 становится квадратом со стороной $k$, а в нём $k×k$ таких квадратиков; кубик с ребром 1 — кубом, в котором $k×k×k$ кубиков.',
   '$k>1$ — увеличение, $0<k<1$ — уменьшение. $k=3$: площади ×9, объёмы ×27. $k=1/2$: площади умножаются на $1/4$, объёмы — на $1/8$.',
-  'Сечение пирамиды или конуса плоскостью, параллельной основанию, отрезает уменьшенную копию с коэффициентом $k$ = (малая высота) ÷ (большая высота).'],
-  ex: [['Площадь 12 см², k = 3', '12*9=108'], ['Объём 40 см³, k = 1/2', '40*(1/8)=5'], ['k по площадям 5 → 45', '45÷5=9=3^2']] });
+  'Найти $k$: по длинам — новая длина ÷ старая; по площадям — число, квадрат которого равен отношению площадей (площадь ×25 → $k=5$); по объёмам — число, куб которого равен отношению объёмов (объём ×8 → $k=2$).'],
+  ex: [['Площадь 12 см², k = 3', '12*9=108'], ['Объём 40 см³, k = 1/2', '40*(1/8)=5'], ['k по площадям 5 → 45', '45÷5=9=3^2']],
+  frs: [
+    'Dans un agrandissement ou une réduction de rapport $k$, les longueurs sont multipliées par $k$, les aires par $k^2$ et les volumes par $k^3$.',
+    'Si $k>1$, c\'est un agrandissement ; si $0<k<1$, c\'est une réduction.',
+    'Un agrandissement ou une réduction conserve les mesures des angles.'] });
 
 /* ===================== DICTIONARY ===================== */
 gloss('la proportionnalité', 'пропорциональность', 'одна величина получается из другой умножением на одно и то же число');

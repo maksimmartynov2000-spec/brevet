@@ -20,15 +20,18 @@ topic({ id: 'nc.frac-addsub', ch: 'nc', lvl: 1, calc: false, variants: 3,
   gen(r, vi) {
     const q = L('Calculer et donner le résultat sous forme de fraction irréductible.', 'Вычисли и запиши ответ несократимой дробью.');
     if (vi === 0) {   /* same denominator */
-      const d = r.pick([5, 7, 9, 11, 13]); const a = r.ri(1, d - 1); let b = r.ri(1, d - 1); if (a === b) b = d - a === a ? 1 : d - a;
+      /* a + b = d would give 1: a whole number does not fit «sous forme de fraction irréductible» */
+      const d = r.pick([5, 7, 9, 11, 13]); let a, b; do { a = r.ri(1, d - 1); b = r.ri(1, d - 1); } while (a === b || a + b === d);
       const minus = r() < 0.4 && a > b; const n = minus ? a - b : a + b; const res = F(n, d);
       return { q, m: a + '/' + d + (minus ? '-' : '+') + b + '/' + d, ans: FRA(res), sol: [
         ['Доли уже одинаковые (знаменатель ' + d + '), поэтому ' + (minus ? 'вычитаем' : 'складываем') + ' только числители — считаем, сколько долей ' + (minus ? 'осталось' : 'всего') + '.', a + '/' + d + (minus ? '-' : '+') + b + '/' + d + '=' + n + '/' + d],
         res.d === d ? 'Числитель и знаменатель не имеют общих делителей — дробь уже несократимая.' : ['Сокращаем: числитель и знаменатель делятся на ' + (d / res.d) + '.', n + '/' + d + '=' + Fr.str(res)]] };
     }
     const pairs = [[2, 3], [3, 4], [2, 5], [4, 5], [3, 5], [2, 7], [4, 3], [5, 6], [3, 8], [6, 4], [10, 4], [6, 9], [4, 10]];
-    const [d1, d2] = r.pick(pairs); let a = r.ri(1, d1 + 2), b = r.ri(1, d2 + 1); if (a % d1 === 0) a++; if (b % d2 === 0) b--; if (!b) b = 1;   /* no whole numbers such as 4/4 */ const m = lcm2(d1, d2);
-    const k1 = m / d1, k2 = m / d2; const minus = vi === 2; const n = minus ? a * k1 - b * k2 : a * k1 + b * k2; const res = F(n, m);
+    const [d1, d2] = r.pick(pairs), m = lcm2(d1, d2), k1 = m / d1, k2 = m / d2, minus = vi === 2;
+    /* no whole numbers such as 4/4 in the terms, and no whole result (3/6 + 2/4 = 1, 2/4 − 3/6 = 0) */
+    let a, b, n; do { a = r.ri(1, d1 + 2); b = r.ri(1, d2 + 1); if (a % d1 === 0) a++; if (b % d2 === 0) b--; if (!b) b = 1; n = minus ? a * k1 - b * k2 : a * k1 + b * k2; } while (n % m === 0);
+    const res = F(n, m);
     const steps = [
       ['Знаменатели ' + d1 + ' и ' + d2 + ' разные — доли разного размера. Наименьшее число, которое делится и на ' + d1 + ', и на ' + d2 + ', — это ' + m + '.'],
       ['Приводим к знаменателю ' + m + ': ' + (k1 > 1 ? 'первую дробь умножаем сверху и снизу на ' + k1 : 'первая дробь уже со знаменателем ' + m) + ', ' + (k2 > 1 ? 'вторую — на ' + k2 : 'вторая уже со знаменателем ' + m) + '. Значение дробей при этом не меняется.', a + '/' + d1 + (minus ? '-' : '+') + b + '/' + d2 + '=' + (a * k1) + '/' + m + (minus ? '-' : '+') + (b * k2) + '/' + m],
