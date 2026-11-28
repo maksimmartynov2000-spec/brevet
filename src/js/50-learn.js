@@ -301,7 +301,8 @@ function renderPractice(fresh) {
   h += '<div class="chips">' + (it.calc ? '<span class="chip">' + ico('calc') + 'с калькулятором</span>' : '<span class="chip warn">' + ico('nocalc') + 'без калькулятора</span>') + lvlChip(t.lvl) +
     (P.mode === 'wu' ? '<span class="chip">вопрос ' + Math.min(DB.wu.items.length, DB.wu.i + (P.done ? 0 : 1)) + ' из ' + DB.wu.items.length + '</span>' : '') +
     (P.due ? '<span class="chip ok">' + ico('redo') + 'повторение</span>' : '') + (P.switched ? '<span class="chip ok">' + ico('check') + 'следующая тема</span>' : '') + swChip() + '</div>';
-  h += tipHtml('tr', 'Условие по-французски, как на экзамене. Незнакомое слово — нажми на него, появится перевод. Весь текст по-русски — кнопка «Перевод» вверху.');
+  /* the hint about tapping words — only where the statement is French (in «Язык бревета» the question itself may be in Russian) */
+  if (it.q && typeof it.q === 'object' && it.q.fr !== it.q.ru) h += tipHtml('tr', 'Условие по-французски, как на экзамене. Незнакомое слово — нажми на него, появится перевод. Весь текст по-русски — кнопка «Перевод» вверху.');
   h += qHtml(it);
   h += '<div class="ansbox' + (fs.length > 1 ? ' multi' : '') + '">' + fs.map((f, i) => '<div class="part' + partCls(i) + '">' + fieldHtml(f, 'f' + i, P.vals['f' + i], fieldState(i)) + '</div>').join('') + '</div>';
   h += '<div id="fb">' + fbHtml() + '</div>';
@@ -312,6 +313,7 @@ function renderPractice(fresh) {
   h += '</section>';
   h += nextBox(t);
   if (fresh) shell(h); else { const y = window.scrollY; $('#app').innerHTML = h; window.scrollTo(0, y); }
+  if (!$('#app .bi')) $('#tTr').hidden = true;            /* nothing to translate on this screen */
   ON_INPUT = () => { if (P.fb && !P.done) { P.fb = null; $('#fb').innerHTML = ''; } };
   ON_ENTER = () => { if (!P.done) checkPractice(); else newQuestion(); };
   window.KB_GO = 'Проверить';

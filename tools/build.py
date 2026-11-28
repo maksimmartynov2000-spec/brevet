@@ -21,7 +21,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / 'src'
 META = re.compile(r'(<meta name="app-build" content=")([^"]*)(">)')
-LIMIT_KB = 2600  # следим за размером: страница целиком скачивается при первом открытии
+LIMIT_KB = 3400  # следим за размером: страница целиком скачивается при первом открытии (по сети идёт сжатой, примерно впятеро меньше)
 
 
 def read(p: Path) -> str:
