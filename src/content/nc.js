@@ -41,7 +41,9 @@ function ncSumWhy(a, b, k, plain) {
 function ncMulWhy(an, ak, bn, bk) {
   const pn = an * bn, pk = ak + bk, a = ncN(an, ak), b = ncN(bn, bk), full = ncTxt(dec(pn, pk)), p = ncN(pn, pk);
   if (!pk) return a + ' × ' + b + ' = ' + p + '.';
-  return 'Перемножаем числа без запятых: ' + an + ' × ' + bn + ' = ' + pn + '. Во множителях вместе ' + pk + ' ' + ncPl(pk, 'знак', 'знака', 'знаков') + ' после запятой' + (ak === 1 && bk === 1 ? ' (десятые × десятые = сотые)' : '') + ', значит, и в произведении ' + pk + ': ' + a + ' × ' + b + ' = ' + full + (full !== p ? ' = ' + p : '') + '.';
+  const nm = ['', 'десятые', 'сотые', 'тысячные'], why = ak && bk ? nm[ak][0].toUpperCase() + nm[ak].slice(1) + ' × ' + nm[bk] + ' = ' + nm[pk] + ', поэтому в произведении ' + ncParts(pn, pk)   /* «десятые × десятые = сотые» */
+    : (ak ? a + ' — это ' + ncParts(an, ak) : b + ' — это ' + ncParts(bn, bk)) + ', поэтому и в произведении ' + ncParts(pn, pk);
+  return 'Перемножаем числа без запятых: ' + an + ' × ' + bn + ' = ' + pn + '. ' + why + ': ' + a + ' × ' + b + ' = ' + full + (full !== p ? ' = ' + p : '') + '.';
 }
 
 /* ===================== RELATIVE NUMBERS: + and − ===================== */
@@ -251,20 +253,25 @@ topic({ id: 'nc.priorites', ch: 'nc', lvl: 1, calc: false, variants: 5,
     const T = [
       { fr: 'la somme de ' + a + ' et du produit de ' + b + ' par ' + c, ru: 'сумма числа ' + a + ' и произведения ' + b + ' на ' + c,
         ok: a + '+' + b + '*' + c, bad: ['(' + a + '+' + b + ')*' + c, a + '*' + b + '+' + c, a + '+' + b + '+' + c],
-        why: 'Первое слово — «la somme»: в конце складываем. Слагаемые — число ' + a + ' и произведение ' + b + ' × ' + c + '. Скобки не нужны: умножение и так выполняется раньше сложения.' },
+        why: 'Первое слово — «la somme»: в конце складываем. Слагаемые — число ' + a + ' и произведение ' + b + ' × ' + c + '. Скобки не нужны: умножение и так выполняется раньше сложения.',
+        no: ['это произведение: последнее действие — умножение', 'это сумма произведения ' + a + ' × ' + b + ' и числа ' + c, 'здесь нет произведения: это сумма трёх чисел'] },
       { fr: 'le produit de la somme de ' + a + ' et ' + b + ' par ' + c, ru: 'произведение суммы чисел ' + a + ' и ' + b + ' на ' + c,
         ok: '(' + a + '+' + b + ')*' + c, bad: [a + '+' + b + '*' + c, a + '*' + b + '+' + c, a + '*(' + b + '+' + c + ')'],
-        why: 'Первое слово — «le produit»: в конце умножаем. Первый множитель — сумма ' + a + ' + ' + b + ', второй — ' + c + '. Сумму надо посчитать раньше умножения, поэтому она в скобках.' },
+        why: 'Первое слово — «le produit»: в конце умножаем. Первый множитель — сумма ' + a + ' + ' + b + ', второй — ' + c + '. Сумму надо посчитать раньше умножения, поэтому она в скобках.',
+        no: ['без скобок сначала умножают: это сумма числа ' + a + ' и произведения ' + b + ' × ' + c, 'это сумма: последнее действие — сложение', 'это произведение числа ' + a + ' на сумму ' + b + ' + ' + c + ': в скобках не те числа'] },
       { fr: 'la différence entre ' + a + ' et le produit de ' + b + ' par ' + c, ru: 'разность числа ' + a + ' и произведения ' + b + ' на ' + c,
         ok: a + '-' + b + '*' + c, bad: ['(' + a + '-' + b + ')*' + c, b + '*' + c + '-' + a, a + '*' + b + '-' + c],
-        why: 'Первое слово — «la différence»: в конце вычитаем. Из числа ' + a + ' вычитаем произведение ' + b + ' × ' + c + ' (порядок важен: сначала то, из чего вычитают). Скобки не нужны: умножение выполняется раньше.' },
+        why: 'Первое слово — «la différence»: в конце вычитаем. Из числа ' + a + ' вычитаем произведение ' + b + ' × ' + c + ' (порядок важен: сначала то, из чего вычитают). Скобки не нужны: умножение выполняется раньше.',
+        no: ['это произведение: последнее действие — умножение', 'порядок перепутан: здесь из произведения вычитают ' + a, 'это разность произведения ' + a + ' × ' + b + ' и числа ' + c] },
       { fr: 'le quotient de la somme de ' + a + ' et ' + b + ' par ' + c, ru: 'частное от деления суммы чисел ' + a + ' и ' + b + ' на ' + c,
         ok: '(' + a + '+' + b + ')÷' + c, bad: [a + '+' + b + '÷' + c, a + '÷(' + b + '+' + c + ')', '(' + a + '+' + b + ')*' + c],
-        why: 'Первое слово — «le quotient»: в конце делим. Делимое — сумма ' + a + ' + ' + b + ', делитель — ' + c + '. Сумму нужно посчитать до деления, поэтому она в скобках.' }][t];
+        why: 'Первое слово — «le quotient»: в конце делим. Делимое — сумма ' + a + ' + ' + b + ', делитель — ' + c + '. Сумму нужно посчитать до деления, поэтому она в скобках.',
+        no: ['без скобок сначала делят: это сумма числа ' + a + ' и частного ' + b + ' ÷ ' + c, 'здесь ' + a + ' делят на сумму ' + b + ' + ' + c + ': делимое и делитель не те', 'это произведение, а не частное'] }][t];
     return { q: L('Quelle expression correspond à la phrase « ' + T.fr + ' » ?', 'Какое выражение соответствует фразе «' + T.ru + '»?'),
       ans: ncMQ(r, [T.ok].concat(T.bad).map(x => '$' + x + '$')), sol: [
         'Выражение называют по последнему действию. ' + T.why,
-        ['Ответ:', T.ok]] };
+        ['Ответ:', T.ok],
+        'Неверные варианты: ' + T.bad.map((x, i) => '$' + x + '$ — ' + T.no[i]).join('; ') + '.'] };
   } });
 
 /* ===================== DECIMALS WITHOUT A CALCULATOR ===================== */
@@ -377,17 +384,18 @@ topic({ id: 'nc.calcul-mental', ch: 'nc', lvl: 1, calc: false, variants: 5,
       return { q: L('Calculer mentalement :', 'Вычисли в уме:'), m, ans: N(res), sol: st };
     }
     if (vi === 3) {   /* what does × 0,5, ÷ 0,5, × 0,25 … mean */
-      const [fr, ru, ok, bad, why, ex] = r.pick([
-        ['Multiplier un nombre par 0,5 revient à :', 'Умножить число на 0,5 — это то же самое, что:', ['le diviser par 2', 'разделить его на 2'], [['le multiplier par 2', 'умножить его на 2'], ['lui soustraire 0,5', 'вычесть из него 0,5'], ['le diviser par 5', 'разделить его на 5']], '0,5 — это половина (5 десятых = 1/2). Умножить на половину — значит взять половину числа.', '8*0.5=4=8÷2'],
-        ['Diviser un nombre par 0,5 revient à :', 'Разделить число на 0,5 — это то же самое, что:', ['le multiplier par 2', 'умножить его на 2'], [['le diviser par 2', 'разделить его на 2'], ['le diviser par 5', 'разделить его на 5'], ['le multiplier par 5', 'умножить его на 5']], 'Разделить на 0,5 — узнать, сколько половинок помещается в числе. В каждой единице две половинки, поэтому результат вдвое больше самого числа.', '3÷0.5=6=3*2'],
-        ['Multiplier un nombre par 0,25 revient à :', 'Умножить число на 0,25 — это то же самое, что:', ['le diviser par 4', 'разделить его на 4'], [['le diviser par 25', 'разделить его на 25'], ['le multiplier par 4', 'умножить его на 4'], ['le diviser par 2', 'разделить его на 2']], '0,25 — это четверть (25 сотых = 1/4). Умножить на четверть — значит взять четверть числа.', '12*0.25=3=12÷4'],
-        ['Multiplier un nombre par 0,1 revient à :', 'Умножить число на 0,1 — это то же самое, что:', ['le diviser par 10', 'разделить его на 10'], [['le multiplier par 10', 'умножить его на 10'], ['le diviser par 100', 'разделить его на 100'], ['lui soustraire 0,1', 'вычесть из него 0,1']], '0,1 — одна десятая. Умножить на 0,1 — значит взять десятую часть числа.', '45*0.1=4.5=45÷10'],
-        ['Diviser un nombre par 0,1 revient à :', 'Разделить число на 0,1 — это то же самое, что:', ['le multiplier par 10', 'умножить его на 10'], [['le diviser par 10', 'разделить его на 10'], ['le multiplier par 0,01', 'умножить его на 0,01'], ['le diviser par 100', 'разделить его на 100']], 'Разделить на 0,1 — узнать, сколько десятых в числе. В каждой единице 10 десятых, поэтому десятых в 10 раз больше, чем единиц.', '7÷0.1=70=7*10'],
-        ['Multiplier un nombre par 25 revient à :', 'Умножить число на 25 — это то же самое, что:', ['le multiplier par 100, puis diviser le résultat par 4', 'умножить его на 100, а результат разделить на 4'], [['le multiplier par 100, puis diviser le résultat par 2', 'умножить его на 100, а результат разделить на 2'], ['le multiplier par 10, puis diviser le résultat par 4', 'умножить его на 10, а результат разделить на 4'], ['le multiplier par 4, puis diviser le résultat par 100', 'умножить его на 4, а результат разделить на 100']], '25 — четверть от 100: 100 ÷ 4 = 25. Поэтому умножить на 25 — то же, что умножить на 100 и взять четверть результата.', '8*25=200=8*100÷4'],
-        ['Prendre le quart d\'un nombre revient à le multiplier par :', 'Взять четверть числа — то же самое, что умножить его на:', ['0,25', '0,25'], [['4', '4'], ['0,4', '0,4'], ['0,04', '0,04']], 'Четверть — это 1/4 = 25/100 = 0,25.', '20*0.25=5=20÷4'],
-        ['Prendre les trois quarts d\'un nombre revient à le multiplier par :', 'Взять три четверти числа — то же самое, что умножить его на:', ['0,75', '0,75'], [['3,4', '3,4'], ['0,34', '0,34'], ['1,25', '1,25']], 'Три четверти — это 3/4 = 75/100 = 0,75.', '20*0.75=15=(20÷4)*3'],
-        ['Prendre le cinquième d\'un nombre revient à le multiplier par :', 'Взять пятую часть числа — то же самое, что умножить его на:', ['0,2', '0,2'], [['5', '5'], ['0,5', '0,5'], ['0,05', '0,05']], 'Пятая часть — это 1/5 = 2/10 = 0,2.', '30*0.2=6=30÷5']]);
+      const [fr, ru, ok, bad, why, ex, no] = r.pick([   /* the statement, the right option, the wrong ones (typical mistakes), why, an example, why each wrong one is wrong */
+        ['Multiplier un nombre par 0,5 revient à :', 'Умножить число на 0,5 — это то же самое, что:', ['le diviser par 2', 'разделить его на 2'], [['le multiplier par 2', 'умножить его на 2'], ['lui soustraire 0,5', 'вычесть из него 0,5'], ['le diviser par 5', 'разделить его на 5']], '0,5 — это половина (5 десятых = 1/2). Умножить на половину — значит взять половину числа.', '8*0.5=4=8÷2', ['наоборот: удвоение увеличивает число, а умножение на 0,5 уменьшает', 'вычитание — другое действие: 8 − 0,5 = 7,5, а 8 × 0,5 = 4', '0,5 — это 5 десятых, то есть $1/2$, а не $1/5$: разделить на 5 — значит умножить на 0,2']],
+        ['Diviser un nombre par 0,5 revient à :', 'Разделить число на 0,5 — это то же самое, что:', ['le multiplier par 2', 'умножить его на 2'], [['le diviser par 2', 'разделить его на 2'], ['le diviser par 5', 'разделить его на 5'], ['le multiplier par 5', 'умножить его на 5']], 'Разделить на 0,5 — узнать, сколько половинок помещается в числе. В каждой единице две половинки, поэтому результат вдвое больше самого числа.', '3÷0.5=6=3*2', ['это умножение на 0,5, а не деление: 3 ÷ 2 = 1,5, а 3 ÷ 0,5 = 6', '0,5 — не 5: 3 ÷ 5 = 0,6', '3 × 5 = 15, а 3 ÷ 0,5 = 6: в единице две половинки, а не пять']],
+        ['Multiplier un nombre par 0,25 revient à :', 'Умножить число на 0,25 — это то же самое, что:', ['le diviser par 4', 'разделить его на 4'], [['le diviser par 25', 'разделить его на 25'], ['le multiplier par 4', 'умножить его на 4'], ['le diviser par 2', 'разделить его на 2']], '0,25 — это четверть (25 сотых = 1/4). Умножить на четверть — значит взять четверть числа.', '12*0.25=3=12÷4', ['25 сотых — не 25: 12 ÷ 25 = 0,48, а 12 × 0,25 = 3', 'наоборот: число увеличится в 4 раза, а умножение на 0,25 уменьшает', 'разделить на 2 — значит умножить на 0,5, а 0,25 — половина от половины']],
+        ['Multiplier un nombre par 0,1 revient à :', 'Умножить число на 0,1 — это то же самое, что:', ['le diviser par 10', 'разделить его на 10'], [['le multiplier par 10', 'умножить его на 10'], ['le diviser par 100', 'разделить его на 100'], ['lui soustraire 0,1', 'вычесть из него 0,1']], '0,1 — одна десятая. Умножить на 0,1 — значит взять десятую часть числа.', '45*0.1=4.5=45÷10', ['наоборот: умножение на 10 увеличивает число, а на 0,1 — уменьшает', 'разделить на 100 — значит умножить на 0,01, а не на 0,1', 'вычитание — другое действие: 45 − 0,1 = 44,9, а 45 × 0,1 = 4,5']],
+        ['Diviser un nombre par 0,1 revient à :', 'Разделить число на 0,1 — это то же самое, что:', ['le multiplier par 10', 'умножить его на 10'], [['le diviser par 10', 'разделить его на 10'], ['le multiplier par 0,01', 'умножить его на 0,01'], ['le diviser par 100', 'разделить его на 100']], 'Разделить на 0,1 — узнать, сколько десятых в числе. В каждой единице 10 десятых, поэтому десятых в 10 раз больше, чем единиц.', '7÷0.1=70=7*10', ['разделить на 10 — значит умножить на 0,1: число уменьшится, а деление на 0,1 его увеличивает', 'умножение на 0,01 уменьшит число в 100 раз', 'деление на 100 уменьшит число в 100 раз']],
+        ['Multiplier un nombre par 25 revient à :', 'Умножить число на 25 — это то же самое, что:', ['le multiplier par 100, puis diviser le résultat par 4', 'умножить его на 100, а результат разделить на 4'], [['le multiplier par 100, puis diviser le résultat par 2', 'умножить его на 100, а результат разделить на 2'], ['le multiplier par 10, puis diviser le résultat par 4', 'умножить его на 10, а результат разделить на 4'], ['le multiplier par 4, puis diviser le résultat par 100', 'умножить его на 4, а результат разделить на 100']], '25 — четверть от 100: 100 ÷ 4 = 25. Поэтому умножить на 25 — то же, что умножить на 100 и взять четверть результата.', '8*25=200=8*100÷4', ['так получится умножение на 50: 100 ÷ 2 = 50', 'так получится умножение на 2,5: 10 ÷ 4 = 2,5', 'так получится умножение на 0,04: 4 ÷ 100 = 0,04']],
+        ['Prendre le quart d\'un nombre revient à le multiplier par :', 'Взять четверть числа — то же самое, что умножить его на:', ['0,25', '0,25'], [['4', '4'], ['0,4', '0,4'], ['0,04', '0,04']], 'Четверть — это 1/4 = 25/100 = 0,25.', '20*0.25=5=20÷4', ['умножение на 4 увеличит число, а четверть меньше самого числа', '0,4 — это 4 десятых, то есть $2/5$, а не $1/4$', '0,04 — это 4 сотых, то есть $1/25$']],
+        ['Prendre les trois quarts d\'un nombre revient à le multiplier par :', 'Взять три четверти числа — то же самое, что умножить его на:', ['0,75', '0,75'], [['3,4', '3,4'], ['0,34', '0,34'], ['1,25', '1,25']], 'Три четверти — это 3/4 = 75/100 = 0,75.', '20*0.75=15=(20÷4)*3', ['запятая не заменяет черту дроби: 3,4 больше 3, а $3/4$ меньше 1', '0,34 — это 34 сотых, а $3/4$ — 75 сотых', '1,25 — это $5/4$, а не $3/4$']],
+        ['Prendre le cinquième d\'un nombre revient à le multiplier par :', 'Взять пятую часть числа — то же самое, что умножить его на:', ['0,2', '0,2'], [['5', '5'], ['0,5', '0,5'], ['0,05', '0,05']], 'Пятая часть — это 1/5 = 2/10 = 0,2.', '30*0.2=6=30÷5', ['умножение на 5 увеличит число в 5 раз', '0,5 — это половина, а не пятая часть', '0,05 — это 5 сотых, то есть $1/20$']]]);
       return { q: L(fr, ru), ans: ncMQ(r, [ok].concat(bad).map(o => L(o[0], o[1]))), sol: [why, ['Проверка на примере:', ex],
+        'Неверные варианты: ' + bad.map((b, i) => '«' + b[0] + '»: ' + no[i]).join('; ') + '.',
         'Проверь себя по смыслу: умножение на число меньше 1 уменьшает число, а деление на число меньше 1 — увеличивает.'] };
     }
     /* vi === 4: parts of an hour in minutes (Antilles 2026 Q6: 1/10 d'heure) */
@@ -403,6 +411,51 @@ topic({ id: 'nc.calcul-mental', ch: 'nc', lvl: 1, calc: false, variants: 5,
     return { q: L('Combien de minutes y a-t-il dans $' + p + '/' + q + '$ d\'heure ?', 'Сколько минут в $' + p + '/' + q + '$ часа?'), ans: N(mn, { unit: 'min' }), sol: p === 1
       ? [['$1/' + q + '$ часа — одна из ' + q + ' равных частей часа, то есть 60 минут делим на ' + q + ':', '60÷' + q + '=' + one, 'min']]
       : [['Сначала одна доля: $1/' + q + '$ часа — это 60 минут, делённые на ' + q + ':', '60÷' + q + '=' + one, 'min'], ['Таких долей ' + p + ':', one + '*' + p + '=' + mn, 'min']] };
+  } });
+
+/* ===================== SQUARES OF THE WHOLE NUMBERS FROM 1 TO 12 (official list, item 7) ===================== */
+topic({ id: 'nc.carres', ch: 'nc', lvl: 1, calc: false, variants: 3,
+  ru: 'Квадраты чисел от 1 до 12', fr: 'Les carrés des nombres entiers de 1 à 12',
+  hints: [
+    'Квадрат числа («le carré») — число, умноженное само на себя: $7^2=7*7=49$. Это не удвоение: $7*2=14$ — это «le double».',
+    'Квадраты от 1 до 12 — 1, 4, 9, 16, 25, 36, 49, 64, 81, 100, 121, 144 — нужны в теореме Пифагора и для корней без калькулятора, поэтому их стоит знать наизусть. Забыл — восстанови через распределительный закон: $12*12=12*10+12*2=120+24=144$.',
+    'В выражении $6^2+8^2$ сначала возводят в квадрат (степень выполняется раньше сложения), потом складывают: $36+64=100$. А чтобы найти число по его квадрату, ищи число, которое при умножении само на себя даёт этот квадрат: $9*9=81$.'],
+  gen(r, vi) {
+    if (vi === 0) {   /* the square of n */
+      const n = r() < 0.8 ? r.ri(6, 12) : r.ri(1, 5), sq = n * n, ask = r() < 0.5;
+      const sol = [['$' + n + '^2$ — это ' + n + ', умноженное само на себя:', n + '^2=' + n + '*' + n + '=' + sq]];
+      if (n > 10) sol.push(['В уме удобно разбить второй множитель: ' + n + ' = 10 + ' + (n - 10) + ', и умножить на каждую часть (распределительный закон):', n + '*' + n + '=' + n + '*10+' + n + '*' + (n - 10) + '=' + 10 * n + '+' + n * (n - 10) + '=' + sq]);
+      sol.push(n === 2 ? 'Здесь квадрат совпал с удвоением ($2*2=2+2$), но это особенность числа 2: $3^2=9$, а $3*2=6$.'
+        : 'Частая ошибка — ' + 2 * n + ': это ' + n + ' × 2, удвоение («le double»), а квадрат — ' + n + ' × ' + n + '.');
+      const it = { q: ask ? L('Quel est le carré de ' + n + ' ?', 'Чему равен квадрат числа ' + n + '?') : L('Calculer :', 'Вычисли:'), ans: N(sq), sol };
+      if (!ask) it.m = n + '^2';
+      return it;
+    }
+    if (vi === 1) {   /* sums and differences of squares, as in the theorem of Pythagoras */
+      let a, b, minus;
+      if (r() < 0.4) [a, b, minus] = r.pick([[3, 4, 0], [4, 3, 0], [6, 8, 0], [8, 6, 0], [5, 12, 0], [12, 5, 0], [9, 12, 0], [12, 9, 0], [5, 3, 1], [5, 4, 1], [10, 6, 1], [10, 8, 1]]);
+      else { minus = r() < 0.4 ? 1 : 0; do { a = r.ri(2, 12); b = r.ri(2, 12); } while (a === b || (minus && a < b)); }
+      const v = minus ? a * a - b * b : a * a + b * b, op = minus ? '-' : '+', c = Math.round(Math.sqrt(v));
+      const sol = [['Степень выполняется раньше ' + (minus ? 'вычитания' : 'сложения') + ', поэтому сначала находим каждый квадрат:', a + '^2=' + a * a + ';' + b + '^2=' + b * b],
+        ['Потом ' + (minus ? 'вычитаем' : 'складываем') + ':', a * a + op + b * b + '=' + v],
+        'Частая ошибка — ' + (minus ? 2 * a - 2 * b : 2 * a + 2 * b) + ': так выходит, если вместо квадратов взять удвоения (' + a + ' × 2 и ' + b + ' × 2).'];
+      if (c * c === v) sol.push('Результат — тоже квадрат целого числа: ' + v + ' = $' + c + '^2$. Такие вычисления встречаются в теореме Пифагора.');
+      return { q: L('Calculer :', 'Вычисли:'), m: a + '^2' + op + b + '^2', ans: N(v), sol };
+    }
+    /* vi === 2: from the square back to the number */
+    const n = r.ri(3, 12), sq = n * n;
+    if (r() < 0.5) return { q: L('Quel nombre entier positif a pour carré ' + sq + ' ?', 'Квадрат какого целого положительного числа равен ' + sq + '?'), ans: N(n), sol: [
+      ['Ищем число, которое при умножении само на себя даёт ' + sq + ':', n + '*' + n + '=' + sq],
+      'Такое положительное число называют квадратным корнем («la racine carrée»): $√' + sq + '=' + n + '$.' + (sq % 2 ? '' : ' Не ' + sq / 2 + ': половина числа — не то же самое, что корень (' + sq / 2 + ' × ' + sq / 2 + ' = ' + sq * sq / 4 + ').')] };
+    const ok = x => x > 1 && !Number.isInteger(Math.sqrt(x)), wr = [];
+    if (ok(2 * n)) wr.push(2 * n);   /* the square taken for the double */
+    r.sh([sq - 1, sq + 1, sq + n, sq - n, 10 * n]).forEach(x => { if (wr.length < 3 && ok(x) && !wr.includes(x)) wr.push(x); });
+    const between = x => { const k = Math.floor(Math.sqrt(x)); return x + ' лежит между ' + k * k + ' = $' + k + '^2$ и ' + (k + 1) * (k + 1) + ' = $' + (k + 1) + '^2$'; };
+    return { q: L('Parmi les nombres suivants, lequel est le carré d\'un nombre entier ?', 'Какое из этих чисел — квадрат целого числа?'), ans: ncMQ(r, [sq].concat(wr).map(String)), sol: [
+      'Квадраты целых чисел: 1, 4, 9, 16, 25, 36, 49, 64, 81, 100, 121, 144, …',
+      sq + ' = ' + n + ' × ' + n + ' — это квадрат числа ' + n + '.',
+      wr.map(between).join('; ') + '. Между квадратами двух соседних целых чисел других квадратов нет: у следующего целого числа квадрат уже больше.'
+        + (wr[0] === 2 * n ? ' А ' + 2 * n + ' = ' + n + ' × 2 — это удвоение числа ' + n + ', а не его квадрат.' : '')] };
   } });
 
 /* ===================== WRITINGS OF A NUMBER: fraction, decimal, point on a line ===================== */
@@ -460,8 +513,9 @@ topic({ id: 'nc.frac-ecritures', ch: 'nc', lvl: 1, calc: false, variants: 5,
           'То же самое одним действием: $' + p + '/' + q + '$ от числа — это умножение на $' + p + '/' + q + '$.'] };
     }
     if (vi === 3) {   /* reading a graduated line, multiple choice (sujet zéro 2026 Q4) */
-      let d, k, ok, e1, e2, e3;
-      do { d = r.pick([3, 4, 5, 6, 8]); k = r.ri(d + 2, 3 * d - 1); const dl = (k + 1) % d === 0 ? -1 : (k - 1) % d === 0 ? 1 : r.sgn();
+      let d, k, ok, e1, e2, e3, dl;
+      const ncUnred = (f, n, dd) => '$' + Fr.str(f) + '$' + (f.d !== dd ? ' (это $' + n + '/' + dd + '$, сокращённая)' : '');
+      do { d = r.pick([3, 4, 5, 6, 8]); k = r.ri(d + 2, 3 * d - 1); dl = (k + 1) % d === 0 ? -1 : (k - 1) % d === 0 ? 1 : r.sgn();
         ok = F(k, d); e1 = F(k, d + 1); e2 = F(k + dl, d); e3 = F(k - d, d);
       } while (gcd(k, d) !== 1 || k % (d + 1) === 0 || new Set([ok, e1, e2, e3].map(Fr.str)).size < 4);
       const hi = k < 2 * d ? 2 : 3, nm = r.pick(['A', 'B', 'E', 'M', 'P', 'R']), w = Math.floor(k / d);
@@ -470,7 +524,7 @@ topic({ id: 'nc.frac-ecritures', ch: 'nc', lvl: 1, calc: false, variants: 5,
           'Считаем промежутки между штрихами, а не сами штрихи: от 0 до 1 — ' + ncGaps(d) + ' (штрихов там ' + (d + 1) + ', если считать оба конца). Значит, одно деление — это $1/' + d + '$.',
           'Точка ' + nm + ' стоит на ' + k + '-м делении от нуля: это ' + k + ' долей по $1/' + d + '$, то есть $' + k + '/' + d + '$.',
           'Проверка: $' + k + '/' + d + '$ — это ' + w + ' и ещё $' + (k - w * d) + '/' + d + '$, точка действительно между ' + w + ' и ' + (w + 1) + '.',
-          'Ответ $' + Fr.str(e1) + '$ получается, если считать штрихи: тогда кажется, что единица разделена на ' + (d + 1) + ' ' + ncPl(d + 1, 'часть', 'части', 'частей') + '. Ответ $' + Fr.str(e3) + '$ — если отсчитывать деления от 1, а не от 0. Ответ $' + Fr.str(e2) + '$ — если ошибиться на одно деление.'] };
+          'Ответ ' + ncUnred(e1, k, d + 1) + ' получается, если считать штрихи: тогда кажется, что единица разделена на ' + (d + 1) + ' ' + ncPl(d + 1, 'часть', 'части', 'частей') + '. Ответ ' + ncUnred(e3, k - d, d) + ' — если отсчитывать деления от 1, а не от 0. Ответ ' + ncUnred(e2, k + dl, d) + ' — если ошибиться на одно деление.'] };
     }
     /* vi === 4: reading a graduated line, short answer */
     let d, a, t; do { d = r.pick([2, 3, 4, 5, 6, 8, 10]); a = r.ri(-3, 4); t = r.ri((a - 1) * d + 1, (a + 2) * d - 1); } while (t % d === 0 || gcd(Math.abs(t), d) !== 1);
@@ -484,6 +538,198 @@ topic({ id: 'nc.frac-ecritures', ch: 'nc', lvl: 1, calc: false, variants: 5,
     sol.push('Проверка: $' + Fr.str(res) + '$ ' + (exact ? '= ' + ncN(t * 1000 / d, 3) : '≈ ' + ncTxt(String(+(t / d).toFixed(2)))) + ' — точка действительно между ' + nf(lo_) + ' и ' + nf(lo_ + 1) + '.');
     return { q: L('Sur cette droite graduée, quelle est l\'abscisse du point ' + nm + ' ? Donner la réponse sous la forme d\'une fraction.', 'Какова абсцисса точки ' + nm + ' на этой числовой прямой? Запиши ответ дробью.'),
       fig: ncLine(a - 1, a + 2, d, [a, a + 1], t, nm), ans: FRA(res), sol };
+  } });
+
+/* ===================== ONE NUMBER, SEVERAL WRITINGS (official list, items 1 and 5) ===================== */
+const ncPc = v => nf(v) + ' %';                                          /* 120 % (the same no-break space as in pp-gm.js) */
+/* simple fractions [n, d]: those of the official list (item 1) and their neighbours — halves, quarters, fifths, tenths, hundredths, whole numbers */
+const NC_SF_OFF = [[1, 2], [1, 4], [3, 4], [3, 2], [4, 2], [5, 2], [1, 10], [100, 100], [7, 1]];
+const NC_SF = [[7, 2], [9, 2], [6, 2], [5, 4], [7, 4], [2, 4], [6, 4], [8, 4], [1, 5], [2, 5], [3, 5], [4, 5], [6, 5], [10, 5], [3, 10], [7, 10], [9, 10], [12, 10], [15, 10], [20, 10], [10, 10], [5, 5],
+  [6, 3], [9, 3], [3, 1], [12, 1], [1, 100], [5, 100], [25, 100], [50, 100], [75, 100], [120, 100], [150, 100]];
+/* «4 половинки», «3 четверти», «7 десятых» */
+const NC_PNAME = { 2: ['половинка', 'половинки', 'половинок'], 3: ['треть', 'трети', 'третей'], 4: ['четверть', 'четверти', 'четвертей'], 5: ['пятая', 'пятых', 'пятых'], 10: ['десятая', 'десятых', 'десятых'], 100: ['сотая', 'сотых', 'сотых'] };
+const ncPN = (n, d) => n + ' ' + ncPl(n, NC_PNAME[d][0], NC_PNAME[d][1], NC_PNAME[d][2]);
+/* «= 0,5» when the decimal writing of n/d ends, «≈ 0,33» when it does not */
+function ncDecTxt(n, d) {
+  const f = F(n, d); let k = 0; while (k < 6 && Math.pow(10, k) % f.d) k++;
+  return Math.pow(10, k) % f.d ? '≈ ' + ncTxt(String(+(f.n / f.d).toFixed(2))) : '= ' + ncTxt(ncD(f.n * Math.pow(10, k) / f.d, k));
+}
+/* decimals p · 10^-k for the questions «which writing is equal»; a whole part ≥ 1 is never followed by 0 (no 2,05) */
+const NC_WRN = [[2, 1], [3, 1], [4, 1], [5, 1], [6, 1], [7, 1], [8, 1], [9, 1], [12, 1], [14, 1], [15, 1], [16, 1], [24, 1], [25, 1], [35, 1], [45, 1], [4, 2], [5, 2], [12, 2], [25, 2], [35, 2], [75, 2], [125, 2], [175, 2], [225, 2]];
+/* the writings of x = p · 10^-k: the right ones (all equal to x) and the typical wrong ones, each with its value and why it is wrong */
+function ncWritings(p, k) {
+  const P = Math.pow(10, k), w = Math.floor(p / P), rp = p % P, dg = +String(rp).padStart(k, '0'), xs = ncD(p, k), X = ncTxt(xs), pc = k === 1 ? 10 * p : p;
+  const irr = F(p, P), fp = F(rp, P), right = [{ t: '$' + p + '/' + P + '$', f: 'dec' }], wrong = [];
+  if (k === 1) right.push({ t: '$' + 10 * p + '/100$', f: '100' });
+  if (irr.d !== P) right.push({ t: '$' + Fr.str(irr) + '$', f: 'irr' });
+  if (w && rp) right.push({ t: '$' + w + '+' + Fr.str(fp) + '$', f: 'mix' });
+  right.push({ t: ncPc(pc), f: 'pc' });
+  const add = (t, n, d, why) => { const v = F(n, d); if (v.n * P === p * v.d || wrong.some(o => o.v.n === v.n && o.v.d === v.d)) return; wrong.push({ t, v, why }); };
+  if (w) add('$' + w + '/' + dg + '$', w, dg, '$' + w + '/' + dg + '$ — это ' + w + ' ÷ ' + dg + ' ' + ncDecTxt(w, dg) + ': запятую нельзя заменять чертой дроби.');
+  if (!w && p > 1 && (k === 1 || p >= 10)) add('$1/' + p + '$', 1, p, '$1/' + p + '$ — это 1 ÷ ' + p + ' ' + ncDecTxt(1, p) + ', а не ' + X + ': ' + X + ' — это ' + ncParts(p, k) + ', то есть $' + p + '/' + P + '$.');
+  add('$' + p + '/' + 10 * P + '$', p, 10 * P, '$' + p + '/' + 10 * P + '$ — это ' + ncParts(p, k + 1) + ', то есть ' + ncTxt(ncD(p, k + 1)) + ': ошибка в разряде.');
+  if (k === 2) add('$' + p + '/10$', p, 10, '$' + p + '/10$ — это ' + ncParts(p, 1) + ', то есть ' + ncTxt(ncD(p, 1)) + ': ошибка в разряде.');
+  add(ncPc(+xs), p, 100 * P, ncPc(+xs) + ' — это ' + X + ' ÷ 100 = ' + ncTxt(ncD(p, k + 2)) + ': процент — сотая доля, поэтому ' + X + ' = ' + ncPc(pc) + '.');
+  if (k === 1) add(ncPc(p), p, 100, ncPc(p) + ' — это ' + p + ' ÷ 100 = ' + ncTxt(ncD(p, 2)) + ', а ' + X + ' = ' + ncPc(pc) + '.');
+  else if (p < 10) add(ncPc(10 * p), 10 * p, 100, ncPc(10 * p) + ' — это ' + ncTxt(ncD(10 * p, 2)) + ': ноль сразу после запятой важен, ' + X + ' — это ' + ncParts(p, 2) + ', то есть ' + ncPc(p) + '.');
+  else if (p % 10) add(ncPc(p / 10), p, 1000, ncPc(p / 10) + ' — это ' + nf(p / 10) + ' ÷ 100 = ' + ncTxt(ncD(p, 3)) + ', а ' + X + ' = ' + ncPc(pc) + '.');
+  if (w && rp) add('$' + w + '+1/' + dg + '$', w * dg + 1, dg, '$' + w + '+1/' + dg + '$ ' + ncDecTxt(w * dg + 1, dg) + ': после запятой стоят ' + (k === 1 ? 'десятые' : 'сотые') + ', ' + X + ' = ' + w + ' + $' + rp + '/' + P + '$.');
+  return { P, w, rp, xs, X, pc, irr, fp, right, wrong };
+}
+
+topic({ id: 'nc.ecritures-nombre', ch: 'nc', lvl: 1, calc: false, variants: 4,
+  ru: 'Одно число — разные записи', fr: 'Écritures d\'un même nombre',
+  hints: [
+    'Одно и то же число можно записать по-разному, и значение от этого не меняется: $1.2=12/10=120/100=6/5=1+1/5$ = 120 %. Начинай с десятичной записи: 1,2 — это 12 десятых, то есть $12/10$.',
+    'Черта дроби — это деление: $3/2=3÷2=1.5$, а не «3,2». Дробь с одинаковыми числителем и знаменателем равна 1 ($100/100=1$), со знаменателем 1 — самому числителю ($7/1=7$).',
+    'Проценты — это сотые доли («pour cent» — «на сотню»): 35 % = $35/100$, а всё целое — $100/100$ = 100 %. Поэтому 1,2 = $120/100$ = 120 %. Целую часть можно отделить: $1.2=1+0.2=1+2/10=1+1/5$.'],
+  gen(r, vi) {
+    if (vi === 0) {   /* item 1: the decimal writing of a simple fraction (1/2 ; 1/4 ; 3/4 ; 3/2 ; 4/2 ; 5/2 ; 1/10 ; 100/100 ; 7/1) */
+      const [n, d] = r.pick(r() < 0.5 ? NC_SF_OFF : NC_SF), f = n + '/' + d, w = Math.floor(n / d), rem = n % d, sol = []; let x;
+      if (d === 1) { x = String(n); sol.push(['Знаменатель 1: делим на 1, а от деления на 1 число не меняется. $' + f + '$ — это ' + n + ' целых.', f + '=' + n + '÷1=' + n]); }
+      else if (n === d) { x = '1'; sol.push(['Числитель равен знаменателю: взяли все ' + ncPN(d, d) + ' из ' + d + ', то есть одну целую.', f + '=' + n + '÷' + d + '=1']); }
+      else if (!rem) { x = String(w); sol.push(['Черта дроби — это деление: ' + n + ' ÷ ' + d + ' = ' + w + '. По смыслу: ' + ncPN(n, d) + ' составляют ' + w + ' целых.', f + '=' + n + '÷' + d + '=' + w]); }
+      else {
+        const k = ncK(d), P = Math.pow(10, k), m = P / d, top = n * m; x = ncD(top, k);
+        if (m > 1) sol.push(['Домножим числитель и знаменатель на ' + m + ', чтобы знаменатель стал ' + P + ', — значение дроби от этого не меняется:', f + '=(' + n + '*' + m + ')/(' + d + '*' + m + ')=' + top + '/' + P]);
+        sol.push(['$' + top + '/' + P + '$ — это ' + ncParts(top, k) + ':', top + '/' + P + '=' + x]);
+        if (w) sol.push('Проверка по смыслу: $' + f + '$ — это ' + w + ' ' + ncPl(w, 'целая', 'целых', 'целых') + ' и ещё $' + rem + '/' + d + '$, то есть ' + w + ' + ' + ncTxt(ncD(rem * m, k)) + ' = ' + ncTxt(x) + '.');
+      }
+      if (d === 1 || (d < 10 && n !== d)) sol.push('Ловушка: $' + f + '$ — не «' + n + ',' + d + '». Черта дроби означает деление, а не запятую.');
+      return { q: L('Donner l\'écriture décimale de $' + f + '$.', 'Запиши число $' + f + '$ в десятичной записи.'), ans: N(x, { dec: true }), sol };
+    }
+    if (vi === 1) {   /* item 5: which writing is (is not) equal to the number — the eduscol test «0,3 s'écrit aussi …», the official example 1,2 = 12/10 = 6/5 = 1 + 1/5 = 120 % */
+      const [p, k] = r.pick(NC_WRN), W = ncWritings(p, k), neg = r() < 0.4, more = W.right.filter(o => o.f !== 'dec');
+      const ok = neg ? r.pick(W.wrong) : r.pick(more.length ? more : W.right), shown = neg ? r.sh(W.right).slice(0, 3) : r.sh(W.wrong).slice(0, 3);
+      const chain = W.xs + '=' + p + '/' + W.P + (k === 1 ? '=' + 10 * p + '/100' : '') + (W.irr.d !== W.P ? '=' + Fr.str(W.irr) : '') + (W.w && W.rp ? '=' + W.w + '+' + Fr.str(W.fp) : '');
+      const how = [];
+      if (k === 1) how.push('Десятые можно записать сотыми, умножив числитель и знаменатель на 10: $' + p + '/10=' + 10 * p + '/100$.');
+      if (W.irr.d !== W.P) how.push('Дробь сокращается на ' + W.P / W.irr.d + ' — числитель и знаменатель делим на одно и то же число: $' + p + '/' + W.P + '=' + Fr.str(W.irr) + '$.');
+      if (W.w && W.rp) how.push('Целую часть можно записать отдельно: ' + W.X + ' = ' + W.w + ' + ' + ncTxt(ncD(W.rp, k)) + ' = ' + W.w + ' + $' + Fr.str(W.fp) + '$.');
+      how.push('Проценты — это сотые доли: ' + W.X + ' = $' + W.pc + '/100$ = ' + ncPc(W.pc) + '.');
+      return { q: neg ? L('Parmi les propositions suivantes, laquelle n\'est pas égale à ' + W.X + ' ?', 'Какая из записей не равна ' + W.X + '?') : L('Parmi les propositions suivantes, laquelle est égale à ' + W.X + ' ?', 'Какая из записей равна ' + W.X + '?'),
+        ans: ncMQ(r, [ok.t].concat(shown.map(o => o.t))), sol: [
+          [W.X + ' — это ' + ncParts(p, k) + '. Остальные записи получаются из этой, значение при этом не меняется:', chain],
+          how.join(' '),
+          neg ? ok.why : shown.map(o => o.why).join(' '),
+          neg ? 'Значит, не равна ' + W.X + ' только запись ' + ok.t + '.' : 'Значит, ' + W.X + ' = ' + ok.t + '.'] };
+    }
+    if (vi === 2) {   /* item 5: a decimal number as a percentage and back */
+      const pc = r.pick([1, 2, 5, 7, 8, 12, 30, 35, 40, 45, 60, 75, 90, 105, 110, 120, 125, 150, 175, 200, 250, 300]), x = ncD(pc, 2), toPc = r() < 0.5 || pc % 100 === 0;
+      if (toPc) {
+        const sol = [['Процент — это сотая доля: 1 % = $1/100$, а всё целое, 1, — это 100 %. Значит, нужно узнать, сколько сотых в числе ' + ncTxt(x) + ':', x + '=' + pc + '/100'],
+          '$' + pc + '/100$ — это ' + ncPc(pc) + '.' + (pc > 100 ? ' Больше 100 %, потому что число больше 1.' : '')];
+        if (pc < 10) sol.push('Не ' + ncPc(10 * pc) + ': ' + ncTxt(x) + ' — это ' + ncParts(pc, 2) + ', а ' + ncPc(10 * pc) + ' — это ' + ncParts(10 * pc, 2) + ', то есть ' + ncTxt(ncD(10 * pc, 2)) + '.');
+        else if (pc % 10 === 0) sol.push('Не ' + ncPc(pc / 10) + ': ' + ncPc(pc / 10) + ' — это ' + ncTxt(ncD(pc / 10, 2)) + ', в 10 раз меньше.');
+        return { q: L('Écrire le nombre ' + ncTxt(x) + ' sous la forme d\'un pourcentage.', 'Запиши число ' + ncTxt(x) + ' в процентах.'), ans: N(pc, { unit: '%' }), sol };
+      }
+      const sol = [['«Pour cent» — «на сотню»: ' + ncPc(pc) + ' — это ' + ncParts(pc, 2) + ', то есть $' + pc + '/100$:', pc + '/100=' + x]];
+      if (pc < 10) sol.push('Не ' + ncTxt(ncD(pc, 1)) + ': это ' + ncParts(pc, 1) + ', то есть ' + ncPc(10 * pc) + '.');
+      if (pc > 100) sol.push('Больше 100 % — больше целого, поэтому число больше 1.');
+      return { q: L('Donner l\'écriture décimale de ' + ncPc(pc) + '.', 'Запиши ' + ncPc(pc) + ' в виде десятичной дроби.'), ans: N(x, { dec: true }), sol };
+    }
+    /* vi === 3: a whole number plus a fraction smaller than 1 (1,2 = 1 + 1/5 ; 7/4 = 1 + 3/4): fill in the dots */
+    const q = L('Par quel nombre faut-il remplacer les pointillés pour que l\'égalité soit vraie ?', 'Каким числом нужно заменить многоточие, чтобы равенство было верным?');
+    const right = (w, a, b, bl) => (bl === 0 ? '\\ldots' : w) + '+\\dfrac{' + (bl === 1 ? '\\ldots' : a) + '}{' + (bl === 2 ? '\\ldots' : b) + '}';
+    if (r() < 0.5) {   /* from a decimal */
+      const [a, b] = r.pick([[1, 2], [1, 4], [3, 4], [1, 5], [2, 5], [3, 5], [4, 5], [1, 10], [3, 10], [7, 10], [1, 20]]), w = r.ri(1, 4), k = ncK(b), P = Math.pow(10, k), fd = a * P / b, x = ncD(w * P + fd, k), bl = r.pick([0, 1, 2, 2]);
+      const sol = ['Отделяем целую часть: ' + ncTxt(x) + ' = ' + w + ' + ' + ncTxt(ncD(fd, k)) + '.',
+        [ncTxt(ncD(fd, k)) + ' — это ' + ncParts(fd, k) + (P / b > 1 ? '; сокращаем дробь на ' + P / b + ' (делим числитель и знаменатель на одно и то же число):' : ':'), ncD(fd, k) + '=' + fd + '/' + P + (P / b > 1 ? '=' + a + '/' + b : '')],
+        'Значит, $' + x + '=' + w + '+' + a + '/' + b + '$, и на месте точек — ' + [w, a, b][bl] + '.'];
+      return { q, tex: texNum(x) + '=' + right(w, a, b, bl), ans: N([w, a, b][bl]), sol };
+    }
+    let d, a; do { d = r.pick([2, 3, 4, 5, 10]); a = r.ri(1, d - 1); } while (gcd(a, d) !== 1);   /* from a fraction greater than 1 */
+    const w = r.ri(1, 3), n = w * d + a, bl = r.pick([0, 1, 1, 2]);
+    return { q, tex: tfr(n, d) + '=' + right(w, a, d, bl), ans: N([w, a, d][bl]), sol: [
+      ['$' + n + '/' + d + '$ — это ' + ncPN(n, d) + '. Из них ' + ncPN(w * d, d) + ' составляют ' + w + ' ' + ncPl(w, 'целую', 'целых', 'целых') + ' (' + w + ' × ' + d + ' = ' + w * d + '), и остаётся ' + ncPN(a, d) + ':', n + '/' + d + '=' + w * d + '/' + d + '+' + a + '/' + d + '=' + w + '+' + a + '/' + d],
+      'На месте точек — ' + [w, a, d][bl] + '.'] };
+  } });
+
+/* ===================== THE GRADUATED LINE (official list, item 14): read an abscissa, place a point ===================== */
+/* a graduated line with n + 1 graduations, drawn like ncLine: big(i) — a long graduation; labs — [[i, text]] under the line;
+   pts — [[i, name]] above it; hl — [i, j]: the stretch counted in the solution, in colour */
+function ncAxis(n, big, labs, pts, hl) {
+  const x0 = 22, x1 = 318, y = 36, X = i => +(x0 + i * (x1 - x0) / n).toFixed(1);
+  let s = '<line class="fl" x1="6" y1="' + y + '" x2="334" y2="' + y + '"/><line class="fl" x1="326" y1="' + (y - 5) + '" x2="334" y2="' + y + '"/><line class="fl" x1="326" y1="' + (y + 5) + '" x2="334" y2="' + y + '"/>';
+  if (hl && hl[0] !== hl[1]) s += '<line class="fhl" x1="' + X(hl[0]) + '" y1="' + y + '" x2="' + X(hl[1]) + '" y2="' + y + '"/>';
+  for (let i = 0; i <= n; i++) { const b = big(i), h = b ? 9 : 6; s += '<line class="' + (b ? 'fl' : 'fl2') + '" x1="' + X(i) + '" y1="' + (y - h) + '" x2="' + X(i) + '" y2="' + (y + h) + '"/>'; }
+  labs.forEach(([i, t]) => { s += '<text class="ftx" x="' + X(i) + '" y="' + (y + 28) + '" text-anchor="middle" font-size="15">' + t + '</text>'; });
+  pts.forEach(([i, nm]) => { s += '<circle class="fpt" cx="' + X(i) + '" cy="' + y + '" r="4.5"/><text class="ftx" x="' + X(i) + '" y="' + (y - 15) + '" text-anchor="middle" font-size="15">' + nm + '</text>'; });
+  return svgFig(340, 72, s, 'droite graduée');
+}
+/* graduations of sn · 10^-sk, k graduations between the two numbers written under the line, how many graduations the line shows,
+   the range of m: the first number under the line is m × (k graduations) */
+const NC_GRAD = [[1, 1, 10, [20], -2, 3], [2, 1, 5, [10, 15], -2, 3], [5, 1, 2, [8, 10, 12], -2, 3], [5, 1, 4, [8, 12, 16], -1, 2], [25, 2, 4, [8, 12, 16], -2, 3],
+  [2, 0, 5, [10, 15], -1, 3], [5, 0, 2, [8, 10, 12], -1, 3], [5, 0, 4, [12, 16], -1, 2], [25, 0, 4, [8, 12], -1, 2], [10, 0, 5, [10, 15], -1, 3], [1, 2, 10, [20], 0, 30]];
+const NC_PTN = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'K', 'M', 'N', 'P', 'R', 'S', 'T'];
+/* a random line: graduation i has the abscissa (c + i) graduations; the numbers are written under the graduations a and a + k */
+function ncGradLine(r) {
+  const [sn, sk, k, ns, mlo, mhi] = r.pick(NC_GRAD), n = r.pick(ns), a = r.ri(0, n - k), c = r.ri(mlo, mhi) * k - a;
+  const vs = i => ncD((c + i) * sn, sk), v3 = i => (c + i) * sn * Math.pow(10, 3 - sk);   /* the abscissa of graduation i: input syntax / in thousandths */
+  return { sn, sk, k, n, a, c, vs, v3, st: ncD(sn, sk), big: i => (i - a) % k === 0, labs: [[a, ncTxt(vs(a))], [a + k, ncTxt(vs(a + k))]],
+    gap: 296 / n < 16 ? 2 : 1,                                                                  /* points closer than that would crowd their names */
+    wst: sk ? (sn === 1 ? 0 : 100) : sn <= 5 ? 1000 : sn === 25 ? 10000 : 0,                      /* the step a pupil tends to assume (0,1 · 1 · 10), in thousandths */
+    tst: k * sn * Math.pow(10, 3 - sk) % (k + 1) ? 0 : k * sn * Math.pow(10, 3 - sk) / (k + 1) };  /* the step one gets by counting the graduations instead of the gaps */
+}
+/* the cost of one graduation, from the two numbers under the line */
+const ncGradWhy = G => ['Цена деления: между числами ' + ncTxt(G.vs(G.a)) + ' и ' + ncTxt(G.vs(G.a + G.k)) + ' — ' + ncGaps(G.k) + ' (считаем промежутки между штрихами, а не сами штрихи). Значит, одно деление равно',
+  '(' + G.vs(G.a + G.k) + '-' + ncP(G.vs(G.a)) + ')÷' + G.k + '=' + G.st];
+const ncDiv = n => n + ' ' + ncPl(n, 'деление', 'деления', 'делений');
+
+topic({ id: 'nc.droite-graduee', ch: 'nc', lvl: 1, calc: false, variants: 3,
+  ru: 'Числовая прямая: прочитать и отметить точку', fr: 'Se repérer sur une droite graduée',
+  hints: [
+    'Сначала найди цену деления: разность двух подписанных чисел раздели на число промежутков между ними (промежутков, а не штрихов). От 2 до 3 — 5 промежутков, значит, одно деление — $1÷5=0.2$.',
+    'Абсцисса точки («l\'abscisse») — подписанное число плюс столько делений, на сколько точка правее него (или минус — если левее). Правее нуля — положительные числа, левее — отрицательные.',
+    'Чтобы найти точку с данной абсциссой, начни с ближайшего подписанного числа: посчитай, сколько делений составляет разность, и отложи их в нужную сторону. Для дроби $7/4$ при четырёх делениях в единице — 7 делений от нуля вправо.'],
+  gen(r, vi) {
+    if (vi === 0) {   /* read the abscissa of a point (Amérique du Nord 2026 Q5) */
+      let G, p; do { G = ncGradLine(r); p = r.ri(0, G.n); } while (p === G.a || p === G.a + G.k || G.c + p === 0 || (G.big(p) && r() < 0.8));
+      const nm = r.pick(NC_PTN), ref = Math.abs(p - G.a) <= Math.abs(p - G.a - G.k) ? G.a : G.a + G.k, j = p - ref, v = G.vs(p), rv = G.vs(ref);
+      const sol = [ncGradWhy(G), { t: 'Точка ' + nm + ' — на ' + ncDiv(Math.abs(j)) + (j > 0 ? ' правее' : ' левее') + ' числа ' + ncTxt(rv) + ':', m: ncP(rv) + (j > 0 ? '+' : '-') + Math.abs(j) + '*' + G.st + '=' + v, svg: ncAxis(G.n, G.big, G.labs, [[p, nm]], [ref, p]) }];
+      if (G.tst) sol.push('Частая ошибка — считать штрихи вместо промежутков: от ' + ncTxt(G.vs(G.a)) + ' до ' + ncTxt(G.vs(G.a + G.k)) + ' — ' + (G.k + 1) + ' штрихов, и одно деление показалось бы равным ' + ncTxt(ncD(G.tst, 3)) + ' (разность, делённая на ' + (G.k + 1) + '); тогда вышло бы ' + ncTxt(ncD(G.v3(ref) + j * G.tst, 3)) + '.');
+      else if (G.wst) { const wv = G.v3(ref) + j * G.wst; if (wv !== G.v3(p)) sol.push('Частая ошибка — считать, что одно деление равно ' + ncTxt(ncD(G.wst, 3)) + ': тогда вышло бы ' + ncTxt(ncD(wv, 3)) + '. Цену деления не угадывают, а находят по подписанным числам.'); }
+      return { q: L('Sur cette droite graduée, quelle est l\'abscisse du point ' + nm + ' ?', 'Какова абсцисса точки ' + nm + ' на этой числовой прямой?'), fig: ncAxis(G.n, G.big, G.labs, [[p, nm]]), ans: N(v), sol };
+    }
+    /* vi 1, 2: place a point — which point has the given abscissa (a decimal / a fraction) */
+    for (let g = 0; ; g++) {
+      let G, p, ref, cands, X, Xs, pre = [];
+      if (vi === 1) {
+        do { G = ncGradLine(r); p = r.ri(0, G.n); } while (p === G.a || p === G.a + G.k || G.c + p === 0);
+        ref = Math.abs(p - G.a) <= Math.abs(p - G.a - G.k) ? G.a : G.a + G.k; X = G.vs(p); Xs = ncTxt(X);
+        const j = p - ref, rT = ncTxt(G.vs(ref)), dv = G.v3(p) - G.v3(ref);
+        cands = [[2 * ref - p, 'деления отложены от числа ' + rT + ' не в ту сторону'], [p - Math.sign(j), 'на одно деление ближе к ' + rT + ': так бывает, если считать штрихи, а не промежутки']];
+        if (G.c + p < 0) cands.push([-2 * G.c - p, 'перепутан знак: отрицательные числа — левее нуля']);
+        const oth = ref === G.a ? G.a + G.k : G.a; cands.push([oth + j, 'деления отсчитаны от числа ' + ncTxt(G.vs(oth)) + ', а не от ' + rT]);
+        if (G.wst && dv % G.wst === 0) cands.push([ref + dv / G.wst, 'так выходит, если считать, что одно деление равно ' + ncTxt(ncD(G.wst, 3))]);
+        if (G.tst && dv % G.tst === 0) cands.push([ref + dv / G.tst, 'так выходит, если считать штрихи вместо промежутков: тогда одно деление показалось бы равным ' + ncTxt(ncD(G.tst, 3))]);
+        pre = [ncGradWhy(G), [Xs + ' отличается от ' + rT + ' на ' + ncTxt(ncD(Math.abs(dv), 3)) + ' — это ' + ncDiv(Math.abs(j)) + ' по ' + ncTxt(G.st) + ':', ncD(Math.abs(dv), 3) + '÷' + G.st + '=' + Math.abs(j)]];
+        pre.push({ t: 'Откладываем ' + ncDiv(Math.abs(j)) + (j > 0 ? ' вправо' : ' влево') + ' от числа ' + rT + '.', svg: '' });
+      } else {
+        const d = r.pick([3, 4, 5, 6, 8]), U = d === 8 ? 2 : d === 6 ? r.ri(2, 3) : d === 5 ? r.ri(3, 4) : d === 4 ? r.ri(3, 5) : r.ri(3, 6), n = U * d, z = r() < 0.25 ? d * r.ri(1, U - 1) : 0, la = z && r() < 0.5 ? z - d : z;
+        let t; do t = r.ri(-z, n - z); while (!t || t % d === 0 || (z && t > 0 && r() < 0.6) || (gcd(Math.abs(t), d) > 1 && r() < 0.6));
+        G = { n, k: d, a: la, gap: 296 / n < 16 ? 2 : 1, big: i => (i - z) % d === 0, labs: [[la, nf((la - z) / d)], [la + d, nf((la + d - z) / d)]], vs: i => Fr.str(F(i - z, d)) };
+        p = z + t; ref = z; const Xf = F(t, d), u = Math.sign(t), T = Math.abs(t); X = Fr.str(Xf); Xs = '$' + X + '$';
+        cands = [[p - u, 'на одно деление ближе к нулю: так бывает, если считать штрихи, а не промежутки']];
+        if (t < 0) cands.push([z - t, 'перепутан знак: отрицательные числа — левее нуля']);
+        if (T > d) cands.push([z + u * (T % d), 'забыта целая часть ($' + X + '$ — это ' + (t < 0 ? 'минус ' : '') + Math.floor(T / d) + ' и ещё $' + (T % d) + '/' + d + '$)']);
+        cands.push([p + u * d, 'деления отсчитаны от ' + nf(u) + ', а не от 0']);
+        if (Xf.d < d) cands.push([z + Xf.n, 'отложено ' + Math.abs(Xf.n) + ' ' + ncPl(Math.abs(Xf.n), 'деление', 'деления', 'делений') + ', как будто одно деление — $1/' + Xf.d + '$, а оно здесь — $1/' + d + '$']);
+        pre = ['От ' + nf((la - z) / d) + ' до ' + nf((la + d - z) / d) + ' — ' + ncGaps(d) + ' (считаем промежутки, а не штрихи). Значит, одно деление — это $1/' + d + '$.'];
+        if (Xf.d < d) pre.push(['Запишем $' + X + '$ со знаменателем ' + d + ': числитель и знаменатель умножаем на ' + d / Xf.d + ', значение не меняется.', X + '=' + t + '/' + d]);
+        pre.push({ t: '$' + t + '/' + d + '$ — это ' + T + ' ' + ncPl(T, 'доля', 'доли', 'долей') + ' по $1/' + d + '$, то есть ' + ncDiv(T) + ' от нуля ' + (t > 0 ? 'вправо' : 'влево') + '.', svg: '' });
+      }
+      /* the wrong points: on the line, not under a number, not next to another point */
+      const used = [p], wr = [];
+      r.sh(cands).forEach(([i, why]) => { if (wr.length < 3 && i >= 0 && i <= G.n && i !== G.a && i !== G.a + G.k && used.every(u => Math.abs(u - i) >= G.gap)) { used.push(i); wr.push([i, why]); } });
+      if (wr.length < 3 && g < 40) continue;
+      while (wr.length < 3) { const i = r.ri(0, G.n); if (i !== G.a && i !== G.a + G.k && used.every(u => Math.abs(u - i) >= G.gap)) { used.push(i); wr.push([i, '']); } }
+      const nm = r.sh(NC_PTN).slice(0, 4), pts = used.map((i, j) => [i, nm[j]]), sorted = nm.slice().sort();
+      const last = pre[pre.length - 1]; last.t += ' Это точка ' + nm[0] + '.'; last.svg = ncAxis(G.n, G.big, G.labs, [[p, nm[0]]], [ref, p]);
+      const val = i => { if (vi === 1) return ncTxt(G.vs(i)); const u = i - ref, f = F(u, G.k); return '$' + (u % G.k && f.d !== G.k ? u + '/' + G.k + '=' : '') + Fr.str(f) + '$'; };
+      return { q: L('Sur cette droite graduée, quel point a pour abscisse ' + Xs + ' ?', 'У какой точки на этой числовой прямой абсцисса равна ' + Xs + '?'), fig: ncAxis(G.n, G.big, G.labs, pts),
+        ans: MQF(sorted.map(l => L('Le point ' + l, 'Точка ' + l)), sorted.indexOf(nm[0])), sol: pre.concat(wr.map(([i, why], j) => (why ? 'Точка ' + nm[j + 1] + ' (её абсцисса ' + val(i) + ') — ' + why : 'У точки ' + nm[j + 1] + ' абсцисса ' + val(i)) + '.')) };
+    }
   } });
 
 /* ===================== SIMPLIFYING AND COMPARING FRACTIONS ===================== */
@@ -687,7 +933,7 @@ topic({ id: 'nc.frac-calc', ch: 'nc', lvl: 2, calc: false, variants: 5,
       let f1, f2, f3, Sm, R, minus, div; do { f1 = ncRF(r, 6); f2 = ncRF(r, 6); f3 = ncRF(r, 7); minus = r() < 0.4; div = r() < 0.4; Sm = minus ? Fr.sub(f1, f2) : Fr.add(f1, f2); R = div ? Fr.div(Sm, f3) : Fr.mul(Sm, f3); } while (Sm.n <= 0 || Sm.d > 20 || Sm.d === 1 || R.d > 36 || R.d === 1);
       const add = ncAddTex(f1, f2, minus), g = div ? F(f3.d, f3.n) : f3;
       return { q, tex: '\\left(' + tF(f1) + op(minus) + tF(f2) + '\\right)' + (div ? '\\div ' : '\\times ') + tF(f3), ans: FRA(R), sol: [
-        { t: 'Сначала скобки: приводим к общему знаменателю ' + add.L + '.', tex: add.tex },
+        { t: 'Сначала скобки. Складывать и вычитать можно только одинаковые доли, поэтому приводим к общему знаменателю ' + add.L + '.', tex: add.tex },
         { t: div ? 'Потом деление: делить на дробь — умножать на обратную.' : 'Потом умножение: числитель на числитель, знаменатель на знаменатель.', tex: tF(Sm) + (div ? '\\div ' + tF(f3) + '=' + tF(Sm) + '\\times ' + tF(g) : '\\times ' + tF(f3)) + ncProdTex(Sm.n, Sm.d, g.n, g.d, '') }] };
     }
     if (vi === 2) {   /* n − a/b × or ÷ c/d */
@@ -695,14 +941,14 @@ topic({ id: 'nc.frac-calc', ch: 'nc', lvl: 2, calc: false, variants: 5,
       const g = div ? F(f2.d, f2.n) : f2, add = ncAddTex(F(n), P, minus);
       return { q, tex: n + op(minus) + tF(f1) + (div ? '\\div ' : '\\times ') + tF(f2), ans: FRA(R), sol: [
         { t: 'Сначала ' + (div ? 'деление' : 'умножение') + ' — оно выполняется раньше ' + (minus ? 'вычитания' : 'сложения') + '. Если сначала посчитать ' + n + ' ' + (minus ? '−' : '+') + ' $' + Fr.str(f1) + '$, получится ответ на другой пример — со скобками.', tex: tF(f1) + (div ? '\\div ' + tF(f2) + '=' + tF(f1) + '\\times ' + tF(g) : '\\times ' + tF(f2)) + ncProdTex(f1.n, f1.d, g.n, g.d, '') },
-        { t: 'Теперь ' + (minus ? 'вычитание' : 'сложение') + ': целое число ' + n + ' записываем дробью с тем же знаменателем.', tex: add.tex }] };
+        { t: 'Теперь ' + (minus ? 'вычитание' : 'сложение') + ': чтобы доли были одинаковыми, целое число ' + n + ' записываем дробью с тем же знаменателем.', tex: add.tex }] };
     }
     if (vi === 3) {   /* a big fraction: (a ± u)/(b ± v) */
       let a, b, u, v, s1, s2, top, bot, R; do { a = r.ri(1, 2); b = r.ri(1, 2); u = ncRF(r, 6); v = ncRF(r, 6); s1 = r() < 0.5; s2 = r() < 0.5; top = s1 ? Fr.sub(F(a), u) : Fr.add(F(a), u); bot = s2 ? Fr.sub(F(b), v) : Fr.add(F(b), v); R = Fr.div(top, bot); } while (top.n <= 0 || bot.n <= 0 || top.d === 1 || bot.d === 1 || R.d > 24 || R.d === 1);
       const t1 = ncAddTex(F(a), u, s1), t2 = ncAddTex(F(b), v, s2), g = F(bot.d, bot.n);
       return { q, tex: '\\dfrac{' + a + op(s1) + tF(u) + '}{' + b + op(s2) + tF(v) + '}', ans: FRA(R), sol: [
         'Большая черта дроби — это деление всего числителя на весь знаменатель, поэтому сначала считаем их отдельно, как будто они в скобках.',
-        { t: 'Числитель:', tex: t1.tex }, { t: 'Знаменатель:', tex: t2.tex },
+        { t: 'Числитель — целое число записываем дробью с тем же знаменателем (складывать и вычитать можно только одинаковые доли):', tex: t1.tex }, { t: 'Знаменатель — так же:', tex: t2.tex },
         { t: 'Делим числитель на знаменатель — умножаем на обратную дробь:', tex: tF(top) + '\\div ' + tF(bot) + '=' + tF(top) + '\\times ' + tF(g) + ncProdTex(top.n, top.d, g.n, g.d, '') }] };
     }
     /* vi === 4: multiple choice — the usual mistakes */
@@ -712,7 +958,7 @@ topic({ id: 'nc.frac-calc', ch: 'nc', lvl: 2, calc: false, variants: 5,
     return { q: L('Parmi les propositions suivantes, laquelle est égale au résultat de ce calcul ?', 'Какое из чисел равно результату этого вычисления?'), tex: tF(f1) + '+' + tF(f2) + '\\times ' + tF(f3),
       ans: ncMQ(r, [R, E1, E2, E3].map(f => '$' + Fr.str(f) + '$')), sol: [
         { t: 'Сначала умножение:', tex: tF(f2) + '\\times ' + tF(f3) + '=' + tF(P) },
-        { t: 'Потом сложение с общим знаменателем:', tex: ncAddTex(f1, P, false).tex },
+        { t: 'Потом сложение: складывать можно только одинаковые доли, поэтому приводим к общему знаменателю.', tex: ncAddTex(f1, P, false).tex },
         'Ответ $' + Fr.str(E1) + '$ — если сложить раньше, чем умножить (порядок действий нарушен).',
         'Ответ $' + Fr.str(E2) + '$ — если сложить отдельно числители и отдельно знаменатели. Так нельзя: складывать можно только одинаковые доли.',
         'Ответ $' + Fr.str(E3) + '$ — если перемножить знаменатели, а числители сложить, не домножив их: доли поменяли размер, а количество долей осталось прежним.'] };
@@ -1136,13 +1382,13 @@ const ncTrunc = (n, t, k) => Math.floor(n / Math.pow(10, t - k));
 function ncRoundWhy(n, t, k) {
   const P = Math.pow(10, t - k), lo = ncTrunc(n, t, k), next = Math.floor(n / Math.pow(10, t - k - 1)) % 10, mid = dec(lo * 10 + 5, k + 1), up = next >= 5, exact = n % P === P / 2;
   return 'Число ' + ncN(n, t) + ' лежит между ' + ncTxt(dec(lo, k)) + ' и ' + ncTxt(dec(lo + 1, k)) + '; середина — ' + ncTxt(mid) + '. Следующая цифра после разряда ' + NC_PREC[k][2] + ' — ' + next
-    + (exact ? ': число ровно посередине, а в этом случае по правилу округляют вверх — до ' + ncTxt(dec(lo + 1, k)) + '.' : up ? ': это 5 или больше, значит, число больше середины — ближе к ' + ncTxt(dec(lo + 1, k)) + ', округляем вверх.' : ': это меньше 5, значит, число меньше середины — ближе к ' + ncTxt(dec(lo, k)) + '.');
+    + (exact ? ': число ровно посередине, а в этом случае договорились округлять вверх — до ' + ncTxt(dec(lo + 1, k)) + '.' : up ? ': это 5 или больше, значит, число больше середины — ближе к ' + ncTxt(dec(lo + 1, k)) + ', округляем вверх.' : ': это меньше 5, значит, число меньше середины — ближе к ' + ncTxt(dec(lo, k)) + '.');
 }
 topic({ id: 'nc.arrondi', ch: 'nc', lvl: 1, calc: false, variants: 5,
   ru: 'Округление и усечение', fr: 'Arrondi et troncature',
   hints: [
     'Найди разряд, до которого округляешь (десятые — первая цифра после запятой, сотые — вторая), и посмотри на следующую цифру справа.',
-    'Округлить — найти ближайшее число с нужной точностью. Если следующая цифра 0–4, число ближе к меньшему значению: разряд не меняется. Если 5–9 — ближе к большему (или ровно посередине): разряд увеличиваем на 1.',
+    'Округлить — найти ближайшее число с нужной точностью. Если следующая цифра 0–4, число ближе к меньшему значению: разряд не меняется. Если 5–9 — ближе к большему: разряд увеличиваем на 1. Число ровно посередине тоже округляют вверх — так договорились.',
     'Усечение («troncature») — просто отбросить цифры после нужного разряда, ничего не увеличивая. При округлении бывает перенос: $4.96$ до десятых — это $5.0$ (9 десятых + 1 десятая = 10 десятых = 1 единица).'],
   gen(r, vi) {
     if (vi === 0) {   /* round a decimal */
@@ -1194,7 +1440,7 @@ topic({ id: 'nc.arrondi', ch: 'nc', lvl: 1, calc: false, variants: 5,
     const lo = Math.floor(n / P) * P, hi = lo + P, mid = lo + P / 2, res = n >= mid ? hi : lo;
     return { q: L('Arrondir ' + nf(n) + ' ' + name[0] + '.', 'Округли ' + nf(n) + ' ' + name[1] + '.'), ans: N(res), sol: [
       'Число ' + nf(n) + ' лежит между ' + nf(lo) + ' и ' + nf(hi) + ' — соседними «круглыми» числами, кратными ' + nf(P) + '. Середина между ними — ' + nf(mid) + '.',
-      n === mid ? nf(n) + ' ровно посередине — в этом случае по правилу округляют вверх.' : n > mid ? nf(n) + ' больше середины — значит, ближе к ' + nf(hi) + ': округляем вверх.' : nf(n) + ' меньше середины — значит, ближе к ' + nf(lo) + '.',
+      n === mid ? nf(n) + ' ровно посередине — в этом случае договорились округлять вверх.' : n > mid ? nf(n) + ' больше середины — значит, ближе к ' + nf(hi) + ': округляем вверх.' : nf(n) + ' меньше середины — значит, ближе к ' + nf(lo) + '.',
       ['', n + '≈' + res]] };
   } });
 
@@ -1205,41 +1451,72 @@ fiche({ ch: 'nc', id: 'nc.relatifs', ru: 'Относительные числа'
   'Вычитание — сложение с противоположным: $a-b=a+(-b)$. Поэтому $5-(-2)=5+2$: списать долг — всё равно что получить деньги.',
   'Умножение и деление: числа без знаков перемножаем (делим), а знак — по правилу: одинаковые знаки — «плюс», разные — «минус». Много множителей: чётное число минусов — «плюс», нечётное — «минус».',
   'Сравнение: из двух отрицательных больше то, которое ближе к нулю: $-2.1 > -2.5$.'],
-  ex: [['Сложение', '-4.7+3.5=-1.2'], ['Вычитание', '3-(-5)=3+5=8'], ['Умножение', '(-4)*(-9)=36'], ['Деление', '(-42)÷6=-7']] });
+  ex: [['Сложение', '-4.7+3.5=-1.2'], ['Вычитание', '3-(-5)=3+5=8'], ['Умножение', '(-4)*(-9)=36'], ['Деление', '(-42)÷6=-7']],
+  frs: [
+    'Pour additionner deux nombres relatifs de même signe, on additionne leurs distances à zéro et on garde ce signe. S\'ils sont de signes contraires, on soustrait la plus petite distance à zéro de la plus grande et on prend le signe du nombre qui a la plus grande distance à zéro.',
+    'Soustraire un nombre relatif revient à additionner son opposé : $a-b=a+(-b)$.',
+    'Le produit (ou le quotient) de deux nombres relatifs de même signe est positif ; celui de deux nombres relatifs de signes contraires est négatif.',
+    'Un produit de nombres relatifs non nuls est positif s\'il comporte un nombre pair de facteurs négatifs, et négatif s\'il en comporte un nombre impair.'] });
 fiche({ ch: 'nc', id: 'nc.ordre', ru: 'Порядок действий', fr: 'Les priorités opératoires', body: [
   'Порядок: 1) скобки (начиная с внутренних); 2) степени; 3) умножение и деление; 4) сложение и вычитание.',
   'Действия одного уровня выполняют слева направо: $20-5+3=18$, а не 12.',
   'Черта дроби работает как скобки: числитель и знаменатель считают отдельно, потом делят.',
   'Названия: сумма — «la somme», разность — «la différence», произведение — «le produit», частное — «le quotient». Выражение называют по последнему действию: $5+3*4$ — сумма, $(5+3)*4$ — произведение.'],
-  ex: [['Умножение раньше', '5+3*4=5+12=17'], ['Скобки', '(5+3)*4=8*4=32'], ['Слева направо', '20-5+3=15+3=18'], ['Черта дроби', '(12+8)/(7-3)=20/4=5']] });
+  ex: [['Умножение раньше', '5+3*4=5+12=17'], ['Скобки', '(5+3)*4=8*4=32'], ['Слева направо', '20-5+3=15+3=18'], ['Черта дроби', '(12+8)/(7-3)=20/4=5']],
+  frs: [
+    'Dans un calcul sans parenthèses, on effectue d\'abord les puissances, puis les multiplications et les divisions, enfin les additions et les soustractions.',
+    'On effectue en priorité les calculs entre parenthèses, en commençant par les parenthèses les plus intérieures.',
+    'Lorsque les opérations ont la même priorité, on effectue les calculs de gauche à droite.',
+    'Une expression est une somme, une différence, un produit ou un quotient selon la dernière opération à effectuer : $5+3*4$ est une somme, $(5+3)*4$ est un produit.'] });
 fiche({ ch: 'nc', id: 'nc.ecritures', ru: 'Дроби: записи, сравнение, доля от числа', fr: 'Écritures et comparaison des fractions', body: [
-  'Десятичная запись — дробь со знаменателем 10, 100, 1000…: $0.75=75/100=3/4$, $1.2=12/10=6/5$.',
-  'Дробь → десятичная: раздели числитель на знаменатель или домножь дробь до знаменателя 10, 100, 1000: $7/4=175/100=1.75$. Бывает и бесконечная запись: $1/3$ = 0,333… — тогда берут округлённое значение.',
+  'Десятичная запись — дробь со знаменателем 10, 100, 1000…: $0.75=75/100=3/4$. Одно и то же число можно записать по-разному, значение от этого не меняется: $1.2=12/10=120/100=6/5=1+1/5$ = 120\u00a0% (проценты — это сотые доли).',
+  'Дробь → десятичная: черта дроби — это деление, поэтому делим числитель на знаменатель или домножаем дробь до знаменателя 10, 100, 1000: $7/4=175/100=1.75$. Бывает и бесконечная запись: $1/3$ = 0,333… — тогда берут округлённое значение.',
+  'Простые дроби полезно узнавать сразу: $1/2=0.5$, $1/4=0.25$, $3/4=0.75$, $3/2=1.5$, $5/2=2.5$, $1/10=0.1$; $4/2=2$, $100/100=1$, $7/1=7$. Не путай черту дроби с запятой: $3/2$ — это 1,5, а не 3,2.',
   'Дробь от количества: «$3/4$ от 20» — это 20 : 4 × 3 = 15. «Дробь от дроби» — произведение: $2/3$ от $3/4$ — это $$\\frac{2}{3}\\times\\frac{3}{4}=\\frac{1}{2}$$.',
   'Сравнение: приведи к общему знаменателю или переведи в десятичную запись. При одинаковых знаменателях больше та дробь, у которой больше числитель; при одинаковых числителях — та, у которой меньше знаменатель (доли крупнее).',
-  'На числовой прямой единицу делят на $b$ равных частей (считаем промежутки, а не штрихи); точка на $a$-м делении от нуля имеет абсциссу $a/b$.',
+  'На числовой прямой сначала находят цену деления: разность двух подписанных чисел делят на число промежутков между ними (промежутков, а не штрихов). Если единица разделена на $b$ равных частей, точка на $a$-м делении правее нуля имеет абсциссу $a/b$.',
   'Обратное число («l\'inverse») к $a/b$ — это $b/a$: их произведение равно 1. Противоположное («l\'opposé») — с другим знаком: к $2/5$ противоположное $-2/5$, а обратное $5/2$.'],
-  ex: [['Десятичная → дробь', '0.75=75/100=3/4'], ['Дробь → десятичная', '7/4=175/100=1.75'], ['Доля от числа', '3/4*20=15'], ['Сравнение', '5/6=15/18>14/18=7/9']] });
+  ex: [['Десятичная → дробь', '0.75=75/100=3/4'], ['Дробь → десятичная', '7/4=175/100=1.75'], ['Целая часть отдельно', '1.2=1+0.2=1+1/5'], ['Доля от числа', '3/4*20=15'], ['Сравнение', '5/6=15/18>14/18=7/9']],
+  frs: [
+    'Le quotient de $a$ par $b$ ($b$ non nul) est le nombre qui, multiplié par $b$, donne $a$ ; on le note $a/b$. Ainsi $3/4=3÷4=0.75$.',
+    'Un même nombre peut avoir plusieurs écritures : $1.2=12/10=6/5=1+1/5$ = 120\u00a0%.',
+    'Si deux fractions ont le même dénominateur, alors elles sont rangées dans le même ordre que leurs numérateurs. Sinon, on les écrit d\'abord avec le même dénominateur.',
+    'Prendre une fraction d\'une quantité revient à multiplier cette quantité par la fraction : les $3/4$ de 20 élèves, c\'est $3/4*20=15$ élèves.'] });
 fiche({ ch: 'nc', id: 'nc.puissances-sci', ru: 'Степени и научная запись', fr: 'Puissances et notation scientifique', body: [
   '$a^n$ — произведение $n$ множителей, равных $a$: $2^3=2*2*2=8$. По определению $a^1=a$, $a^0=1$ (при $a ≠ 0$) и $a^(-n)=1/a^n$.',
   'Знак: $(-2)^4=16$, $(-2)^3=-8$ — чётная степень отрицательного числа положительна, нечётная отрицательна. А $-2^4=-16$: без скобок степень относится только к 2.',
   'Степени 10: $10^n$ — единица и $n$ нулей, $10^(-n)$ — единица на $n$-м месте после запятой. $10^a*10^b=10^(a+b)$, $10^a/10^b=10^(a-b)$, $(10^a)^b=10^(a*b)$.',
   'Научная запись («notation scientifique»): $a*10^n$, где $1 ≤ a < 10$. Число больше 10 — показатель положительный, меньше 1 — отрицательный.',
   'Приставки: кило- (k) $10^3$, мега- (M) $10^6$, гига- (G) $10^9$, тера- (T) $10^12$; милли- (m) $10^(-3)$, микро- (µ) $10^(-6)$, нано- (n) $10^(-9)$.'],
-  ex: [['Умножение', '10^3*10^(-5)=10^(-2)'], ['Степень степени', '(10^2)^3=10^6'], ['Научная запись', '0.00458=4.58*10^(-3)'], ['Произведение', '(5*10^4)*(3*10^(-2))=15*10^2=1.5*10^3']] });
-fiche({ ch: 'nc', id: 'nc.racine-carree', ru: 'Квадратный корень', fr: 'La racine carrée', body: [
+  ex: [['Умножение', '10^3*10^(-5)=10^(-2)'], ['Степень степени', '(10^2)^3=10^6'], ['Научная запись', '0.00458=4.58*10^(-3)'], ['Произведение', '(5*10^4)*(3*10^(-2))=15*10^2=1.5*10^3']],
+  frs: [
+    'Si $a$ est un nombre et $n$ un entier positif non nul, $a^n$ est le produit de $n$ facteurs égaux à $a$. Pour $a$ non nul : $a^0=1$ et $a^(-n)=1/a^n$.',
+    'Pour tous entiers relatifs $m$ et $n$ : $10^m*10^n=10^(m+n)$ ; $10^m/10^n=10^(m-n)$ ; $(10^m)^n=10^(m*n)$.',
+    'La notation scientifique d\'un nombre décimal non nul est son écriture sous la forme $a*10^n$, où $1 ≤ a < 10$ et $n$ est un entier relatif.',
+    'La notation scientifique de 0,00458 est $4.58*10^(-3)$.'] });
+fiche({ ch: 'nc', id: 'nc.racine-carree', ru: 'Квадраты и квадратный корень', fr: 'Les carrés et la racine carrée', body: [
   '$√a$ (при $a ≥ 0$) — положительное число, квадрат которого равен $a$: $√49=7$, потому что $7^2=49$. $√0=0$, $√1=1$.',
-  'Полные квадраты: 1, 4, 9, 16, 25, 36, 49, 64, 81, 100, 121, 144, 169, 196, 225.',
+  'Квадрат числа — число, умноженное само на себя: $7^2=7*7=49$ (не удвоение: $7*2=14$). Квадраты от 1 до 12 нужны без калькулятора — на них держатся корни и теорема Пифагора: 1, 4, 9, 16, 25, 36, 49, 64, 81, 100, 121, 144 (дальше: 169, 196, 225).',
   '$(√a)^2=a$ и $√(a^2)=a$ (при $a ≥ 0$). Корень из суммы — не сумма корней: $√(9+16)=5$, а $√9+√16=7$.',
   'Оценка: если $49 < 50 < 64$, то $7 < √50 < 8$ — у большего числа и корень больше.'],
-  ex: [['Квадрат корня', '(2√5)^2=4*5=20'], ['Сначала под корнем', '√(36+64)=√100=10'], ['Сумма на разность', '(5+2√3)(5-2√3)=25-12=13']] });
+  ex: [['Сначала квадраты', '6^2+8^2=36+64=100'], ['Квадрат корня', '(2√5)^2=4*5=20'], ['Сначала под корнем', '√(36+64)=√100=10'], ['Сумма на разность', '(5+2√3)(5-2√3)=25-12=13']],
+  frs: [
+    'La racine carrée d\'un nombre positif $a$ est le nombre positif dont le carré est égal à $a$. On la note $√a$.',
+    'Pour tout nombre positif $a$ : $(√a)^2=a$ et $√(a^2)=a$.',
+    'Un nombre négatif n\'a pas de racine carrée, car le carré d\'un nombre est toujours positif.',
+    'Le carré a une aire de 49 cm² ; son côté mesure donc $√49$ cm, soit 7 cm.'] });
 fiche({ ch: 'nc', id: 'nc.arithmetique', ru: 'Делители и простые числа', fr: 'Arithmétique', body: [
   'Если $a=b*k$ ($k$ — целое), то $b$ — делитель $a$ («un diviseur»), а $a$ — кратное $b$ («un multiple»). Деление с остатком («la division euclidienne»): $a=b*q+r$, где $0 ≤ r < b$.',
   'Признаки делимости: на 2 — последняя цифра чётная; на 5 — оканчивается на 0 или 5; на 10 — на 0; на 3 и на 9 — сумма цифр делится на 3 (на 9).',
   'Простое число («un nombre premier») имеет ровно два делителя: 1 и само себя. Простые до 30: 2, 3, 5, 7, 11, 13, 17, 19, 23, 29. 1 — не простое; 2 — единственное чётное простое.',
   'Разложение на простые множители: делим на 2, 3, 5, 7… пока не дойдём до 1. Каждое целое число больше 1 раскладывается единственным образом.',
   'Наибольшее число одинаковых наборов — наибольший общий делитель: общие простые множители в наименьшей степени. Первая встреча двух циклов — наименьшее общее кратное: все простые множители в наибольшей степени.'],
-  ex: [['Разложение', '360=2^3*3^2*5'], ['Общий делитель', '126=2*3^2*7; 90=2*3^2*5; 2*3^2=18'], ['Общее кратное', '12=2^2*3; 18=2*3^2; 2^2*3^2=36']] });
+  ex: [['Разложение', '360=2^3*3^2*5'], ['Общий делитель', '126=2*3^2*7; 90=2*3^2*5; 2*3^2=18'], ['Общее кратное', '12=2^2*3; 18=2*3^2; 2^2*3^2=36']],
+  frs: [
+    'Si $a=b*k$ avec $k$ entier, on dit que $b$ est un diviseur de $a$, que $a$ est un multiple de $b$ ou que $a$ est divisible par $b$.',
+    'Un nombre entier est divisible par 2 s\'il se termine par 0, 2, 4, 6 ou 8 ; par 5 s\'il se termine par 0 ou 5 ; par 3 (par 9) si la somme de ses chiffres est divisible par 3 (par 9).',
+    'Un nombre premier est un nombre entier qui a exactement deux diviseurs : 1 et lui-même.',
+    'Tout nombre entier supérieur ou égal à 2 se décompose en un produit de facteurs premiers, et cette décomposition est unique : $360=2^3*3^2*5$.'] });
 
 /* ===================== DICTIONARY ===================== */
 gloss('un nombre relatif', 'относительное число', 'число со знаком «+» или «−»: −4,7 ; 3');
@@ -1253,6 +1530,10 @@ gloss('les priorités opératoires', 'порядок действий', 'ско�
 gloss('la moitié, le tiers, le quart', 'половина, треть, четверть');
 gloss('le dixième, le centième, le millième', 'десятая, сотая, тысячная', 'доли единицы и разряды после запятой');
 gloss('l\'abscisse', 'абсцисса', 'число, которым отмечена точка на числовой прямой');
+gloss('une droite graduée', 'числовая прямая с делениями', 'цена деления — разность двух подписанных чисел, делённая на число промежутков между ними');
+gloss('l\'écriture décimale', 'десятичная запись', 'запись числа с запятой: 3/4 = 0,75');
+gloss('le carré d\'un nombre', 'квадрат числа', '7² = 7 × 7 = 49 (не удвоение: 7 × 2 = 14)');
+gloss('le double, le triple', 'удвоенное и утроенное число', 'n × 2 и n × 3');
 gloss('l\'ordre croissant', 'порядок возрастания', 'от меньшего к большему; décroissant — от большего к меньшему');
 gloss('une puissance', 'степень', '2⁵ — пятая степень числа 2');
 gloss('l\'exposant', 'показатель степени', 'в 2⁵ это 5');

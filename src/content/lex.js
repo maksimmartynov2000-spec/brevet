@@ -338,7 +338,7 @@ lex('voir', 'видеть; (voir la figure) смотри рисунок');
 lex('vrai|vraie', 'верный, истинный: vrai ou faux — верно или неверно');
 
 /* ---------- арифметика: числа и действия ---------- */
-lex('addition', 'сложение');
+lex('addition|additions', 'сложение');
 lex('additionner|additionne|additionnant', 'сложить');
 lex('ajouter|ajoute|ajouté|ajoutées|ajoutant|ajoutés', 'прибавить, добавить');
 lex('arithmétique', 'арифметика: делители, кратные, простые числа');
@@ -361,7 +361,7 @@ lex('diviser|divise|divisé', 'разделить; делить нацело (27
 lex('diviseur|diviseurs', 'делитель');
 lex('divisibilité', 'делимость');
 lex('divisible|divisibles', 'делится нацело: divisible par 9 — делится на 9');
-lex('division', 'деление');
+lex('division|divisions', 'деление');
 lex('division euclidienne', 'деление с остатком');
 lex('dixième|au dixième', 'десятая часть (0,1); arrondir au dixième — до десятых (1 знак после запятой)');
 lex('dizaine|à la dizaine', 'десяток; arrondir à la dizaine — округлить до десятков');
@@ -392,7 +392,7 @@ lex('millième', 'тысячная часть (0,001)');
 lex('millier|milliers|au millier', 'тысяча; en milliers — в тысячах; arrondir au millier — округлить до тысяч');
 lex('moitié', 'половина');
 lex('multiple|multiples', 'кратное: un multiple de 4 — число, которое делится на 4');
-lex('multiplication', 'умножение');
+lex('multiplication|multiplications', 'умножение');
 lex('multiplier|multiplie|multiplié|multipliée|multipliés|multipliées|multipliant', 'умножить');
 lex('négatif|négatifs', 'отрицательный');
 lex('nombre|nombres', 'число; количество: le nombre de boules — число шаров');
@@ -838,7 +838,7 @@ lex('changer|change|changé', 'изменить; измениться');
 lex('chercher|cherche', 'искать');
 lex('combiner|combine', 'объединить, сочетать');
 lex('commander|commandées', 'заказать');
-lex('commencer|commence|commencé', 'начать; начаться');
+lex('commencer|commence|commencé|commençant', 'начать; начаться');
 lex('comporter|comporte|comportant', 'содержать, включать в себя');
 lex('composer|compose', 'составить (из частей)');
 lex('compris|comprise', 'заключённый: compris entre 2 et 5 — от 2 до 5; включённый');
@@ -1026,7 +1026,7 @@ lex('prochain', 'следующий, ближайший');
 lex('professionnel', 'профессиональный; профессионал');
 lex('propre', 'чистый');
 lex('réel|réelle|réels', 'настоящий, фактический: longueur réelle — длина в натуре');
-lex('relatif|relative', 'относящийся: hauteur relative au côté [AM] — высота, проведённая к стороне [AM]');
+lex('relatif|relative|relatifs|relatives', 'относящийся: hauteur relative au côté [AM] — высота, проведённая к стороне [AM]');
 lex('rouge|rouges', 'красный');
 lex('simple|simples', 'простой');
 lex('solaire|solaires', 'солнечный');
@@ -1456,7 +1456,7 @@ lex('explication', 'объяснение');
 lex('imposer|impose', 'требовать, обязывать');
 lex('intéressant|intéressante', 'выгодный, привлекательный (о тарифе, предложении)');
 lex('intéresser|intéresse', 'интересовать: on s\'intéresse à… — рассмотрим…');
-lex('intérieur|à l\'intérieur', 'внутренняя часть; à l\'intérieur de… — внутри…');
+lex('intérieur|à l\'intérieur|intérieure|intérieures', 'внутренняя часть; à l\'intérieur de… — внутри…');
 lex('intersection|point d\'intersection', 'пересечение: le point d\'intersection — точка пересечения');
 lex('moment-là', 'тот момент: à ce moment-là — в этот момент');
 lex('observer|observant', 'рассматривать: en observant le tableau — глядя на таблицу');
@@ -1528,3 +1528,11 @@ lex('rejoindre|rejoignent|rejoint', 'догнать; se rejoindre — встре
 lex('trait|traits', 'линия, черта: traits de construction — линии построения');
 lexf('dix', 'десять');
 lexf('sauf', 'кроме; sauf si… — если только не…');
+
+/* ---------- шпаргалки «Числа и вычисления»: французские формулировки ---------- */
+lex('parenthèse|parenthèses', 'скобка: entre parenthèses — в скобках');
+lex('zéro', 'ноль');
+lex('priorité|en priorité', 'первоочерёдность: en priorité — в первую очередь');
+lex('enfin', 'наконец, в последнюю очередь');
+lex('soustraction|soustractions', 'вычитание');
+lex('unique', 'единственный: cette décomposition est unique — другого разложения нет');
