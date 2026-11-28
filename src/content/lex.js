@@ -1536,3 +1536,9 @@ lex('priorité|en priorité', 'первоочерёдность: en priorité �
 lex('enfin', 'наконец, в последнюю очередь');
 lex('soustraction|soustractions', 'вычитание');
 lex('unique', 'единственный: cette décomposition est unique — другого разложения нет');
+
+/* ---------- главы «Буквенные выражения» и «Функции»: графики из жизни ---------- */
+lex('fusée|fusées|fusée à eau', 'ракета; fusée à eau — водяная ракета');
+lex('pause|pauses', 'перерыв, привал');
+lex('éloigner|s\'éloigner|éloigne|éloignent|s\'éloigne', 'удалить; s\'éloigner de — удаляться от');
+lex('terme|termes', 'слагаемое (член суммы): le moins de termes possible — как можно меньше слагаемых');

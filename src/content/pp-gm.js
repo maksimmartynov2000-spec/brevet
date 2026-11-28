@@ -518,26 +518,30 @@ topic({ id: 'pp.echelle', ch: 'pp', lvl: 2, calc: false, variants: 3,
     'Чтобы найти масштаб, переведи обе длины в одинаковые единицы и раздели длину на плане на реальную: 5 см и 25 м = 2 500 см дают $5/2500=1/500$.'],
   gen(r, vi) {
     if (vi === 0 || vi === 1) {
+      /* 1/100 000 (1 cm → 1 km) and 1/100 (1 cm → 1 m) are the most common scales; they are asked in other units (m, cm),
+         so that the answer never repeats the length on the map. The plan at 1/100 is asked only one way: a wall «de 500 cm» would be odd */
       const C = r.pick([
-        /* no 1/100 000 with km and no 1/100 with m: 1 cm would be 1 km (1 m), and the answer would repeat the length on the map */
         { E: [25000, 50000, 200000, 20000, 10000], d: [2, 3, 4, 5, 6, 8, 10, 12, 1.5, 2.5, 7], u: 'km', f: 100000, w: ['une carte', 'карте'] },
+        { E: [100000], d: [1.5, 2.5, 3.5, 4.5, 7.5, 12.5, 0.8, 1.2], u: 'm', f: 100, w: ['une carte', 'карте'] },
         { E: [50, 200, 20], d: [3, 4, 5, 6, 8, 10, 12, 15, 2.5, 7.5], u: 'm', f: 100, w: ['un plan', 'плане'] },
-        { E: [50, 200, 400], d: [20, 25, 30, 45, 15, 12, 60], u: 'm', f: 100, w: ['une maquette', 'макете'] }]);
+        { E: [100], d: [3, 4, 5, 6, 8, 12, 2.5, 7.5], u: 'cm', f: 1, w: ['un plan', 'плане'], one: true },
+        { E: [50, 200, 400], d: [20, 25, 30, 45, 15, 12, 60], u: 'm', f: 100, w: ['une maquette', 'макете'] }].filter(g => vi === 0 || !g.one));
       let E, d, g = 0; do { E = r.pick(C.E); d = r.pick(C.d); } while (!Number.isInteger(+fx(d * E / C.f * 100)) && g++ < 40);
-      const realCm = d * E, real = +fx(realCm / C.f), cmTo = C.u === 'km' ? 'км' : 'м', sc = '1/' + nf(E).replace(/ /g, ppgSp);
+      const realCm = d * E, real = +fx(realCm / C.f), cmTo = { km: 'км', m: 'м', cm: 'см' }[C.u], inU = { km: 'километрах', m: 'метрах', cm: 'сантиметрах' }[C.u], sc = '1/' + nf(E).replace(/ /g, ppgSp), map = C.w[0] === 'une carte';
       if (vi === 0) {
         const q = C.w[0] === 'une maquette' ? L('Une maquette de bateau est réalisée à l\'échelle ' + sc + '. Sur la maquette, le bateau mesure ' + nf(d) + ' cm de long. Quelle est la longueur réelle du bateau, en m ?', 'Макет корабля сделан в масштабе ' + sc + '. Длина корабля на макете ' + nf(d) + ' см. Какова настоящая длина корабля в метрах?')
-          : C.u === 'km' ? L('Sur une carte à l\'échelle ' + sc + ', deux villages sont séparés de ' + nf(d) + ' cm. Quelle est la distance réelle entre ces villages, en km ?', 'На карте масштаба ' + sc + ' между двумя деревнями ' + nf(d) + ' см. Каково настоящее расстояние между ними в километрах?')
-          : L('Sur le plan d\'une maison, à l\'échelle ' + sc + ', la longueur du salon mesure ' + nf(d) + ' cm. Quelle est la longueur réelle du salon, en m ?', 'На плане дома в масштабе ' + sc + ' длина гостиной ' + nf(d) + ' см. Какова настоящая длина гостиной в метрах?');
+          : map ? L('Sur une carte à l\'échelle ' + sc + ', deux villages sont séparés de ' + nf(d) + ' cm. Quelle est la distance réelle entre ces villages, en ' + C.u + ' ?', 'На карте масштаба ' + sc + ' между двумя деревнями ' + nf(d) + ' см. Каково настоящее расстояние между ними в ' + inU + '?')
+          : L('Sur le plan d\'une maison, à l\'échelle ' + sc + ', la longueur du salon mesure ' + nf(d) + ' cm. Quelle est la longueur réelle du salon, en ' + C.u + ' ?', 'На плане дома в масштабе ' + sc + ' длина гостиной ' + nf(d) + ' см. Какова настоящая длина гостиной в ' + inU + '?');
         return { q, ans: N(fx(real), { unit: C.u }), sol: [
-          ['Масштаб ' + sc + ': 1 см на ' + C.w[1] + ' — это ' + nf(E) + ' см в реальности. Значит, реальная длина в ' + nf(E) + ' раз больше (в тех же единицах):', fx(d) + '*' + E + '=' + realCm, 'cm'],
-          ['Переводим в ' + cmTo + ': 1 ' + cmTo + ' = ' + nf(C.f) + ' см, поэтому делим на ' + nf(C.f) + ':', realCm + '÷' + C.f + '=' + fx(real), C.u]] };
+          ['Масштаб ' + sc + ': 1 см на ' + C.w[1] + ' — это ' + nf(E) + ' см в реальности. Значит, реальная длина в ' + nf(E) + ' раз больше (в тех же единицах):', fx(d) + '*' + E + '=' + realCm, 'cm']].concat(C.f > 1 ? [
+          ['Переводим в ' + cmTo + ': 1 ' + cmTo + ' = ' + nf(C.f) + ' см, поэтому делим на ' + nf(C.f) + ':', realCm + '÷' + C.f + '=' + fx(real), C.u]] : ['Ответ просят в сантиметрах — переводить ничего не нужно.'],
+          E === 100000 ? ['При масштабе 1/100 000 удобно помнить: 1 см на карте — это 1 км, то есть 1 000 м.'] : E === 100 ? ['При масштабе 1/100 удобно помнить: 1 см на плане — это 1 м.'] : []) };
       }
-      return { q: C.u === 'km' ? L('Sur une carte à l\'échelle ' + sc + ', quelle longueur, en cm, représente une distance réelle de ' + nf(real) + ' km ?', 'Какой длины в сантиметрах будет на карте масштаба ' + sc + ' настоящее расстояние ' + nf(real) + ' км?')
+      return { q: map ? L('Sur une carte à l\'échelle ' + sc + ', quelle longueur, en cm, représente une distance réelle de ' + nf(real) + ' ' + C.u + ' ?', 'Какой длины в сантиметрах будет на карте масштаба ' + sc + ' настоящее расстояние ' + nf(real) + ' ' + cmTo + '?')
         : L('Sur un plan à l\'échelle ' + sc + ', quelle longueur, en cm, représente un mur de ' + nf(real) + ' m ?', 'Какой длины в сантиметрах будет на плане масштаба ' + sc + ' стена длиной ' + nf(real) + ' м?'),
         ans: N(fx(d), { unit: 'cm' }), sol: [
           ['Сначала переводим реальную длину в сантиметры — масштаб сравнивает длины в одинаковых единицах:', fx(real) + '*' + C.f + '=' + realCm, 'cm'],
-          ['На ' + (C.u === 'km' ? 'карте' : 'плане') + ' всё в ' + nf(E) + ' раз меньше:', realCm + '÷' + E + '=' + fx(d), 'cm']] };
+          ['На ' + (map ? 'карте' : 'плане') + ' всё в ' + nf(E) + ' раз меньше:', realCm + '÷' + E + '=' + fx(d), 'cm']] };
     }
     /* vi 2: find the scale */
     const [L1, l, E] = r.pick([[25, 5, 500], [12, 6, 200], [10, 5, 200], [8, 4, 200], [20, 4, 500], [30, 6, 500], [15, 3, 500], [40, 8, 500], [50, 5, 1000], [60, 6, 1000], [80, 8, 1000], [14, 7, 200], [35, 7, 500], [100, 4, 2500]]);
