@@ -11,6 +11,8 @@ function staNb(s) {
 const staL = (fr, ru) => L(staNb(fr), staNb(ru));
 const staSum = a => a.reduce((s, x) => s + x, 0);
 const staSort = a => a.slice().sort((x, y) => x - y);
+/* the median of a list (the middle value, or the half-sum of the two middle values) */
+const staMed = a => { const s = staSort(a), n = s.length; return n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2; };
 /* a series in a text: «8 ; 12 ; 6» in French, «8; 12; 6» in Russian */
 const staSF = (a, u) => a.map(v => nf(v) + (u ? ' ' + u : '')).join(' ; ');
 const staSR = (a, u) => a.map(v => nf(v) + (u ? ' ' + u : '')).join('; ');
@@ -60,7 +62,7 @@ const staRc = (x, y, w, h, cls) => '<rect x="' + fx(x, 1) + '" y="' + fx(y, 1) +
 /* bar chart on an exact grid of 1; o.bounds — histogram (bars side by side, the labels are the bounds of the classes) */
 function staBars(labs, vals, o) {
   o = o || {};
-  const W = 340, x0 = 40, x1 = 332, yt = 30, yb = 196, H = o.xt ? 242 : 222;
+  const W = 340, x0 = 40, x1 = o.bounds ? 322 : 332, yt = 30, yb = 196, H = o.xt ? 242 : 222;   /* a histogram: room for the last bound (190) under the axis */
   const max = Math.max(...vals), lab = max <= 10 ? 1 : 2, top = Math.ceil((max + 1) / lab) * lab, u = (yb - yt) / top;
   let s = '';
   for (let k = 1; k <= top; k++) s += staLn(x0, yb - k * u, x1, yb - k * u, 'fgrid');
@@ -116,6 +118,8 @@ function staTree(A, B) {
   });
   return svgFig(340, 214, s, 'arbre de probabilités');
 }
+/* the end point of a walk of the sprite from (0 ; 0): moves ['f', d] («avancer de d pas») and ['t', a] (a > 0: ↻, a < 0: ↺), first direction d0 (0 up, 90 right) */
+function staWalk(moves, d0) { let x = 0, y = 0, h = d0; moves.forEach(([k, v]) => { if (k === 't') h += v; else { x += Math.round(v * Math.sin(h * Math.PI / 180)); y += Math.round(v * Math.cos(h * Math.PI / 180)); } }); return [x, y]; }
 /* path of the sprite: n segments of length 1, turning clockwise by t° after each one (screen: y downwards) */
 function staTurtle(n, t) { const pts = []; let x = 0, y = 0, a = 0; for (let i = 0; i < n; i++) { pts.push([x, y]); x += Math.cos(a * Math.PI / 180); y += Math.sin(a * Math.PI / 180); a += t; } return pts; }
 /* the drawn figure in the box (x, y, w, h) */
@@ -168,6 +172,10 @@ const STA_B = {
   lt: a => ({ c: 'motion', t: ['tourner ↺ de', staTk(a), 'degrés'] }),
   dir: a => ({ c: 'motion', t: ["s'orienter à", staTk(a)] }),
   go: (x, y) => ({ c: 'motion', t: ['aller à x:', staTk(x), 'y:', staTk(y)] }),
+  dx: n => ({ c: 'motion', t: ['ajouter', staTk(n), 'à x'] }),          /* change x by n */
+  dy: n => ({ c: 'motion', t: ['ajouter', staTk(n), 'à y'] }),
+  sx: n => ({ c: 'motion', t: ['mettre x à', staTk(n)] }),             /* set x to n */
+  sy: n => ({ c: 'motion', t: ['mettre y à', staTk(n)] }),
   pen: () => ({ c: 'pen', t: ["stylo en position d'écriture"] }),
   clear: () => ({ c: 'pen', t: ['effacer tout'] }),
   rep: (n, body) => ({ c: 'control', t: ['répéter', staTk(n), 'fois'], body }),
@@ -253,7 +261,8 @@ topic({ id: 'st.moyenne', ch: 'st', lvl: 1, calc: false, variants: 4,
   gen(r, vi) {
     if (vi === 3) {   /* QCM: the usual mistakes */
       const w = staWho(r); let a, S;
-      do { a = []; for (let i = 0; i < 5; i++) a.push(r.ri(6, 18)); S = staSum(a); } while (S % 5 || new Set(a).size < 4);
+      /* the median and the half-sum of the extremes are traps: neither may be equal to the mean */
+      do { a = []; for (let i = 0; i < 5; i++) a.push(r.ri(6, 18)); S = staSum(a); } while (S % 5 || new Set(a).size < 4 || staMed(a) === S / 5 || Math.min(...a) + Math.max(...a) === 2 * S / 5);
       const m = S / 5, s = staSort(a);
       const ds = staDist(m, r.sh([
         { v: S, ru: 'это сумма оценок: её забыли разделить на количество оценок' },
@@ -276,14 +285,15 @@ topic({ id: 'st.moyenne', ch: 'st', lvl: 1, calc: false, variants: 4,
     for (let g = 0; g < 400; g++) {
       a = []; for (let i = 0; i < n; i++) a.push(r.ri(R[0], R[1]));
       S = staSum(a);
-      if ((vi === 1 ? S % n !== 0 : S % n === 0) && new Set(a).size >= 3 && (ctx !== 'temp' || (a.filter(v => v < 0).length >= 2 && a.some(v => v > 0)))) break;
+      /* the median must differ from the mean: confusing the two must not give the right answer */
+      if ((vi === 1 ? S % n !== 0 : S % n === 0) && new Set(a).size >= 3 && staMed(a) !== S / n && (ctx !== 'temp' || (a.filter(v => v < 0).length >= 2 && a.some(v => v > 0)))) break;
     }
     const m = S / n, u = ctx === 'temp' ? '°C' : '', w = staWho(r), V = r.pick(STA_VILLES);
     const Q = {
       notes: [`Voici les notes de mathématiques ${staDe(w.n)} ce trimestre : ${staSF(a)}. Calculer la moyenne de ces notes.`, `Вот оценки ${w.n} по математике за этот триместр: ${staSR(a)}. Вычисли среднее этих оценок.`],
       serie: [`On donne la série suivante : ${staSF(a)}. Calculer la moyenne de cette série.`, `Дан ряд: ${staSR(a)}. Вычисли среднее этого ряда.`],
       buts: [`Voici le nombre de buts marqués par une équipe de football lors de ses ${n} derniers matchs : ${staSF(a)}. Calculer le nombre moyen de buts par match.`, `Вот сколько голов забила футбольная команда в ${n} последних матчах: ${staSR(a)}. Вычисли среднее число голов за матч.`],
-      livres: [`On a demandé à ${n} élèves combien de livres ils ont lus pendant les vacances. Voici leurs réponses : ${staSF(a)}. Calculer le nombre moyen de livres lus par élève.`, `${staNum(n, 'ученика', 'учеников', 'учеников')} спросили, сколько книг они прочитали за каникулы. Их ответы: ${staSR(a)}. Вычисли среднее число книг на одного ученика.`],
+      livres: [`On a demandé à ${n} élèves combien de livres ils ont lus pendant les vacances. Voici leurs réponses : ${staSF(a)}. Calculer le nombre moyen de livres lus par élève.`, `Спросили ${n} учеников, сколько книг они прочитали за каникулы. Их ответы: ${staSR(a)}. Вычисли среднее число книг на одного ученика.`],
       temp: [`Voici les températures relevées à 7 h du matin à ${V[0]} pendant ${n === 7 ? 'une semaine' : 'cinq jours'} : ${staSF(a, '°C')}. Calculer la température moyenne.`, `Вот температура в 7 утра в ${V[1]} в течение ${n === 7 ? 'недели' : 'пяти дней'}: ${staSR(a, '°C')}. Вычисли среднюю температуру.`]
     }[ctx];
     return { q: staL(Q[0], Q[1]), ans: N(fx(m), u ? { unit: u } : {}), sol: [
@@ -305,13 +315,17 @@ topic({ id: 'st.moyenne-ponderee', ch: 'st', lvl: 2, calc: false, variants: 4,
       let vals;
       if (C === 'freres') vals = [0, 1, 2, 3, 4];
       else if (C === 'buts') vals = [0, 1, 2, 3, 4, 5];
-      else if (C === 'notes') { const b = r.ri(6, 9), d = r.pick([2, 3]); vals = [0, 1, 2, 3, 4].map(i => b + d * i); }
+      else if (C === 'notes') { const d = r.pick([2, 3]), b = r.ri(6, d === 3 ? 8 : 9); vals = [0, 1, 2, 3, 4].map(i => b + d * i); }   /* marks out of 20 */
       else if (C === 'pointures') { const b = r.ri(35, 37); vals = [0, 1, 2, 3, 4, 5].map(i => b + i); }
       else vals = [5, 10, 15, 20, 25, 30];
       let N0 = 20, e = [], S = 0;
-      for (let g = 0; g < 200; g++) {
+      const k = vals.length, rd = x => (vi === 0 ? x : Math.round(x * 10) / 10);
+      for (let g = 0; g < 300; g++) {
         N0 = vi === 0 ? r.pick([10, 20, 20, 25]) : r.ri(23, 31);
-        e = staSplit(r, N0, vals.length, 1); S = staSum(vals.map((v, i) => v * e[i]));
+        e = staSplit(r, N0, k, 1); S = staSum(vals.map((v, i) => v * e[i]));
+        /* the usual slips — the values without their counts, dividing by the number of columns, the mean of the counts — give another answer */
+        const m0 = rd(S / N0);
+        if ([staSum(vals) / k, S / k, N0 / k].some(x => Math.abs(rd(x) - m0) < 1e-9)) continue;
         if (vi === 0 || Math.abs(S * 10 / N0 - Math.round(S * 10 / N0)) > 1e-9) break;
       }
       const m = S / N0, u = C === 'trajet' ? 'min' : '';
@@ -363,14 +377,16 @@ topic({ id: 'st.moyenne-ponderee', ch: 'st', lvl: 2, calc: false, variants: 4,
     /* coefficients */
     const w = staWho(r), co = r.pick([[2, 2, 1], [2, 1, 1], [3, 1, 1], [2, 1, 2], [1, 2, 1], [1, 1, 2], [1, 1, 3]]);   /* sum 4 or 5: the mean has at most 2 decimals */
     const ev = r.sh([['à un contrôle', 'за контрольную'], ['à un devoir maison', 'за домашнюю работу'], ['à une interrogation écrite', 'за самостоятельную работу'], ['à un exposé', 'за доклад']]).slice(0, 3);
-    const nt = [r.ri(6, 19), r.ri(6, 19), r.ri(6, 19)], S = staSum(nt.map((x, i) => x * co[i])), C = staSum(co), m = S / C;
+    /* forgetting the coefficients must give another mean */
+    let nt; do nt = [r.ri(6, 19), r.ri(6, 19), r.ri(6, 19)]; while (Math.abs(staSum(nt.map((x, i) => x * co[i])) / staSum(co) - staSum(nt) / 3) < 1e-9);
+    const S = staSum(nt.map((x, i) => x * co[i])), C = staSum(co), m = S / C, p3 = staSum(nt) / 3;
     return { q: staL(`En mathématiques, ${w.n} a obtenu ${nt[0]} ${ev[0][0]} (coefficient ${co[0]}), ${nt[1]} ${ev[1][0]} (coefficient ${co[1]}) et ${nt[2]} ${ev[2][0]} (coefficient ${co[2]}). Calculer sa moyenne.`,
       `По математике ${w.n} ${staG(w, 'получил', 'получила')} ${nt[0]} ${ev[0][1]} (коэффициент ${co[0]}), ${nt[1]} ${ev[1][1]} (коэффициент ${co[1]}) и ${nt[2]} ${ev[2][1]} (коэффициент ${co[2]}). Вычисли средний балл.`),
       ans: N(fx(m)), sol: [
         ['Коэффициент («coefficient») — это вес оценки: оценка с коэффициентом 2 считается так, будто её получили два раза. Сумма оценок с учётом коэффициентов:', nt.map((x, i) => x + '*' + co[i]).join('+') + '=' + S],
         ['Делим на сумму коэффициентов — столько «оценок» получилось:', co.join('+') + '=' + C],
         ['Среднее:', S + '/' + C + '=' + fx(m)],
-        'Ошибка — делить на 3 (число оценок без коэффициентов): тогда коэффициенты учтены в сумме, но не учтены в количестве.'] };
+        'Ошибки: делить на 3 (число оценок без коэффициентов) — тогда коэффициенты учтены в сумме, но не учтены в количестве; или совсем забыть про коэффициенты: (' + nt.join(' + ') + ') ÷ 3 ' + (Number.isInteger(p3 * 100) ? '= ' + nf(p3) : '≈ ' + nf(p3, 2)) + ' — это не то же самое, ведь оценка с бо́льшим коэффициентом весит больше.'] };
   } });
 
 topic({ id: 'st.mediane', ch: 'st', lvl: 1, calc: false, variants: 3,
@@ -383,12 +399,24 @@ topic({ id: 'st.mediane', ch: 'st', lvl: 1, calc: false, variants: 3,
     const ctx = vi === 1 ? r.pick(['temps', 'notes', 'serie']) : vi === 0 ? r.pick(['notes', 'temp', 'serie']) : r.pick(['notes', 'serie']);
     const n = vi === 1 ? r.pick([6, 8, 10]) : ctx === 'serie' ? r.pick([7, 9]) : r.pick([5, 7]);
     const R = { notes: [3, 20], temp: [-6, 9], serie: [1, 30], temps: [5, 45] }[ctx];
+    /* the classic mistakes of the QCM (type 2): the middle of the list as written, the mean, the number of the place, a neighbour of the median */
+    const dsOf = (a, s) => { const k = (n + 1) / 2, mean = staSum(a) / n; return staDist(s[k - 1], [
+      { v: a[k - 1], ru: 'это значение стоит в середине записи, но ряд не упорядочен — сначала нужно расставить значения по возрастанию' },
+      Number.isInteger(mean) ? { v: mean, ru: 'это среднее (сумма ÷ количество), а не медиана' } : null,
+      { v: k, ru: 'это номер серединного места, а не само значение' },
+      { v: s[k], ru: 'это ' + (k + 1) + '-е значение: место медианы посчитано неверно' },
+      { v: s[k - 2], ru: 'это ' + (k - 1) + '-е значение: место медианы посчитано неверно' },
+      Number.isInteger((s[0] + s[n - 1]) / 2) ? { v: (s[0] + s[n - 1]) / 2, ru: 'это середина между наименьшим и наибольшим значением, а медиана — значение посередине упорядоченного ряда' } : null,
+      { v: s[k + 1], ru: 'это ' + (k + 2) + '-е значение: место медианы посчитано неверно' }]); };
     let a = [];
     for (let g = 0; g < 300; g++) {
       a = []; for (let i = 0; i < n; i++) a.push(r.ri(R[0], R[1]));
-      const s = staSort(a);
+      const s = staSort(a), md = staMed(a);
       if (a.every((v, i) => v === s[i]) || new Set(a).size < n - 2 || (ctx === 'temp' && !a.some(v => v < 0))) continue;
-      if (n % 2 && a[(n - 1) / 2] === s[(n - 1) / 2]) continue;   /* the middle of the raw list must not be the median */
+      /* the middle of the list as written (without sorting) and the mean must not give the median */
+      if ((n % 2 ? a[(n - 1) / 2] : (a[n / 2 - 1] + a[n / 2]) / 2) === md || staSum(a) / n === md) continue;
+      if (vi === 2 && dsOf(a, s).length < 3) continue;
+      if (vi === 1 && s[n / 2 - 1] === s[n / 2]) continue;   /* even count: two different middle values, the half-sum is the point */
       break;
     }
     const s = staSort(a), u = ctx === 'temp' ? '°C' : ctx === 'temps' ? 'min' : '', w = staWho(r), V = r.pick(STA_VILLES);
@@ -407,7 +435,7 @@ topic({ id: 'st.mediane', ch: 'st', lvl: 1, calc: false, variants: 3,
       st = [
         'Сначала расставляем значения по возрастанию: ' + staSR(s, staUR(u)) + '.',
         'Значений ' + n + ' — чётное число, поэтому посередине стоят два значения: ' + k + '-е и ' + (k + 1) + '-е, то есть ' + nf(a1) + ' и ' + nf(a2) + '.',
-        a1 === a2 ? 'Оба равны ' + nf(a1) + ', значит, медиана равна ' + nf(a1) + (u ? ' ' + staUR(u) : '') + '.' : ['Любое число между ними делит ряд на две равные половины; договорились брать середину между ними:', '(' + fx(a1) + '+' + fx(a2) + ')/2=' + fx(med), u]];
+        a1 === a2 ? 'Оба равны ' + nf(a1) + ', значит, медиана равна ' + nf(a1) + (u ? ' ' + staUR(u) : '') + '.' : ['Любое число между ними делит ряд на две равные половины; во французской школе принято брать середину между ними (полусумму) — такой ответ засчитывают всегда:', '(' + fx(a1) + '+' + fx(a2) + ')/2=' + fx(med), u]];
     }
     const QN = {
       notes: n % 2 ? [`Voici les notes ${staDe(w.n)} en ${mat[0]} ce trimestre : ${staSF(a)}. Déterminer la médiane de ces notes.`, `Вот оценки ${w.n} по ${mat[1]} за этот триместр: ${staSR(a)}. Найди медиану этих оценок.`]
@@ -418,13 +446,7 @@ topic({ id: 'st.mediane', ch: 'st', lvl: 1, calc: false, variants: 3,
     }[ctx];
     if (vi < 2) return { q: staL(QN[0], QN[1]), ans: N(fx(med), u ? { unit: u } : {}), sol: st };
     /* QCM: the classic mistakes */
-    const k = (n + 1) / 2, mean = staSum(a) / n;
-    const ds = staDist(med, [
-      { v: a[k - 1], ru: 'это значение стоит в середине записи, но ряд не упорядочен — сначала нужно расставить значения по возрастанию' },
-      Number.isInteger(mean) ? { v: mean, ru: 'это среднее (сумма ÷ количество), а не медиана' } : null,
-      { v: k, ru: 'это номер серединного места, а не само значение' },
-      { v: s[k], ru: 'это ' + (k + 1) + '-е значение: место медианы посчитано неверно' },
-      { v: s[k - 2], ru: 'это ' + (k - 1) + '-е значение: место медианы посчитано неверно' }]);
+    const ds = dsOf(a, s);
     ds.forEach(d => { d.t = nf(d.v); });
     const Q = ctx === 'notes' ? [`Voici les notes ${staDe(w.n)} en ${mat[0]} : ${staSF(a)}. Quelle est la médiane de ces notes ?`, `Вот оценки ${w.n} по ${mat[1]}: ${staSR(a)}. Чему равна медиана этих оценок?`]
       : [`On considère la série : ${staSF(a)}. Quelle est la médiane de cette série ?`, `Дан ряд: ${staSR(a)}. Чему равна медиана этого ряда?`];
@@ -465,7 +487,9 @@ topic({ id: 'st.mediane-tableau', ch: 'st', lvl: 2, calc: false, variants: 4,
       if (C === 'notes') { const b = r.ri(6, 8); vals = [0, 1, 2, 3, 4, 5].map(i => b + 2 * i); }
       else if (C === 'livres') vals = [0, 1, 2, 3, 4, 5];
       else { const b = r.ri(35, 37); vals = [0, 1, 2, 3, 4, 5].map(i => b + i); }
-      const N0 = r.ri(15, 31), e = staSplit(r, N0, 6, 1), M = staMedSteps(vals, e);
+      /* neither the middle of the row of values (counts ignored) nor the mean may give the median */
+      let N0, e, M;
+      do { N0 = r.ri(15, 31); e = staSplit(r, N0, 6, 1); M = staMedSteps(vals, e); } while (M.med === (vals[2] + vals[3]) / 2 || Math.abs(staSum(vals.map((v, i) => v * e[i])) / N0 - M.med) < 1e-9);
       const Q = {
         notes: [`Le tableau ci-dessous donne les notes obtenues par les ${N0} élèves d'une classe à un contrôle. Déterminer la note médiane.`, `В таблице — оценки ${staGen(N0, 'ученика', 'учеников')} класса за контрольную. Найди медианную оценку.`, 'Note'],
         livres: [`Le tableau ci-dessous donne le nombre de livres lus pendant l'été par chacun des ${N0} élèves d'une classe. Déterminer la médiane de cette série.`, `В таблице — сколько книг прочитал за лето каждый из ${staGen(N0, 'ученика', 'учеников')} класса. Найди медиану этого ряда.`, 'Nombre de livres'],
@@ -477,7 +501,11 @@ topic({ id: 'st.mediane-tableau', ch: 'st', lvl: 2, calc: false, variants: 4,
     if (vi === 1) {   /* bar chart: total and median */
       const lo = r.ri(5, 8), cnt = r.pick([9, 10, 11]), vals = []; for (let i = 0; i < cnt; i++) vals.push(lo + i);
       let e = [];
-      for (let g = 0; g < 100; g++) { e = vals.map((_, i) => r.ri(i === 0 || i === cnt - 1 ? 0 : 1, 6)); if (staSum(e) >= 18 && Math.max(...e) >= 4) break; }
+      /* the middle of the axis (counts ignored) and the mean must not give the median */
+      for (let g = 0; g < 200; g++) {
+        e = vals.map((_, i) => r.ri(i === 0 || i === cnt - 1 ? 0 : 1, 6)); const md = staMedSteps(vals, e).med;
+        if (staSum(e) >= 18 && Math.max(...e) >= 4 && md !== (vals[0] + vals[cnt - 1]) / 2 && Math.abs(staSum(vals.map((v, i) => v * e[i])) / staSum(e) - md) > 1e-9) break;
+      }
       const N0 = staSum(e), M = staMedSteps(vals, e), cl = r.pick(['3e A', '3e B', '3e C', '3e D']);
       const mat = r.pick([['mathématiques', 'математике'], ['physique-chimie', 'физике и химии'], ['SVT', 'биологии'], ['technologie', 'технологии']]);
       return { q: staL(`Le diagramme en barres ci-dessous donne les notes des élèves de la ${cl} au dernier contrôle de ${mat[0]}. a. Combien d'élèves ont participé à ce contrôle ? b. Quelle est la note médiane ?`,
@@ -556,6 +584,7 @@ topic({ id: 'st.etendue', ch: 'st', lvl: 1, calc: false, variants: 4,
       const lo = Math.min(...a), hi = Math.max(...a);
       if (new Set(a).size < n - 1 || hi - lo < 5) continue;
       if (C === 'temp' && !(lo < 0 && hi > 0 && hi + lo !== 0)) continue;
+      if (Math.abs(a[n - 1] - a[0]) === hi - lo) continue;   /* «last − first» must not give the range: the two extremes are not both at the ends */
       if (vi === 2 && (a[0] === lo || a[0] === hi || a[n - 1] === lo || a[n - 1] === hi)) continue;   /* the extremes are not at the ends */
       break;
     }
@@ -583,13 +612,11 @@ topic({ id: 'st.etendue', ch: 'st', lvl: 1, calc: false, variants: 4,
       return { q: staL(Q[0], Q[1]), ans: MQ(r, [staNb(nf(e) + ' °C')].concat(ds.map(d => staNb(d.t))), 0), sol: base.concat([staWhy(ds)]) };
     }
     /* vi 3: a value is added (inside the range or not) */
-    let x = hi + 3;
-    for (let g = 0; g < 60; g++) {
-      const t = r();
-      x = t < 0.4 ? r.ri(lo + 1, hi - 1) : t < 0.7 ? hi + r.ri(2, 9) : lo - r.ri(2, 9);
-      if (C === 'notes' && (x < 0 || x > 20)) continue;
-      if (!a.includes(x)) break;
-    }
+    /* the new value: inside the range (40 %), above it or below it; a new value, a mark stays within 0…20, and «last − first» of the new series is not its range */
+    const okX = v => !a.includes(v) && (C !== 'notes' || (v >= 0 && v <= 20)) && Math.abs(v - a[0]) !== Math.max(hi, v) - Math.min(lo, v);
+    const grp = [[], [], []]; for (let v = lo + 1; v < hi; v++) if (okX(v)) grp[0].push(v);
+    for (let d = 2; d <= 9; d++) { if (okX(hi + d)) grp[1].push(hi + d); if (okX(lo - d)) grp[2].push(lo - d); }
+    const t0 = r(), gi = t0 < 0.4 ? 0 : t0 < 0.7 ? 1 : 2, x = r.pick(grp[gi].length ? grp[gi] : grp.find(g2 => g2.length));
     const lo3 = Math.min(lo, x), hi3 = Math.max(hi, x), e3 = hi3 - lo3, w = staWho(r);
     const Q3 = C === 'notes' ? [`Les notes ${staDe(w.n)} en sciences sont : ${staSF(a)}. ${w.f ? 'Elle' : 'Il'} obtient ensuite la note ${x}. Quelle est l'étendue de la nouvelle série de notes ?`, `Оценки ${w.n} по естественным наукам: ${staSR(a)}. Потом ${staG(w, 'он получил', 'она получила')} оценку ${x}. Найди размах нового ряда оценок.`]
       : [`On considère la série : ${staSF(a)}. On ajoute la valeur ${nf(x)} à cette série. Quelle est l'étendue de la nouvelle série ?`, `Дан ряд: ${staSR(a)}. К нему добавили значение ${nf(x)}. Найди размах нового ряда.`];
@@ -671,12 +698,12 @@ topic({ id: 'st.effectifs-frequences', ch: 'st', lvl: 1, calc: false, variants: 
         F(e[j], T).d !== T ? 'Дробь сокращаем: числитель и знаменатель делятся на ' + gcd(e[j], T) + ' — значение частоты при этом не меняется.' : 'Дробь уже несократимая.'] };
   } });
 
-topic({ id: 'st.diagrammes', ch: 'st', lvl: 1, calc: false, variants: 4,
-  ru: 'Чтение диаграмм', fr: 'Lire un diagramme',
+topic({ id: 'st.diagrammes', ch: 'st', lvl: 1, calc: false, variants: 5,
+  ru: 'Чтение диаграмм и таблиц', fr: 'Lire un diagramme ou un tableau',
   hints: [
-    'В столбчатой диаграмме («diagramme en barres») высота столбика — это количество («effectif»). Веди взгляд от верха столбика горизонтально к оси и читай число по сетке.',
+    'В столбчатой диаграмме («diagramme en barres») и гистограмме высота столбика — это количество («effectif»): веди взгляд от верха столбика к оси и читай число по сетке. В гистограмме («histogramme») столбик отвечает за промежуток («classe»), например от 150 до 160 см: 150 входит, 160 — уже в следующий столбик.',
     'В круговой диаграмме («diagramme circulaire») весь круг — это все данные, 360°. Доля сектора = его угол ÷ 360; количество = доля × общее количество.',
-    'В гистограмме («histogramme») каждый столбик отвечает за промежуток («classe»), например от 150 до 160 см: 150 входит, 160 — уже в следующий столбик.'],
+    'В таблице с двумя входами («tableau à double entrée») каждое число стоит на пересечении строки и столбца, а строка и столбец «Total» — суммы. По ним можно найти пропущенное число.'],
   gen(r, vi) {
     if (vi <= 1) {   /* bar chart */
       const C = r.pick(['freres', 'sport']);
@@ -725,6 +752,38 @@ topic({ id: 'st.diagrammes', ch: 'st', lvl: 1, calc: false, variants: 4,
           ['Учеников:', T + '*' + dg + '/360=' + c[j]],
           'Удобнее так: на одного ученика приходится 360° ÷ ' + T + ' = ' + nf(u) + '°, а ' + dg + ' ÷ ' + nf(u) + ' = ' + c[j] + '.'] };
     }
+    if (vi === 4) {   /* a two-way table: girls and boys, how they come to school */
+      const drop = r.ri(0, 3), cats = [['À pied', 'à pied', 'пешком'], ['Vélo', 'à vélo', 'на велосипеде'], ['Bus', 'en bus', 'на автобусе'], ['Voiture', 'en voiture', 'на машине']].filter((c, i) => i !== drop);
+      const kind = r.pick(['missing', 'missing', 'pct', 'freq']), j = r.ri(0, 2);
+      let T, nF, nG, a, b, c;
+      for (let g = 0; g < 300; g++) {
+        T = kind === 'pct' ? r.pick([20, 25, 50, 100]) : r.pick([24, 25, 28, 30, 50, 60]); nF = r.ri(Math.ceil(T * 0.35), Math.floor(T * 0.65)); nG = T - nF;
+        a = staSplit(r, nF, 3, 2); b = staSplit(r, nG, 3, 2); c = a.map((x, i) => x + b[i]);
+        /* the frequency among the boys differs from the frequency among all pupils (dividing by the wrong total must not give it) */
+        if (kind === 'freq' && (b[j] * T === c[j] * nG || gcd(b[j], nG) === 1)) continue;
+        if (kind === 'missing' && (a[j] === b[j] || a.filter(x => x === a[j]).length > 1)) continue;
+        break;
+      }
+      const hide = kind === 'missing';
+      const rows = [['', cats[0][0], cats[1][0], cats[2][0], 'Total'], ['Filles'].concat(a.map((x, i) => (hide && i === j ? '?' : x)), [nF]), ['Garçons'].concat(b, [nG]), ['Total'].concat(c, [T])];
+      const fig = tbl(rows.map(rw => rw.map(x => (typeof x === 'number' ? nf(x) : x))), 'side');
+      const intro = [`Le tableau ci-dessous donne la répartition des ${T} élèves de 3e d'un collège selon leur moyen de transport pour venir au collège.`, `В таблице — как ${T} учеников 3e колледжа добираются до колледжа: отдельно девочки («Filles») и мальчики («Garçons»), в строке и столбце «Total» — суммы.`];
+      if (kind === 'missing') return { q: staL(intro[0] + ` Combien de filles viennent au collège ${cats[j][1]} ?`, intro[1] + ` Сколько девочек добираются ${cats[j][2]}?`), fig, ans: N(a[j]), sol: [
+        'Число девочек, которые добираются ' + cats[j][2] + ', стоит на пересечении строки «Filles» и столбца «' + cats[j][0] + '» — его закрыли знаком «?». Найти его можно двумя способами.',
+        ['По строке «Filles»: всего девочек ' + nF + ', вычитаем девочек в двух других столбцах:', nF + '-' + a.filter((x, i) => i !== j).join('-') + '=' + a[j]],
+        ['Или по столбцу «' + cats[j][0] + '»: всего ' + staNum(c[j], 'ученик', 'ученика', 'учеников') + ', из них мальчиков ' + b[j] + ':', c[j] + '-' + b[j] + '=' + a[j]],
+        'Оба способа дают одно и то же — так можно себя проверить.'] };
+      if (kind === 'pct') return { q: staL(intro[0] + ` Quel pourcentage des élèves de 3e vient au collège ${cats[j][1]} ?`, intro[1] + ` Какой процент учеников 3e добирается до колледжа ${cats[j][2]}?`), fig, ans: N(c[j] * 100 / T, { unit: '%' }), sol: [
+        'Нужны все ученики, которые добираются ' + cats[j][2] + ', — и девочки, и мальчики: это строка «Total», столбец «' + cats[j][0] + '»: ' + c[j] + '. Всего учеников — ' + T + ' (клетка «Total» × «Total»).',
+        ['Доля этих учеников:', c[j] + '/' + T + '=' + fx(c[j] / T)],
+        ['В процентах (процент — сотая доля):', fx(c[j] / T) + '*100=' + fx(c[j] * 100 / T), '%'],
+        'Ловушка — взять только девочек (' + a[j] + ') или только мальчиков (' + b[j] + '): вопрос про всех учеников.'] };
+      const f = F(b[j], nG);
+      return { q: staL(intro[0] + ` Parmi les garçons, quelle est la fréquence de ceux qui viennent au collège ${cats[j][1]} ? Donner le résultat sous forme de fraction irréductible.`, intro[1] + ` Какова частота тех, кто добирается ${cats[j][2]}, среди мальчиков? Запиши ответ несократимой дробью.`), fig, ans: FRA(f), sol: [
+        '«Parmi les garçons» — «среди мальчиков»: всё считается только в строке «Garçons». Всего мальчиков ' + nG + ' (столбец «Total»), из них добираются ' + cats[j][2] + ' — ' + b[j] + '.',
+        ['Частота = количество ÷ общее количество в этой группе:', staFq(b[j], nG)],
+        'Ловушка — делить на всех учеников (' + T + '): $' + b[j] + '/' + T + '$ — это доля среди всех учеников, а спрашивают про мальчиков.'] };
+    }
     /* histogram */
     const C = r.pick(['taille', 'trajet']);
     const b = C === 'taille' ? [140, 150, 160, 170, 180, 190] : [0, 10, 20, 30, 40, 50], u = C === 'taille' ? 'см' : 'мин';
@@ -760,7 +819,7 @@ topic({ id: 'st.diagramme-circulaire', ch: 'st', lvl: 2, calc: false, variants: 
     if (vi === 0) {   /* the angle of a sector */
       const T = r.pick([18, 20, 24, 30, 36, 40, 45, 60, 72, 90]), e = staSplit(r, T, 4, Math.max(1, Math.ceil(T / 12))), j = r.ri(0, 3), dg = e[j] * 360 / T, f = F(e[j], T);
       return { q: staL(`${T} élèves ont indiqué leur activité préférée le mercredi après-midi (voir le tableau). On veut représenter ces résultats par un diagramme circulaire. Quelle est la mesure, en degrés, de l'angle du secteur « ${acts[j][0]} » ?`,
-        `Ученики (всего их ${T}) назвали любимое занятие в среду после обеда (см. таблицу). Результаты хотят изобразить круговой диаграммой. Какой угол (в градусах) у сектора «${acts[j][0]}»?`),
+        `Ученики (всего их ${T}) назвали любимое занятие в среду после обеда (см. таблицу). Результаты хотят изобразить круговой диаграммой. Какой угол (в градусах) у сектора «${acts[j][0]}» (${acts[j][1]})?`),
         fig: staTab([['Activité'].concat(acts.map(a => a[0])), ['Effectif'].concat(e)]), ans: N(dg, { unit: '°' }), sol: [
           'Весь круг 360° соответствует всем ' + T + ' ученикам, а угол сектора пропорционален количеству.',
           ['Доля учеников, выбравших «' + acts[j][0] + '»:', staFq(e[j], T)],
@@ -788,7 +847,7 @@ topic({ id: 'st.diagramme-circulaire', ch: 'st', lvl: 2, calc: false, variants: 
       for (let g = 0; g < 100; g++) { const d = r.pick([30, 40, 45, 60, 72, 90, 120, 144]), k = r.ri(2, 15), t = k * 360 / d; if (Number.isInteger(t) && t <= 80 && t >= 10) { dg = d; e = k; T = t; break; } }
       const j = r.ri(0, 3), f = F(dg, 360);
       return { q: staL(`Sur un diagramme circulaire, le secteur « ${acts[j][0]} » mesure ${dg}° et représente ${e} élèves. Combien d'élèves ont été interrogés au total ?`,
-        `На круговой диаграмме сектор «${acts[j][0]}» имеет угол ${dg}° и соответствует ${e} ученикам. Сколько всего учеников опросили?`),
+        `На круговой диаграмме сектор «${acts[j][0]}» (${acts[j][1]}) имеет угол ${dg}° и соответствует ${staGen(e, 'ученику', 'ученикам')}. Сколько всего учеников опросили?`),
         ans: N(T), sol: [
           ['Сектор ' + dg + '° — это доля круга', dg + '/360=' + Fr.str(f)],
           'Значит, ' + e + ' ' + staPl(e, 'ученик', 'ученика', 'учеников') + ' — это ' + staFt(f.n, f.d) + ' всех учеников' + (f.n === 1 ? ', и всех учеников в ' + f.d + ' ' + staPl(f.d, 'раз', 'раза', 'раз') + ' больше.' : '.'),
@@ -817,7 +876,8 @@ topic({ id: 'st.diagramme-circulaire', ch: 'st', lvl: 2, calc: false, variants: 
       sol: [
         'Находим долю каждой категории и угол её сектора (доля × 360°): ' + lg.map((l, k) => l[0] + ' — ' + staFt(e[k], T) + ' = ' + staFt(sh[k], 12) + ', угол ' + sh[k] * 30 + '°').join('; ') + '.',
         'Ищем диаграмму, где у каждого цвета из легенды сектор нужного размера: ' + lg.map((l, k) => '«' + l[0] + '» — ' + STA_PART[sh[k]]).join(', ') + '. Это диаграмма ' + 'ABCD'[c] + '.',
-        'В остальных диаграммах ' + (same.length ? 'либо доли те же, но перепутаны категории (цвета) — сверяйся с легендой, либо ' : '') + 'доли другие.'] };
+        'Почему не другие: ' + pies.map((t, i) => (i === c ? null : 'диаграмма ' + 'ABCD'[i] + ' — ' + (staSort(t).join() === staSort(sh).join() ? 'доли те же, но цвета перепутаны (сверяйся с легендой): ' : 'доли другие: ') +
+          lg.map((l, k) => (t[k] !== sh[k] ? '«' + l[0] + '» — ' + t[k] * 30 + '° вместо ' + sh[k] * 30 + '°' : null)).filter(Boolean).join(', '))).filter(Boolean).join('; ') + '.'] };
   } });
 
 /* =====================================================================================================
@@ -846,7 +906,8 @@ topic({ id: 'st.proba-simple', ch: 'st', lvl: 1, calc: false, variants: 5,
           { v: b / o, t: staFt(b, o), ru: 'разделили на число шаров только одного другого цвета' },
           { v: (T - b) / T, t: staFt(T - b, T), ru: 'это вероятность вынуть шар другого цвета' },
           { v: 1 / T, t: staFt(1, T), ru: 'это вероятность вынуть один определённый шар, а подходящих шаров ' + b }].filter(c => c.v < 1));
-        if (ds.length === 3 && new Set(n).size === 3) break;
+        /* P ≠ 1/3: «three colours, so one chance in three» must not give the right answer */
+        if (ds.length === 3 && new Set(n).size === 3 && 3 * b !== T) break;
       }
       const b = n[j], right = r() < 0.5 ? staFt(b, T) : '$' + Fr.str(F(b, T)) + '$';
       return { q: staL(`Un sac contient ${n[0]} boules ${cs[0][0]}, ${n[1]} boules ${cs[1][0]} et ${n[2]} boules ${cs[2][0]}. On tire une boule au hasard ; toutes les boules ont la même probabilité d'être tirées. Quelle est la probabilité de tirer une boule ${cs[j][1]} ?`,
@@ -896,8 +957,10 @@ topic({ id: 'st.proba-simple', ch: 'st', lvl: 1, calc: false, variants: 5,
       const fl = C === 'beignets' ? [['à l\'abricot', 'с абрикосом', 'с абрикосом'], ['à la pomme', 'с яблоком', 'с яблоком'], ['à la framboise', 'с малиной', 'с малиной'], ['au chocolat', 'с шоколадом', 'с шоколадом']]
         : C === 'bonbons' ? [['à la fraise', 'клубничных', 'клубничную'], ['à la menthe', 'мятных', 'мятную'], ['au citron', 'лимонных', 'лимонную'], ['à l\'orange', 'апельсиновых', 'апельсиновую']]
           : [['rouges', 'красных', 'красный'], ['verts', 'зелёных', 'зелёный'], ['jaunes', 'жёлтых', 'жёлтый'], ['bleus', 'синих', 'синий']];
-      const k = r.pick([2, 3, 3]), n = []; for (let i = 0; i < k; i++) n.push(r.ri(2, 12));
-      const T = staSum(n), j = r.ri(0, k - 1), lst = n.map((x, i) => x + ' ' + fl[i][0]), lstR = n.map((x, i) => fl[i][1] + ' — ' + x);
+      /* P ≠ 1/k: «k kinds, so one chance in k» must not give the right answer */
+      const k = r.pick([2, 3, 3]), j = r.ri(0, k - 1); let n;
+      do { n = []; for (let i = 0; i < k; i++) n.push(r.ri(2, 12)); } while (k * n[j] === staSum(n));
+      const T = staSum(n), lst = n.map((x, i) => x + ' ' + fl[i][0]), lstR = n.map((x, i) => fl[i][1] + ' — ' + x);
       const Q = C === 'beignets' ? [`Une boîte opaque contient des beignets tous identiques d'aspect : ${staEt(lst.map(x => x.replace(/^(\d+)/, '$1 beignets')))}. On pioche un beignet au hasard. Quelle est la probabilité qu'il soit ${fl[j][0]} ? ${irr[0]}`,
         `В непрозрачной коробке пончики, на вид одинаковые; начинка: ${lstR.join(', ')}. Наугад достают один пончик. Какова вероятность, что он ${fl[j][1]}? ${irr[1]}`]
         : C === 'bonbons' ? [`Un sachet contient ${staEt(lst.map(x => x.replace(/^(\d+)/, '$1 bonbons')))}. On prend un bonbon au hasard dans le sachet. Quelle est la probabilité de prendre un bonbon ${fl[j][0]} ? ${irr[0]}`,
@@ -905,27 +968,31 @@ topic({ id: 'st.proba-simple', ch: 'st', lvl: 1, calc: false, variants: 5,
           : [`Une urne contient ${staEt(lst.map(x => x.replace(/^(\d+)/, '$1 jetons')))}, indiscernables au toucher. On tire un jeton au hasard. Quelle est la probabilité de tirer un jeton ${fl[j][0].replace(/s$/, '')} ? ${irr[0]}`,
             `В урне жетоны, на ощупь не различимые: ${lstR.join(', ')}. Наугад вынимают один жетон. Какова вероятность вынуть ${fl[j][2]} жетон? ${irr[1]}`];
       return { q: staL(Q[0], Q[1]), ans: FRA(F(n[j], T)), sol: [
-        'Все предметы одинаковы на вид и на ощупь, выбор наугад — исходы равновозможны.',
+        'Все предметы одинаковы на вид и на ощупь, выбор наугад — равновозможны исходы «вынули этот предмет», по одному на каждый предмет.',
         ['Всего:', n.join('+') + '=' + T],
-        ['Благоприятных исходов ' + n[j] + ', поэтому:', 'P=' + staFq(n[j], T)]] };
+        ['Благоприятных исходов ' + n[j] + ', поэтому:', 'P=' + staFq(n[j], T)],
+        'Ловушка — ответить $1/' + k + '$ («видов ' + k + ', значит, один шанс из ' + k + '»): равновозможны предметы, а не виды — чем больше предметов какого-то вида, тем больше у него шансов.'] };
     }
     /* lottery wheel */
-    const nS = r.pick([8, 10, 12]); let cnt = [];
-    do { cnt = staSplit(r, nS, 4, 1); } while (cnt[3] > 3);
-    const val = ['0', '10', '20', '50'], labs = r.sh(cnt.flatMap((c, i) => new Array(c).fill(val[i])));
+    const nS = r.pick([8, 10, 12]), val = ['0', '10', '20', '50'];
     const E = r.pick([
       ['de gagner 50 points', 'выиграть 50 очков', x => x === '50'],
       ['de gagner 20 points', 'выиграть 20 очков', x => x === '20'],
       ['de ne rien gagner (0 point)', 'ничего не выиграть (0 очков)', x => x === '0'],
       ['de gagner au moins 20 points', 'выиграть не меньше 20 очков', x => +x >= 20],
       ['de gagner au plus 10 points', 'выиграть не больше 10 очков', x => +x <= 10]]);
+    /* counting the values written on the wheel (4) instead of the sectors must not give the right answer */
+    const mv = val.filter(E[2]).length; let cnt = [];
+    do { cnt = staSplit(r, nS, 4, 1); } while (cnt[3] > 3 || 4 * staSum(cnt.filter((c, i) => E[2](val[i]))) === mv * nS);
+    const labs = r.sh(cnt.flatMap((c, i) => new Array(c).fill(val[i])));
     const ok = labs.filter(E[2]).length;
     return { q: staL(`Une roue de loterie est partagée en ${nS} secteurs de même taille (voir la figure). On fait tourner la roue ; quand elle s'arrête, la flèche indique un secteur au hasard. Quelle est la probabilité ${E[0]} ? ${irr[0]}`,
       `Колесо лотереи разделено на ${nS} одинаковых секторов (см. рисунок). Колесо раскручивают; когда оно останавливается, стрелка указывает на случайный сектор. Какова вероятность ${E[1]}? ${irr[1]}`),
       fig: staWheel(labs), ans: FRA(F(ok, nS)), sol: [
         'Секторы одинакового размера, поэтому все ' + nS + ' исходов равновозможны.',
         'Считаем подходящие секторы на рисунке: их ' + ok + '.',
-        ['', 'P=' + staFq(ok, nS)]] };
+        ['', 'P=' + staFq(ok, nS)],
+        'Ловушка — считать исходами сами числа 0, 10, 20 и 50: каждое написано на разном числе секторов, поэтому они не равновозможны.'] };
   } });
 
 topic({ id: 'st.proba-contraire', ch: 'st', lvl: 2, calc: false, variants: 4,
@@ -935,9 +1002,10 @@ topic({ id: 'st.proba-contraire', ch: 'st', lvl: 2, calc: false, variants: 4,
     'Поэтому их вероятности в сумме дают 1: ' + STA_NONA + '.',
     'Сумма вероятностей всех исходов опыта тоже равна 1 — так находят недостающую вероятность в таблице.'],
   gen(r, vi) {
-    const w = staWho(r), V = r.pick(STA_VILLES);
+    const w = staWho(r), V = r.pick(STA_VILLES), irr = ['Donner le résultat sous forme de fraction irréductible.', 'Запиши ответ несократимой дробью.'];
     if (vi === 0) {   /* P(not A) = 1 − P(A) */
-      const dec = r() < 0.6, fr0 = r.pick([[1, 4], [3, 8], [2, 5], [5, 12], [7, 10], [3, 7], [4, 9], [2, 3]]), pd = r.ri(5, 95) / 100;
+      let pd; do pd = r.ri(5, 95) / 100; while (pd === 0.5);   /* 0,5 would give the answer back */
+      const dec = r() < 0.6, fr0 = r.pick([[1, 4], [3, 8], [2, 5], [5, 12], [7, 10], [3, 7], [4, 9], [2, 3]]);
       const pt = dec ? nf(pd) : staFt(fr0[0], fr0[1]);
       const C = r.pick([
         [`La probabilité qu'il pleuve demain à ${V[0]} est ${pt}. Quelle est la probabilité qu'il ne pleuve pas demain ?`, `Вероятность того, что завтра в ${V[1]} пойдёт дождь, равна ${pt}. Какова вероятность, что дождя завтра не будет?`, 'пойдёт дождь', 'дождя не будет'],
@@ -945,7 +1013,8 @@ topic({ id: 'st.proba-contraire', ch: 'st', lvl: 2, calc: false, variants: 4,
         [`À une tombola, la probabilité qu'un ticket soit gagnant est ${pt}. Quelle est la probabilité qu'un ticket ne soit pas gagnant ?`, `В лотерее вероятность того, что билет выигрышный, равна ${pt}. Какова вероятность, что билет не выигрышный?`, 'билет выигрышный', 'билет не выигрышный'],
         [`La probabilité que l'équipe ${staDe(w.n)} gagne son prochain match est ${pt}. Quelle est la probabilité qu'elle ne le gagne pas ?`, `Вероятность того, что команда ${w.n} выиграет следующий матч, равна ${pt}. Какова вероятность, что она его не выиграет?`, 'команда выиграет', 'команда не выиграет']]);
       const ans = dec ? N(fx(1 - pd)) : FRA(F(fr0[1] - fr0[0], fr0[1]));
-      return { q: staL(C[0], C[1]), ans, sol: [
+      /* a fraction is given: the answer is asked as a fraction too, and the statement says so */
+      return { q: staL(C[0] + (dec ? '' : ' ' + irr[0]), C[1] + (dec ? '' : ' ' + irr[1])), ans, sol: [
         'События «' + C[2] + '» и «' + C[3] + '» противоположны: ровно одно из них обязательно произойдёт.',
         'Поэтому сумма их вероятностей равна 1: ' + STA_NONA + '.',
         ['', dec ? '1-' + fx(pd) + '=' + fx(1 - pd) : '1-' + fr0[0] + '/' + fr0[1] + '=' + fr0[1] + '/' + fr0[1] + '-' + fr0[0] + '/' + fr0[1] + '=' + Fr.str(F(fr0[1] - fr0[0], fr0[1]))]] };
@@ -955,7 +1024,8 @@ topic({ id: 'st.proba-contraire', ch: 'st', lvl: 2, calc: false, variants: 4,
       let a = F(1, 4), b = F(1, 3), c = F(5, 12);
       for (let g = 0; g < 200; g++) {
         const x = r.pick(P), y = r.pick(P), fa = F(x[0], x[1]), fb = F(y[0], y[1]), fc = Fr.sub(Fr.sub(F(1), fa), fb);
-        if (x[1] !== y[1] && fc.n > 0 && lcm2(x[1], y[1]) <= 24) { a = fa; b = fb; c = fc; break; }
+        /* the green probability is not one of the two given ones (it would be a guess away) */
+        if (x[1] !== y[1] && fc.n > 0 && lcm2(x[1], y[1]) <= 24 && Fr.str(fc) !== Fr.str(fa) && Fr.str(fc) !== Fr.str(fb)) { a = fa; b = fb; c = fc; break; }
       }
       const D = lcm2(a.d, b.d);
       return { q: staL(`Un sac contient des boules rouges, bleues et vertes. On tire une boule au hasard. La probabilité de tirer une boule rouge est $${Fr.str(a)}$ et celle de tirer une boule bleue est $${Fr.str(b)}$. Quelle est la probabilité de tirer une boule verte ? Donner le résultat sous forme de fraction irréductible.`,
@@ -996,7 +1066,13 @@ topic({ id: 'st.proba-contraire', ch: 'st', lvl: 2, calc: false, variants: 4,
       { c: ['On lance deux fois de suite une pièce de monnaie.', 'Монету подбрасывают два раза подряд.'], e: ['obtenir au moins une fois « pile »', 'хотя бы раз выпадет «pile»'], A: '(pile ; pile), (pile ; face), (face ; pile)', nA: '(face ; face)',
         ok: ['obtenir deux fois « face »', 'оба раза выпадет «face»'], no: [['obtenir au moins une fois « face »', 'хотя бы раз выпадет «face»', 'исходы (pile ; face) и (face ; pile) входят и в A'], ['obtenir exactement une fois « pile »', 'ровно один раз выпадет «pile»', 'это часть самого события A'], ['obtenir deux fois « pile »', 'оба раза выпадет «pile»', 'этот исход входит в A']] },
       { c: ['On tire une boule au hasard dans un sac qui contient des boules rouges, bleues et vertes.', 'Из мешка с красными, синими и зелёными шарами наугад вынимают шар.'], e: ['tirer une boule rouge', 'вынут красный шар'], A: 'красный', nA: 'синий или зелёный',
-        ok: ['tirer une boule bleue ou verte', 'вынут синий или зелёный шар'], no: [['tirer une boule bleue', 'вынут синий шар', 'забыт зелёный цвет'], ['tirer une boule verte', 'вынут зелёный шар', 'забыт синий цвет'], ['tirer une boule rouge ou bleue', 'вынут красный или синий шар', 'красный входит и в A']] }]);
+        ok: ['tirer une boule bleue ou verte', 'вынут синий или зелёный шар'], no: [['tirer une boule bleue', 'вынут синий шар', 'забыт зелёный цвет'], ['tirer une boule verte', 'вынут зелёный шар', 'забыт синий цвет'], ['tirer une boule rouge ou bleue', 'вынут красный или синий шар', 'красный входит и в A']] },
+      { c: ['On lance un dé équilibré à six faces numérotées de 1 à 6.', 'Бросают честную игральную кость с гранями от 1 до 6.'], e: ['obtenir un multiple de 3', 'выпадет число, кратное 3'], A: '3, 6', nA: '1, 2, 4, 5',
+        ok: ['obtenir 1, 2, 4 ou 5', 'выпадет 1, 2, 4 или 5'], no: [['obtenir un nombre impair', 'выпадет нечётное число', 'нечётные — 1, 3, 5: число 3 входит и в A, а 2 и 4 не учтены'], ['obtenir 1 ou 2', 'выпадет 1 или 2', 'не хватает исходов 4 и 5'], ['obtenir un nombre pair', 'выпадет чётное число', 'чётные — 2, 4, 6: число 6 входит и в A, а 1 и 5 не учтены']] },
+      { c: ['On lance deux fois de suite une pièce de monnaie.', 'Монету подбрасывают два раза подряд.'], e: ['obtenir deux fois le même côté', 'оба раза выпадет одна и та же сторона'], A: '(pile ; pile), (face ; face)', nA: '(pile ; face), (face ; pile)',
+        ok: ['obtenir une fois « pile » et une fois « face »', 'один раз выпадет «pile», а другой — «face»'], no: [['obtenir deux fois « face »', 'оба раза выпадет «face»', 'этот исход входит в A'], ['obtenir au moins une fois « pile »', 'хотя бы раз выпадет «pile»', 'исход (pile ; pile) входит и в A'], ['obtenir « pile » puis « face »', 'сначала выпадет «pile», потом «face»', 'не хватает исхода (face ; pile)']] },
+      { c: ['On tire au hasard une carte dans un jeu de 32 cartes. Les cœurs et les carreaux sont rouges, les piques et les trèfles sont noirs.', 'Из колоды в 32 карты наугад берут одну карту. Червы и бубны — красные, пики и трефы — чёрные.'], e: ['tirer un cœur', 'вытянут карту масти червы'], A: 'все червы', nA: 'все пики, бубны и трефы',
+        ok: ['tirer un pique, un carreau ou un trèfle', 'вытянут пику, бубну или трефу'], no: [['tirer un pique', 'вытянут пику', 'забыты бубны и трефы'], ['tirer une carte noire', 'вытянут чёрную карту', 'чёрные — это пики и трефы, забыты бубны'], ['tirer une carte rouge', 'вытянут красную карту', 'красные — это червы и бубны: червы входят и в A']] }]);
     return { q: staL(`${D.c[0]} On considère l'événement A : « ${D.e[0]} ». Quel est l'événement contraire de A ?`, `${D.c[1]} Рассмотрим событие A: «${D.e[1]}». Какое событие противоположно A?`),
       ans: MQ(r, [staL(D.ok[0].charAt(0).toUpperCase() + D.ok[0].slice(1), D.ok[1])].concat(D.no.map(x => staL(x[0].charAt(0).toUpperCase() + x[0].slice(1), x[1]))), 0), sol: [
         'Противоположное событие состоит ровно из тех исходов, которые не входят в A.',
@@ -1049,7 +1125,8 @@ topic({ id: 'st.proba-2epreuves', ch: 'st', lvl: 2, calc: true, variants: 5,
         ans: FRA(F(num, den)), sol: st };
     }
     if (vi === 3) {   /* reading a tree with decimals */
-      const pA = r.pick([2, 3, 4, 6, 7, 8]), g1 = r.ri(1, 9), g2 = r.ri(1, 9), t = r.pick(['path', 'path', 'G']);
+      /* g1 ≠ g2: otherwise reading one branch only would give P(G) */
+      const pA = r.pick([2, 3, 4, 6, 7, 8]), g1 = r.ri(1, 9), t = r.pick(['path', 'path', 'G']); let g2; do g2 = r.ri(1, 9); while (g2 === g1);
       const tree = staTree([['A', nf(pA / 10)], ['B', nf(1 - pA / 10)]], [[['G', nf(g1 / 10)], ['P', nf(1 - g1 / 10)]], [['G', nf(g2 / 10)], ['P', nf(1 - g2 / 10)]]]);
       if (t === 'path') {
         const second = r() < 0.5, num = second ? (10 - pA) * (10 - g2) : pA * g1;
@@ -1098,7 +1175,7 @@ topic({ id: 'st.proba-frequence', ch: 'st', lvl: 2, calc: false, variants: 4,
     const w = staWho(r);
     if (vi === 0) {   /* a frequency, as a decimal */
       const C = r.pick(['punaise', 'basket', 'de']);
-      const n = C === 'basket' ? r.pick([20, 25, 40, 50]) : r.pick([50, 200, 250, 400, 500]), k = C === 'de' ? Math.round(n * r.ri(12, 21) / 100) : r.ri(Math.round(n * 0.15), Math.round(n * 0.8));   /* a fair die: about 1/6 */
+      const n = C === 'basket' ? r.pick([20, 25, 40, 50]) : r.pick([50, 100, 200, 250, 500]),   /* at most 3 decimals: no calculator */ k = C === 'de' ? Math.round(n * r.ri(12, 21) / 100) : r.ri(Math.round(n * 0.15), Math.round(n * 0.8));   /* a fair die: about 1/6 */
       const Q = {
         punaise: [`${w.n} lance ${n} fois une punaise. Elle retombe ${k} fois « pointe en haut ». Quelle est la fréquence de l'issue « pointe en haut » ? Donner le résultat sous forme décimale.`, `${w.n} подбрасывает канцелярскую кнопку ${n} раз; ${staNum(k, 'раз', 'раза', 'раз')} она падает остриём вверх. Какова частота исхода «остриём вверх»? Запиши ответ десятичной дробью.`],
         basket: [`Lors d'un entraînement de basket, ${w.n} a tenté ${n} lancers francs et en a réussi ${k}. Quelle est la fréquence de réussite ? Donner le résultat sous forme décimale.`, `На тренировке по баскетболу ${w.n} ${staG(w, 'сделал', 'сделала')} ${n} штрафных бросков и ${k} из них ${staG(w, 'забросил', 'забросила')}. Какова частота попаданий? Запиши ответ десятичной дробью.`],
@@ -1142,12 +1219,14 @@ topic({ id: 'st.proba-frequence', ch: 'st', lvl: 2, calc: false, variants: 4,
       return { q: staL(`${w.n} a lancé ${m} fois de suite une pièce équilibrée et a obtenu « face » à chaque fois. Quelle est la probabilité d'obtenir « pile » au lancer suivant ?`, `${w.n} ${staG(w, 'подбросил', 'подбросила')} честную монету ${staNum(m, 'раз', 'раза', 'раз')} подряд, и каждый раз выпадал «face». Какова вероятность, что при следующем броске выпадет «pile»?`),
         ans: MQ(r, [staL('$1/2$', '$1/2$'), staL('Plus de $1/2$, car « pile » doit bientôt sortir.', 'Больше $1/2$: «pile» должен вот-вот выпасть.'), staL('Moins de $1/2$, car la pièce semble favoriser « face ».', 'Меньше $1/2$: монета, похоже, «любит» «face».'), staL('On ne peut pas la calculer.', 'Её нельзя вычислить.')], 0), sol: [
           'Монета не помнит прошлых бросков: каждый бросок проходит в тех же условиях, и у честной монеты две равновозможные стороны. Вероятность «pile» — $1/2$, как и раньше.',
-          'Серия из ' + m + ' одинаковых результатов — просто случайность. Закон больших чисел говорит о частоте на очень большом числе бросков, а не о том, что результаты «выравниваются» в ближайших бросках.'] };
+          'Серия из ' + m + ' одинаковых результатов — просто случайность. Закон больших чисел говорит о частоте на очень большом числе бросков, а не о том, что результаты «выравниваются» в ближайших бросках.',
+          'Почему не другие варианты: «больше $1/2$» — монета не «должна» отыгрываться за прошлые броски; «меньше $1/2$» — в условии сказано «équilibrée», монета честная, а ' + m + ' бросков слишком мало для выводов; «нельзя вычислить» — можно: две равновозможные стороны, одна из них подходит.'] };
     }
     return { q: staL(`${w.n} a lancé ${m} fois de suite un dé équilibré à six faces et n'a jamais obtenu de 6. Quelle est la probabilité d'obtenir 6 au lancer suivant ?`, `${w.n} ${staG(w, 'бросил', 'бросила')} честную игральную кость ${staNum(m, 'раз', 'раза', 'раз')} подряд, и шестёрка ни разу не выпала. Какова вероятность, что при следующем броске выпадет 6?`),
       ans: MQ(r, [staL('$1/6$', '$1/6$'), staL('Plus de $1/6$, car le 6 doit bientôt sortir.', 'Больше $1/6$: шестёрка должна вот-вот выпасть.'), staL('Moins de $1/6$, car ce dé semble défavoriser le 6.', 'Меньше $1/6$: эта кость, похоже, «не любит» шестёрку.'), staL('On ne peut pas la calculer.', 'Её нельзя вычислить.')], 0), sol: [
         'Кость не помнит прошлых бросков: шесть граней по-прежнему равновозможны, вероятность шестёрки — $1/6$.',
-        'Серия без шестёрок — случайность; закон больших чисел говорит о частоте на очень большом числе бросков, а не о «долгах» в следующих бросках.'] };
+        'Серия без шестёрок — случайность; закон больших чисел говорит о частоте на очень большом числе бросков, а не о «долгах» в следующих бросках.',
+        'Почему не другие варианты: «больше $1/6$» — у кости нет «долгов»: прошлые броски не влияют на следующий; «меньше $1/6$» — в условии сказано «équilibré», кость честная, а ' + m + ' бросков слишком мало для выводов; «нельзя вычислить» — можно: шесть равновозможных граней, подходит одна.'] };
   } });
 
 /* =====================================================================================================
@@ -1191,29 +1270,31 @@ topic({ id: 'al.scratch-lire', ch: 'al', lvl: 1, calc: false, variants: 4,
     if (steps[0][0] === '+' && steps[1][0] === '-' && steps[0][1] === steps[1][1]) steps[1][1] = steps[0][1] === 9 ? 2 : steps[0][1] + 1;   /* +3 then −3 would give the input back */
     if (vi === 2) {   /* which expression: QCM */
       const b = r.ri(2, 5), K = r.pick([0, 1, 2, 3]); let a = r.ri(2, 9); if (a === b) a = b + r.ri(1, 4);   /* a ≠ b: otherwise two options coincide */
-      let bs, right, wrong, st;
+      let bs, right, wrong, st;   /* wrong: [expression, why it is not the program] */
       if (K === 0) {
         bs = [STA_B.set('y', staOp(STA_REP, '+', a)), STA_B.set('y', staOp(staVr('y'), '*', b))];
-        right = `(x+${a})*${b}`; wrong = [`x+${a}*${b}`, `x*${b}+${a}`, `(x+${b})*${a}`];
+        right = `(x+${a})*${b}`; wrong = [[`x+${a}*${b}`, 'здесь на ' + b + ' умножено только ' + a + ', а блок умножает всё значение y — всю сумму'], [`x*${b}+${a}`, 'другой порядок действий: сначала умножить, потом прибавить, а в скрипте сначала прибавляют ' + a], [`(x+${b})*${a}`, 'числа перепутаны: прибавляют ' + a + ', а умножают на ' + b]];
         st = ['После первого блока y = x + ' + a + '.', 'Второй блок умножает на ' + b + ' всё значение y, то есть всю сумму: y = (x + ' + a + ') × ' + b + '. Скобки обязательны: без них на ' + b + ' умножилось бы только ' + a + '.'];
       } else if (K === 1) {
         bs = [STA_B.set('y', staOp(STA_REP, '*', b)), STA_B.set('y', staOp(staVr('y'), '-', a))];
-        right = `${b}x-${a}`; wrong = [`${b}*(x-${a})`, `x-${a * b}`, `${a}x-${b}`];
+        right = `${b}x-${a}`; wrong = [[`${b}*(x-${a})`, 'так было бы, если бы сначала вычли ' + a + ', а потом умножили; в скрипте наоборот'], [`x-${a * b}`, 'на ' + b + ' умножают x, а не ' + a], [`${a}x-${b}`, 'числа перепутаны: умножают на ' + b + ', а вычитают ' + a]];
         st = ['После первого блока y = ' + b + 'x.', 'Второй блок вычитает ' + a + ' из y: y = ' + b + 'x − ' + a + '. Вычитание идёт после умножения, поэтому скобок нет.'];
       } else if (K === 2) {
         bs = [STA_B.set('y', staOp(STA_REP, '*', STA_REP)), STA_B.add(a, 'y')];
-        right = `x^2+${a}`; wrong = [`2x+${a}`, `(x+${a})^2`, `${a}x^2`];
-        st = ['«réponse * réponse» — это x × x = x².', '«ajouter ' + a + ' à y» прибавляет ' + a + ': y = x² + ' + a + '. Ловушка: x × x — это x², а не 2x.'];
+        right = `x^2+${a}`; wrong = [[`2x+${a}`, 'x × x — это x², а 2x — это x + x'], [`(x+${a})^2`, 'в квадрат возводят только x, а ' + a + ' прибавляют потом'], [`${a}x^2`, 'на ' + a + ' не умножают: блок «ajouter» прибавляет']];
+        st = ['«réponse * réponse» — это x × x = x².', '«ajouter ' + a + ' à y» прибавляет ' + a + ': y = x² + ' + a + '.'];
       } else {
         bs = [STA_B.set('y', staOp(STA_REP, '-', a)), STA_B.set('y', staOp(staVr('y'), '*', staVr('y')))];
-        right = `(x-${a})^2`; wrong = [`x^2-${a}`, `x^2-${a * a}`, `2*(x-${a})`];
-        st = ['После первого блока y = x − ' + a + '.', '«mettre y à y * y» умножает всё значение y на само себя: y = (x − ' + a + ')². Это не x² − ' + a * a + ': квадрат разности так не раскрывается.'];
+        right = `(x-${a})^2`; wrong = [[`x^2-${a}`, 'на себя умножают всю разность x − ' + a + ', а не только x'], [`x^2-${a * a}`, 'квадрат разности так не раскрывается: (x − ' + a + ')² ≠ x² − ' + a * a + ' (проверь при x = 0: ' + a * a + ' и −' + a * a + ')'], [`2*(x-${a})`, 'y × y — это y², а не 2 × y']];
+        st = ['После первого блока y = x − ' + a + '.', '«mettre y à y * y» умножает всё значение y на само себя: y = (x − ' + a + ')².'];
       }
+      st.push('Почему не другие варианты: ' + wrong.map(e => '$' + e[0] + '$ — ' + e[1]).join('; ') + '.');
       const blocks = [STA_B.flag(), STA_B.ask('Choisis un nombre.')].concat(bs).concat([STA_B.say(staVr('y'), 2)]);
       return { q: staL('On exécute le script ci-dessous et on saisit un nombre $x$. Quelle expression donne le nombre dit par le lutin ?', 'Запускают скрипт и вводят число $x$. Какое выражение задаёт число, которое скажет спрайт?'),
-        fig: staScratch(blocks), ans: MQ(r, ['$' + right + '$'].concat(wrong.map(e => '$' + e + '$')), 0), sol: ['Число, которое ввели, хранится в «réponse», то есть réponse = x.'].concat(st) };
+        fig: staScratch(blocks), ans: MQ(r, ['$' + right + '$'].concat(wrong.map(e => '$' + e[0] + '$')), 0), sol: ['Число, которое ввели, хранится в «réponse», то есть réponse = x.'].concat(st) };
     }
-    let x0 = r.ri(-3, 12); if ((vi === 1 && r() < 0.75) || x0 === 0) x0 = r.ri(1, 12);
+    /* the program must not give the input back (type 3 would show its answer) */
+    let x0; do { x0 = r.ri(-3, 12); if ((vi === 1 && r() < 0.75) || x0 === 0) x0 = r.ri(1, 12); } while (staApply(x0, steps) === x0);
     const res = staApply(x0, steps);
     const blocks = [STA_B.flag(), STA_B.ask('Choisis un nombre.'), STA_B.set('x', STA_REP)].concat(staCalcBlocks(steps, 'x')).concat([STA_B.say(staVr('x'), 2)]);
     let y = x0; const trace = steps.map(s => { const y2 = staApply(y, [s]); const t = [staStepRu(s, 'x') + ':', (s[0] === '+' ? np(y) + '+' + s[1] : s[0] === '-' ? np(y) + '-' + s[1] : np(y) + '*' + s[1]) + '=' + y2]; y = y2; return t; });
@@ -1226,7 +1307,176 @@ topic({ id: 'al.scratch-lire', ch: 'al', lvl: 1, calc: false, variants: 4,
       fig: staScratch(blocks), ans: N(x0), sol: ['Идём от конца к началу и выполняем обратные действия в обратном порядке: вместо умножения — деление, вместо прибавления — вычитание.'].concat(back).concat(['Проверка: если ввести ' + nf(x0) + ', спрайт скажет ' + nf(res) + '.']) };
   } });
 
-topic({ id: 'al.scratch-boucle', ch: 'al', lvl: 2, calc: false, variants: 4,
+/* ---------- moving by instructions: on a grid of cells (columns A…G, rows 1… from the bottom) or with coordinates ---------- */
+const STA_DIRS = { 0: ['vers le haut', 'вверх'], 90: ['vers la droite', 'вправо'], 180: ['vers le bas', 'вниз'], 270: ['vers la gauche', 'влево'] };
+const STA_AR = { '→': [1, 0], '←': [-1, 0], '↑': [0, 1], '↓': [0, -1] };
+const STA_ARR = { '→': 'вправо', '←': 'влево', '↑': 'вверх', '↓': 'вниз' };
+const staCell = p => 'ABCDEFGH'[p[0]] + p[1];
+const staStep = (p, h) => [p[0] + Math.round(Math.sin(h * Math.PI / 180)), p[1] + Math.round(Math.cos(h * Math.PI / 180))];
+const staH = h => ((h % 360) + 360) % 360;
+/* the grid with the robot on its cell: a dot, or a triangle pointing in the direction d (0 up, 90 right…) */
+function staGrid(C, R, at, d) {
+  const s = 34, W = 340, gx = Math.round((W - C * s) / 2) + 8, gy = 6, H = gy + R * s + 28;
+  let o = '';
+  for (let i = 0; i <= C; i++) o += staLn(gx + i * s, gy, gx + i * s, gy + R * s, i === 0 || i === C ? 'fl' : 'fgrid');
+  for (let j = 0; j <= R; j++) o += staLn(gx, gy + j * s, gx + C * s, gy + j * s, j === 0 || j === R ? 'fl' : 'fgrid');
+  for (let i = 0; i < C; i++) o += staTx(gx + (i + 0.5) * s, gy + R * s + 20, 'ABCDEFGH'[i], 'ftx', 'middle');
+  for (let k = 1; k <= R; k++) o += staTx(gx - 10, gy + (R - k + 0.5) * s + 5, k, 'ftx', 'end');
+  const cx = gx + (at[0] + 0.5) * s, cy = gy + (R - at[1] + 0.5) * s;
+  if (d == null) o += '<circle cx="' + fx(cx, 1) + '" cy="' + fx(cy, 1) + '" r="8" class="fpt"/>';
+  else { const P = (a, k) => [cx + k * Math.sin((d + a) * Math.PI / 180), cy - k * Math.cos((d + a) * Math.PI / 180)]; o += '<polygon points="' + [P(0, 13), P(140, 11), P(220, 11)].map(q => fx(q[0], 1) + ',' + fx(q[1], 1)).join(' ') + '" class="fpt"/>'; }
+  return svgFig(W, H, o, 'quadrillage');
+}
+/* the path of a pen: segments [length, turn after it (+90 ↻, −90 ↺, 0 none)], from (0 ; 0) heading h0 → the vertices */
+function staPen(segs, h0) { let p = [0, 0], h = h0; const pts = [p]; segs.forEach(([L, t]) => { for (let k = 0; k < L; k++) p = staStep(p, h); pts.push(p); h += t; }); return pts; }
+/* the path never passes twice through a point of the grid (no overlap, no crossing) */
+function staSimple(pts) { const seen = new Set(['0,0']); for (let i = 1; i < pts.length; i++) { const [a, b] = [pts[i - 1], pts[i]], n = Math.abs(b[0] - a[0]) + Math.abs(b[1] - a[1]); for (let k = 1; k <= n; k++) { const q = (a[0] + (b[0] - a[0]) * k / n) + ',' + (a[1] + (b[1] - a[1]) * k / n); if (seen.has(q)) return false; seen.add(q); } } return true; }
+/* four small drawings A…D on squared paper; the dot is the start; 1 square = u px */
+function staPanels(paths) {
+  const u = 20, PW = 140, PH = 120, pos = [[26, 6], [190, 6], [26, 140], [190, 140]], cols = PW / u, rows = PH / u;
+  let o = '';
+  paths.forEach((pts, i) => {
+    const [px, py] = pos[i], xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
+    const ox = Math.floor((cols - (Math.max(...xs) - Math.min(...xs))) / 2) - Math.min(...xs), oy = Math.floor((rows - (Math.max(...ys) - Math.min(...ys))) / 2) + Math.max(...ys);
+    for (let k = 0; k <= cols; k++) o += staLn(px + k * u, py, px + k * u, py + PH, 'fgrid');
+    for (let k = 0; k <= rows; k++) o += staLn(px, py + k * u, px + PW, py + k * u, 'fgrid');
+    o += '<polyline points="' + pts.map(p => fx(px + (ox + p[0]) * u, 1) + ',' + fx(py + (oy - p[1]) * u, 1)).join(' ') + '" class="fhl"/>';
+    o += '<circle cx="' + fx(px + ox * u, 1) + '" cy="' + fx(py + oy * u, 1) + '" r="4.5" class="fpt"/>' + staTx(px - 14, py + 16, 'ABCD'[i], 'ftx', 'middle');
+  });
+  return svgFig(340, 266, o, 'quatre figures');
+}
+const staSame = (P, Q) => P.length === Q.length && P.every((p, i) => p[0] === Q[i][0] && p[1] === Q[i][1]);
+
+topic({ id: 'al.deplacement', ch: 'al', lvl: 1, calc: false, variants: 4,
+  ru: 'Перемещения и фигуры по инструкциям', fr: 'Suivre des instructions : se déplacer, tracer une figure',
+  hints: [
+    'Выполняй инструкции строго по одной и по порядку, а после каждой отмечай, где ты теперь (и куда смотришь, если есть повороты). Ответ «на глаз» почти всегда подводит.',
+    'Стрелки ↑ ↓ ← → и «вверх», «вправо» — направления на листе, они не зависят от того, куда смотрит робот. А поворот направо или налево («à droite», «à gauche», ↻, ↺) — от текущего направления: повернуть направо, когда смотришь вниз, — значит начать смотреть влево.',
+    'В координатах первая — абсцисса $x$ (по горизонтали), вторая — ордината $y$ (по вертикали). «ajouter 30 à x» сдвигает вправо на 30, «ajouter −30 à x» — влево; с $y$ так же: плюс — вверх, минус — вниз.'],
+  gen(r, vi) {
+    const C = 7, R = 6, inG = p => p[0] >= 0 && p[0] < C && p[1] >= 1 && p[1] <= R;
+    const why = ws => 'Почему не другие варианты: ' + ws.map(w => w[0] + ' — ' + w[1]).join('; ') + '.';
+    if (vi === 0) {   /* arrows: absolute moves on the grid */
+      let s0, prog, path, ws = [];
+      for (let g = 0; g < 500; g++) {
+        s0 = [r.ri(0, C - 1), r.ri(1, R)]; prog = []; path = [s0];
+        const n = r.ri(6, 8);
+        for (let k = 0; k < n; k++) {
+          const prev = prog[k - 1], back = prev && { '→': '←', '←': '→', '↑': '↓', '↓': '↑' }[prev];
+          const a = prev && r() < 0.45 ? prev : r.pick(['→', '←', '↑', '↓'].filter(x => x !== back));   /* runs of one arrow, no step straight back */
+          const q = [path[k][0] + STA_AR[a][0], path[k][1] + STA_AR[a][1]]; if (!inG(q)) break;
+          prog.push(a); path.push(q);
+        }
+        if (prog.length < n) continue;
+        const e = path[n], dx = e[0] - s0[0], dy = e[1] - s0[1];
+        if (!dx || !dy || !(prog.includes('→') && prog.includes('←') || prog.includes('↑') && prog.includes('↓'))) continue;
+        /* the wrong options are the results of the classic slips */
+        const cand = [
+          [[s0[0] + dx, s0[1] - dy], '↑ и ↓ перепутаны: ↑ ведёт вверх, к строкам с бо́льшими номерами'],
+          [[s0[0] - dx, s0[1] + dy], '← и → перепутаны: → ведёт вправо, к следующим буквам'],
+          [[e[1] - 1, e[0] + 1], 'перепутаны столбец и строка: буква — это столбец, число — строка'],
+          [path[n - 1], 'не выполнена последняя стрелка']];
+        ws = []; cand.forEach(([p, t]) => { if (ws.length < 3 && inG(p) && staCell(p) !== staCell(e) && !ws.some(w => w[0] === staCell(p))) ws.push([staCell(p), t]); });
+        if (ws.length === 3) break;
+      }
+      const n = prog.length, e = path[n], cnt = a => prog.filter(x => x === a).length, h = cnt('→') - cnt('←'), v = cnt('↑') - cnt('↓');
+      return { q: staL(`Un robot se déplace sur le quadrillage ci-dessous. Chaque flèche le fait avancer d'une case : → vers la droite, ← vers la gauche, ↑ vers le haut, ↓ vers le bas. Le robot part de la case ${staCell(s0)} et exécute le programme : ${prog.join(' ')}. Sur quelle case arrive-t-il ?`,
+        `Робот передвигается по клетчатому полю ниже. Каждая стрелка переводит его на одну клетку: → вправо, ← влево, ↑ вверх, ↓ вниз. Робот начинает в клетке ${staCell(s0)} и выполняет программу: ${prog.join(' ')}. В какой клетке он окажется?`),
+        fig: staGrid(C, R, s0), ans: MQ(r, [staCell(e)].concat(ws.map(w => w[0])), 0), sol: [
+          'Выполняем стрелки по одной и после каждой записываем клетку: ' + path.map(staCell).join(' → ') + '.',
+          'Проверка подсчётом: вправо ' + cnt('→') + ', влево ' + cnt('←') + ' — итого на ' + Math.abs(h) + ' ' + staPl(Math.abs(h), 'столбец', 'столбца', 'столбцов') + (h > 0 ? ' вправо' : ' влево') + '; вверх ' + cnt('↑') + ', вниз ' + cnt('↓') + ' — итого на ' + Math.abs(v) + ' ' + staPl(Math.abs(v), 'строку', 'строки', 'строк') + (v > 0 ? ' вверх' : ' вниз') + '. Из ' + staCell(s0) + ' это клетка ' + staCell(e) + '.',
+          why(ws)] };
+    }
+    if (vi === 1) {   /* a robot that turns: «avancer», «tourner à droite / à gauche» */
+      let s0, d0, prog, path, ws = [];
+      const run = (pg, sw, mode) => {   /* sw: right and left swapped; mode 'abs': D and G read as «one cell to the right / left»; 'flat': turns ignored */
+        let p = s0, h = d0; const out = [p];
+        for (const c of pg) {
+          if (c === 'A') p = staStep(p, h);
+          else if (mode === 'abs') p = staStep(p, (c === 'D') !== !!sw ? 90 : 270);
+          else if (mode !== 'flat') h += ((c === 'D') !== !!sw ? 90 : -90);
+          out.push(p); if (!inG(p)) return null;
+        }
+        return out;
+      };
+      for (let g = 0; g < 500; g++) {
+        s0 = [r.ri(0, C - 1), r.ri(1, R)]; d0 = r.pick([0, 0, 90, 270]); prog = [];
+        const n = r.ri(7, 9), turns = r.ri(2, 3); const at = r.sh([1, 2, 3, 4, 5, 6].slice(0, n - 2)).slice(0, turns);
+        for (let k = 0; k < n; k++) prog.push(at.includes(k) ? r.pick(['D', 'G']) : 'A');
+        if (prog.some((c, k) => c !== 'A' && prog[k + 1] !== 'A')) continue;   /* no two turns in a row, the program ends with a step */
+        path = run(prog); if (!path) continue;
+        const e = path[n]; if (staCell(e) === staCell(s0)) continue;
+        const cand = [
+          [run(prog, true), 'повороты перепутаны: D — направо, G — налево, и «направо» считается от того, куда робот смотрит сейчас'],
+          [run(prog, false, 'abs'), 'D и G — это повороты на месте, а не шаги вправо и влево'],
+          [run(prog, false, 'flat'), 'повороты не выполнены: после D или G робот идёт уже в другую сторону'],
+          [run(prog.slice(0, -1)), 'не выполнена последняя команда A']];
+        ws = []; cand.forEach(([pp, t]) => { if (!pp || ws.length >= 3) return; const c = staCell(pp[pp.length - 1]); if (c !== staCell(e) && !ws.some(w => w[0] === c)) ws.push([c, t]); });
+        if (ws.length === 3) break;
+      }
+      let h = d0; const tr = [staCell(s0) + ', смотрит ' + STA_DIRS[d0][1]];
+      prog.forEach((c, k) => { if (c === 'A') tr.push('A → ' + staCell(path[k + 1])); else { h = staH(h + (c === 'D' ? 90 : -90)); tr.push(c + ' → смотрит ' + STA_DIRS[h][1]); } });
+      return { q: staL(`Un robot est sur la case ${staCell(s0)} du quadrillage ci-dessous, orienté ${STA_DIRS[d0][0]}. Il comprend trois instructions : A (avancer d'une case), D (tourner d'un quart de tour vers la droite, sans changer de case) et G (tourner d'un quart de tour vers la gauche, sans changer de case). Il exécute le programme : ${prog.join(' ')}. Sur quelle case arrive-t-il ?`,
+        `Робот стоит в клетке ${staCell(s0)} поля ниже и смотрит ${STA_DIRS[d0][1]}. Он понимает три команды: A — шаг вперёд на одну клетку, D — поворот на четверть оборота направо (на месте), G — поворот на четверть оборота налево (на месте). Он выполняет программу: ${prog.join(' ')}. В какой клетке он окажется?`),
+        fig: staGrid(C, R, s0, d0), ans: MQ(r, [staCell(path[path.length - 1])].concat(ws.map(w => w[0])), 0), sol: [
+          'Следим и за клеткой, и за направлением: A — шаг туда, куда робот смотрит; D и G меняют только направление.',
+          'По шагам: ' + tr.join('; ') + '.',
+          'Робот оказывается в клетке ' + staCell(path[path.length - 1]) + '.',
+          why(ws)] };
+    }
+    if (vi === 2) {   /* coordinates of the sprite: «aller à», «ajouter … à x», «mettre y à …» */
+      let x0, y0, ops, x, y;
+      for (let g = 0; g < 200; g++) {
+        x0 = r.ri(-10, 10) * 10; y0 = r.ri(-8, 8) * 10; x = x0; y = y0; ops = [];
+        const k = r.ri(3, 4), kinds = r.sh(['dx', 'dy', 'dx', 'dy']).slice(0, k); if (r() < 0.3) kinds[r.ri(1, k - 1)] = r.pick(['sx', 'sy']);
+        kinds.forEach(t => { const v = t[0] === 'd' ? r.nz(-9, 9) * 10 : r.ri(-10, 10) * 10; ops.push([t, v]); if (t === 'dx') x += v; else if (t === 'dy') y += v; else if (t === 'sx') x = v; else y = v; });
+        if (ops.some(o => o[0][0] === 'd' && o[1] < 0) && (x !== x0 || y !== y0) && x !== y && Math.abs(x) <= 200 && Math.abs(y) <= 160) break;
+      }
+      const bs = [STA_B.flag(), STA_B.go(x0, y0)].concat(ops.map(([t, v]) => STA_B[t](v)));
+      let cx = x0, cy = y0; const P = (u, v) => '(' + nf(u) + ' ; ' + nf(v) + ')';
+      const st = ['«aller à x: ' + x0 + ' y: ' + y0 + '» ставит спрайт в точку ' + P(x0, y0) + '.'];
+      ops.forEach(([t, v]) => {
+        if (t === 'dx') { cx += v; st.push('«ajouter ' + v + ' à x» — абсцисса ' + (v > 0 ? 'увеличивается на ' + v + ' (сдвиг вправо)' : 'уменьшается на ' + -v + ' (сдвиг влево)') + ': ' + P(cx, cy) + '.'); }
+        else if (t === 'dy') { cy += v; st.push('«ajouter ' + v + ' à y» — ордината ' + (v > 0 ? 'увеличивается на ' + v + ' (сдвиг вверх)' : 'уменьшается на ' + -v + ' (сдвиг вниз)') + ': ' + P(cx, cy) + '.'); }
+        else if (t === 'sx') { cx = v; st.push('«mettre x à ' + v + '» — абсцисса становится равной ' + nf(v) + ' (что бы там ни было раньше), ордината не меняется: ' + P(cx, cy) + '.'); }
+        else { cy = v; st.push('«mettre y à ' + v + '» — ордината становится равной ' + nf(v) + ' (что бы там ни было раньше), абсцисса не меняется: ' + P(cx, cy) + '.'); }
+      });
+      st.push('В конце спрайт в точке ' + P(x, y) + ': абсцисса ' + nf(x) + ', ордината ' + nf(y) + '.');
+      const w = staWho(r);
+      return { q: staL(`${w.n} exécute le script ci-dessous. Quelles sont les coordonnées du lutin à la fin du script ?`, `${w.n} запускает скрипт ниже. Какие координаты будут у спрайта в конце скрипта?`),
+        fig: staScratch(bs), ans: multi([staL('abscisse $x$ :', 'абсцисса $x$:'), N(x)], [staL('ordonnée $y$ :', 'ордината $y$:'), N(y)]), sol: st };
+    }
+    /* vi 3: which figure does the pen draw (no loop) */
+    let segs, right, ws = [];
+    for (let g = 0; g < 500; g++) {
+      const n = r.pick([3, 3, 4]); segs = [];
+      for (let k = 0; k < n; k++) segs.push([r.ri(1, 3), k < n - 1 ? r.pick([90, -90]) : 0]);
+      const pts = staPen(segs, 90);
+      if (!staSimple(pts)) continue;   /* the path does not come back on itself */
+      const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]); if (Math.max(...xs) - Math.min(...xs) > 6 || Math.max(...ys) - Math.min(...ys) > 5) continue;
+      const cand = [
+        [staPen(segs.map(([L, t]) => [L, -t]), 90), '↻ и ↺ перепутаны: ↺ — против часовой стрелки (из «вправо» — «вверх»), ↻ — по часовой (из «вправо» — «вниз»)'],
+        [staPen([[segs[1][0], segs[0][1]], [segs[0][0], segs[1][1]]].concat(segs.slice(2)), 90), 'длины первых двух отрезков перепутаны'],
+        [staPen(segs.map(([L, t], k) => [L, k === n - 2 ? -t : t]), 90), 'последний поворот сделан не в ту сторону'],
+        [staPen(segs, 0), 'спрайт начал бы движение вверх, а «s\'orienter à 90» направляет его вправо']];
+      ws = []; cand.forEach(([pp, t]) => { if (ws.length < 3 && !staSame(pp, pts) && staSimple(pp) && !ws.some(w => staSame(w[0], pp))) ws.push([pp, t]); });
+      if (ws.length === 3) { right = pts; break; }
+    }
+    const c = r.ri(0, 3), figs = ws.map(w => w[0]); figs.splice(c, 0, right); const L = i => 'ABCD'[i];
+    const bs = [STA_B.flag(), STA_B.go(0, 0), STA_B.dir(90), STA_B.pen()];
+    segs.forEach(([Ls, t]) => { bs.push(STA_B.fwd(Ls * 20)); if (t) bs.push(t > 0 ? STA_B.rt(90) : STA_B.lt(90)); });
+    let h = 90; const tr = [];
+    segs.forEach(([Ls, t]) => { tr.push('«avancer de ' + Ls * 20 + ' pas» — ' + staNum(Ls, 'клетка', 'клетки', 'клеток') + ' ' + STA_DIRS[staH(h)][1]); if (t) { h += t; tr.push('«tourner ' + (t > 0 ? '↻' : '↺') + ' de 90 degrés» — теперь смотрит ' + STA_DIRS[staH(h)][1]); } });
+    const w = staWho(r);
+    return { q: staL(`${w.n} exécute le script ci-dessous. Sur les figures, le point indique le départ du lutin et un carreau représente 20 pas. Quelle figure le lutin trace-t-il ?`, `${w.n} запускает скрипт ниже. На рисунках точка — место, откуда спрайт начинает, а одна клетка — 20 шагов. Какую фигуру нарисует спрайт?`),
+      fig: staScratch(bs) + staPanels(figs), ans: MQF([0, 1, 2, 3].map(i => staL('Figure ' + L(i), 'Рисунок ' + L(i))), c), sol: [
+        '«s\'orienter à 90» — спрайт смотрит вправо; «stylo en position d\'écriture» — дальше он оставляет след. 20 шагов — одна клетка.',
+        'По блокам: ' + tr.join('; ') + '.',
+        'Такой путь нарисован на рисунке ' + L(c) + '.',
+        'Почему не другие рисунки: ' + ws.map((w, k) => { const i = figs.indexOf(w[0]); return L(i) + ' — ' + w[1]; }).join('; ') + '.'] };
+  } });
+
+topic({ id: 'al.scratch-boucle', ch: 'al', lvl: 1, calc: false, variants: 4,
   ru: 'Scratch: циклы и фигуры', fr: 'Scratch : boucles et figures',
   hints: [
     '«répéter n fois» повторяет блоки внутри него n раз подряд. Чтобы нарисовать правильный многоугольник, спрайт n раз проходит сторону и поворачивает.',
@@ -1243,6 +1493,7 @@ topic({ id: 'al.scratch-boucle', ch: 'al', lvl: 2, calc: false, variants: 4,
       const st = ['Блок «répéter ' + n + ' fois» повторяет «avancer» и «tourner» ' + staNum(n, 'раз', 'раза', 'раз') + ': получится ' + n + ' ' + (n < 5 ? 'одинаковые стороны' : 'одинаковых сторон') + ' по ' + L0 + ' шагов.',
         'После каждой стороны спрайт поворачивает на ' + t + '°, всего ' + n + ' × ' + t + '° = 360° — ровно один оборот, поэтому фигура замыкается и все углы у неё равны. Это ' + STA_POLY[n][1] + '.'];
       if (trap) st.push('Ловушка: ' + t + '° — это угол внутри фигуры «' + STA_POLY[trap][1] + '», но спрайт поворачивает на внешний угол. Для ' + (trap === 3 ? 'треугольника нужен поворот 120°' : 'шестиугольника нужен поворот 60°') + '.');
+      st.push('Почему не другие варианты: ' + ds.map(k => '«' + STA_POLY[k][1] + '» — для него нужно ' + staNum(k, 'повторение', 'повторения', 'повторений') + ' с поворотом на ' + 360 / k + '°').join('; ') + '.');
       return { q: staL('Le lutin exécute le script ci-dessous. Quelle figure dessine-t-il ?', 'Спрайт выполняет скрипт ниже. Какую фигуру он нарисует?'), fig: staScratch(bs),
         ans: MQ(r, [staL(STA_POLY[n][0].replace(/^un /, 'Un '), STA_POLY[n][1])].concat(ds.map(k => staL(STA_POLY[k][0].replace(/^un /, 'Un '), STA_POLY[k][1]))), 0), sol: st };
     }
@@ -1268,7 +1519,7 @@ topic({ id: 'al.scratch-boucle', ch: 'al', lvl: 2, calc: false, variants: 4,
         'Проверка: при повороте на 72° (360 ÷ 5) получился бы правильный пятиугольник, а не звезда.']
         : askN ? ['На рисунке ' + STA_POLY[n][1] + ': ' + n + ' равных сторон.', 'Каждое повторение рисует одну сторону и поворачивает на ' + t + '°, поэтому повторений нужно ' + n + ' — и ' + n + ' × ' + t + '° = 360°, полный оборот.']
           : ['На рисунке ' + STA_POLY[n][1] + ': ' + n + ' равных сторон, ' + n + ' одинаковых поворотов.', ['За весь обход спрайт поворачивается на 360°, поэтому каждый поворот:', '360/' + n + '=' + t, '°'], 'Ловушка: угол внутри фигуры равен ' + (180 - t) + '°, но спрайт поворачивает на внешний угол — тот, на который меняется направление движения.'];
-      return { q: staL('Quel nombre faut-il écrire à la place des pointillés pour que le script trace la figure dessinée en dessous ?', 'Какое число нужно написать вместо многоточия, чтобы скрипт нарисовал фигуру под ним?'),
+      return { q: staL('Par quelle valeur doit-on remplacer les pointillés dans le script pour obtenir la figure dessinée en dessous ?', 'Каким числом нужно заменить многоточие в скрипте, чтобы получилась фигура, нарисованная под ним?'),
         fig, ans: askN ? N(n) : N(t, { unit: '°' }), sol: st };
     }
     /* coordinates of the sprite: QCM */
@@ -1279,13 +1530,20 @@ topic({ id: 'al.scratch-boucle', ch: 'al', lvl: 2, calc: false, variants: 4,
     const tn = k => { h += k === 'rt' ? 90 : -90; const dir = ((h % 360) + 360) % 360; trace.push('«tourner ' + (k === 'rt' ? '↻' : '↺') + ' de 90» — поворот ' + (k === 'rt' ? 'по часовой стрелке' : 'против часовой стрелки') + ': теперь спрайт смотрит ' + { 0: 'вверх', 90: 'вправо', 180: 'вниз', 270: 'влево' }[dir]); };
     mv(a); tn(t1); mv(b); if (three) { tn(t2); mv(c); }
     const P = (u, v) => '(' + nf(u) + ' ; ' + nf(v) + ')';
-    const cand = [P(y, x), P(x, -y), P(-x, y), P(a, b), P(a + b, 0), P(-x, -y)];
-    const opts = [P(x, y)]; cand.forEach(o => { if (opts.length < 4 && !opts.includes(o)) opts.push(o); });
-    return { q: staL("Au départ, l'instruction « s'orienter à 90 » oriente le lutin vers la droite. Quelles sont les coordonnées du lutin à la fin du script ?", 'Блок «s\'orienter à 90» поворачивает спрайт вправо. Какие координаты будут у спрайта в конце скрипта?'),
-      fig: staScratch(bs), ans: MQ(r, opts.map(o => staNb(o)), 0), sol: [
+    /* the wrong options are the results of the classic slips, each one computed */
+    const mvs = [['f', a], ['t', t1 === 'rt' ? 90 : -90], ['f', b]].concat(three ? [['t', t2 === 'rt' ? 90 : -90], ['f', c]] : []);
+    const cand = [
+      [P(y, x), 'координаты переставлены: первой пишут абсциссу x (по горизонтали), второй — ординату y'],
+      [P(...staWalk(mvs.map(([k, v]) => [k, k === 't' ? -v : v]), 90)), 'перепутаны ↻ и ↺: ↻ — поворот по часовой стрелке (из «вправо» — «вниз»), ↺ — против часовой (из «вправо» — «вверх»)'],
+      [P(...staWalk(mvs, 0)), 'спрайт начал бы движение вверх, а «s\'orienter à 90» направляет его вправо (0 — вверх)'],
+      [P(a + b + (three ? c : 0), 0), 'повороты не учтены — будто спрайт всё время шёл вправо'],
+      [P(a, b), 'это просто длины двух первых отрезков, а не координаты конечной точки']];
+    const ws = []; cand.forEach(o => { if (ws.length < 3 && o[0] !== P(x, y) && !ws.some(u => u[0] === o[0])) ws.push(o); });
+    return { q: staL("Au départ, l'instruction « s'orienter à 90 » oriente le lutin vers la droite. Quelles sont les coordonnées du lutin à la fin du script ?", 'Сначала блок «s\'orienter à 90» поворачивает спрайт вправо. Какие координаты будут у спрайта в конце скрипта?'),
+      fig: staScratch(bs), ans: MQ(r, [P(x, y)].concat(ws.map(o => o[0])).map(o => staNb(o)), 0), sol: [
         'Спрайт начинает в точке (0 ; 0) и смотрит вправо, то есть в сторону возрастания x. Вверх — возрастание y.',
         trace.join('; ') + '.',
-        'Ловушки: ↺ — против часовой стрелки (из «вправо» — «вверх»), ↻ — по часовой (из «вправо» — «вниз»); первая координата — x (по горизонтали), вторая — y.'] };
+        'Почему не другие варианты: ' + ws.map(o => o[0] + ' — ' + o[1]).join('; ') + '.'] };
   } });
 
 topic({ id: 'al.scratch-conditions', ch: 'al', lvl: 2, calc: false, variants: 4,
@@ -1391,7 +1649,9 @@ topic({ id: 'al.tableur-formule', ch: 'al', lvl: 1, calc: false, variants: 4,
       ['visiteurs', 'посетителей', 'Visiteurs', 'le nombre de visiteurs du CDI du collège chaque jour', 'сколько человек приходило каждый день в библиотеку колледжа'],
       ['pas (en milliers)', 'шагов (в тысячах)', 'Pas (milliers)', 'le nombre de pas, en milliers, faits chaque jour par un élève', 'сколько тысяч шагов проходил каждый день ученик']]);
     let vals = [], S = 0;
-    for (let g = 0; g < 100; g++) { vals = days.map(() => r.ri(C[0] === 'pas (en milliers)' ? 4 : 12, C[0] === 'pas (en milliers)' ? 15 : 60)); S = staSum(vals); if (vi === 2 || (2 * S) % k === 0) break; }
+    for (let g = 0; g < 100; g++) { vals = days.map(() => r.ri(C[0] === 'pas (en milliers)' ? 4 : 12, C[0] === 'pas (en milliers)' ? 15 : 60)); S = staSum(vals);
+      /* type 2: the half-sum of the first and the last day must not be the mean (the wrong formula would show the right number); type 3: a mean with at most one decimal */
+      if (vi === 2 ? (vals[0] + vals[k - 1]) * k !== 2 * S : (2 * S) % k === 0) break; }
     const last = 'B' + (k + 1), cellT = 'B' + (k + 2), rng = 'B2:' + last;
     if (vi === 2) {
       const tot = r() < 0.6;
@@ -1469,36 +1729,62 @@ topic({ id: 'al.tableur-recopie', ch: 'al', lvl: 2, calc: false, variants: 4,
    ===================================================================================================== */
 fiche({ ch: 'st', id: 'st.indicateurs', ru: 'Среднее, медиана, размах', fr: 'Moyenne, médiane, étendue', body: [
   'Среднее («moyenne») = сумма значений ÷ их количество. Если данные даны таблицей, каждое значение умножаем на его количество («effectif») — это взвешенное среднее («moyenne pondérée»). Полезно и обратное: сумма = среднее × количество.',
-  'Медиана («médiane») — значение посередине упорядоченного ряда: не меньше половины значений не больше её, и не меньше половины — не меньше. Сначала обязательно упорядочить! При нечётном $n$ медиана — значение номер $(n+1)/2$, при чётном — полусумма двух средних значений.',
+  'Медиана («médiane») — значение посередине упорядоченного ряда: не меньше половины значений не больше её, и не меньше половины — не меньше. Сначала обязательно упорядочить! При нечётном $n$ медиана — значение номер $(n+1)/2$, при чётном — полусумма двух значений, стоящих посередине (номер $n/2$ и следующее).',
   'Размах («étendue») = наибольшее значение − наименьшее. Показывает, насколько разбросаны данные.',
   'Среднее чувствительно к выбросам (одна огромная зарплата сильно его поднимает), медиана — почти нет.'],
-  ex: [['Среднее', '(8+12+6+19+15)/5=12'], ['Медиана, 5 значений', '6;8;12;15;19→12'], ['Медиана, 6 значений', '(10+14)/2=12'], ['Размах', '19-6=13']] });
+  ex: [['Среднее', '(8+12+6+19+15)/5=12'], ['Медиана, 5 значений', '6;8;12;15;19→12'], ['Медиана, 6 значений', '(10+14)/2=12'], ['Размах', '19-6=13']],
+  frs: [
+    'La moyenne d\'une série est le quotient de la somme de toutes les valeurs par l\'effectif total.',
+    'La médiane d\'une série est une valeur qui partage la série, rangée dans l\'ordre croissant, en deux groupes de même effectif.',
+    'Si l\'effectif total est impair, la médiane est la valeur du milieu de la série rangée ; s\'il est pair, on prend la moyenne des deux valeurs du milieu.',
+    'L\'étendue d\'une série est la différence entre la plus grande et la plus petite valeur.'] });
 fiche({ ch: 'st', id: 'st.donnees', ru: 'Количества, частоты, диаграммы', fr: 'Effectifs, fréquences, diagrammes', body: [
   'Количество («effectif») — сколько раз встречается значение; общее количество («effectif total») — сумма всех количеств.',
   'Частота («fréquence») = effectif ÷ effectif total. Пишется дробью, десятичной дробью или в процентах; сумма всех частот равна 1, то есть 100 %.',
   'Столбчатая диаграмма («diagramme en barres»): высота столбика = количество. Гистограмма («histogramme»): столбики стоят вплотную, каждый отвечает за промежуток («classe»), например от 150 см (включительно) до 160 см (не включая).',
   'Круговая диаграмма («diagramme circulaire»): весь круг — 360°, угол сектора пропорционален количеству: угол = частота × 360°. 1 % — это 3,6°.'],
-  ex: [['Частота', '6/24=1/4=0.25'], ['Угол сектора', '1/4*360=90'], ['Количество по углу', '24*120/360=8']] });
+  ex: [['Частота', '6/24=1/4=0.25'], ['Угол сектора', '1/4*360=90'], ['Количество по углу', '24*120/360=8']],
+  frs: [
+    'L\'effectif d\'une valeur est le nombre de fois où cette valeur est présente dans la série ; l\'effectif total est la somme de tous les effectifs.',
+    'La fréquence d\'une valeur est le quotient de son effectif par l\'effectif total. Elle peut s\'écrire sous forme de fraction, de nombre décimal ou de pourcentage.',
+    'Dans un diagramme circulaire, la mesure de l\'angle d\'un secteur est proportionnelle à l\'effectif : angle = fréquence × 360°.'] });
 fiche({ ch: 'st', id: 'st.probas', ru: 'Вероятности', fr: 'Probabilités', body: [
   'Опыт случайный («expérience aléatoire»), если его результат заранее неизвестен. Возможные результаты — исходы («issues»); событие («événement») — набор исходов.',
   'Если все исходы равновозможны («équiprobables»): вероятность = число благоприятных исходов ÷ число всех исходов. Вероятность — число от 0 (невозможное событие) до 1 (достоверное).',
   'Противоположное событие («événement contraire») «не A»: ' + STA_NONA + '. Сумма вероятностей всех исходов равна 1.',
   'Два испытания подряд — дерево («arbre») или таблица. Вероятность пути = произведение вероятностей на ветках; если подходят несколько путей — складываем. Без возвращения («sans remise») во втором испытании на один предмет меньше.',
   'Частота в опыте при большом числе испытаний обычно близка к вероятности, но не обязана быть ей равна. Монета и кость не помнят прошлых бросков.'],
-  ex: [['4 синих шара из 20', 'P=4/20=1/5'], ['Противоположное', '1-1/5=4/5'], ['Два броска: два раза «pile»', '1/2*1/2=1/4']] });
+  ex: [['4 синих шара из 20', 'P=4/20=1/5'], ['Противоположное', '1-1/5=4/5'], ['Два броска: два раза «pile»', '1/2*1/2=1/4']],
+  frs: [
+    'Lorsque toutes les issues sont équiprobables, la probabilité de l\'événement A est égale au nombre d\'issues qui réalisent A divisé par le nombre total d\'issues.',
+    'Une probabilité est un nombre compris entre 0 et 1. La somme des probabilités de toutes les issues d\'une expérience est égale à 1.',
+    'L\'événement contraire de A, noté $$\\overline{A}$$, est formé des issues qui ne réalisent pas A : ' + STA_NONA + '.',
+    'Dans un arbre, la probabilité d\'une issue est égale au produit des probabilités rencontrées sur le chemin de cette issue.'] });
 fiche({ ch: 'al', id: 'al.scratch', ru: 'Scratch', fr: 'Programmer avec Scratch', body: [
   'Скрипт выполняется сверху вниз. Переменная («variable») — ячейка памяти с именем: «mettre x à 5» записывает в неё 5 (старое значение теряется), «ajouter 2 à x» прибавляет 2 к тому, что там было.',
   '«demander … et attendre» ждёт, пока пользователь введёт ответ; введённое значение хранится в «réponse». «dire …» — спрайт («lutin») говорит значение.',
   'Цикл («boucle») «répéter n fois» повторяет вложенные блоки n раз. Правильный многоугольник с n сторонами: n раз «avancer» и «tourner de 360/n degrés» — за весь обход спрайт поворачивается на 360°.',
   'Условие «si … alors … sinon»: если условие верно — выполняется первая часть, иначе — вторая. «a modulo b» — остаток от деления a на b.',
-  '«s\'orienter à 90» — смотреть вправо; 0 — вверх, 180 — вниз, −90 — влево. «aller à x: … y: …» ставит спрайт в точку с этими координатами. ↻ — поворот по часовой стрелке, ↺ — против.'],
-  ex: [['Квадрат', '360/4=90'], ['Равносторонний треугольник', '360/3=120'], ['Правильный шестиугольник', '360/6=60']] });
+  '«s\'orienter à 90» — смотреть вправо; 0 — вверх, 180 — вниз, −90 — влево. «avancer de 50 pas» — 50 шагов туда, куда спрайт смотрит; ↻ — поворот по часовой стрелке, ↺ — против.',
+  'Координаты: «aller à x: … y: …» ставит спрайт в точку с этими координатами; «ajouter 30 à x» — сдвиг на 30 вправо (с −30 — влево), «ajouter 30 à y» — вверх (с −30 — вниз); «mettre x à 0» задаёт абсциссу, ордината при этом не меняется.',
+  'Перемещения по клеткам без Scratch: стрелки ↑ ↓ ← → — шаг на клетку в эту сторону листа, куда бы ни смотрел робот; «tourner à droite / à gauche» — поворот на месте, направо или налево от того направления, куда робот смотрит сейчас.'],
+  ex: [['Квадрат', '360/4=90'], ['Равносторонний треугольник', '360/3=120'], ['Правильный шестиугольник', '360/6=60']],
+  frs: [
+    'L\'instruction « s\'orienter à 90 » oriente le lutin vers la droite.',
+    'Le bloc « répéter 4 fois » répète 4 fois les instructions qu\'il contient.',
+    'Pour tracer un polygone régulier à $n$ côtés, le lutin tourne $n$ fois du même angle : en tout, il fait un tour, donc chaque angle mesure $360/n$ degrés.',
+    'Le bloc « mettre x à 5 » donne la valeur 5 à la variable x ; le bloc « ajouter 2 à x » augmente de 2 la valeur de x.'] });
 fiche({ ch: 'al', id: 'al.tableur', ru: 'Электронная таблица', fr: 'Le tableur', body: [
   'Ячейка («cellule») называется буквой столбца и номером строки: B3 — столбец B, строка 3.',
   'Формула начинается со знака «=»: «=3*A2+5» берёт число из A2, умножает на 3 и прибавляет 5. Умножение — «*», деление — «/».',
   '«=SOMME(B2:B8)» — сумма ячеек от B2 до B8; «=MOYENNE(B2:B8)» — их среднее.',
-  'Растянули формулу вниз («étirer», «recopier vers le bas») — номера строк в ней растут: в B3 окажется «=3*A3+5». Вправо — меняются буквы: «=B1*2» в C2 станет «=C1*2».'],
-  ex: [['B2 содержит =3*A2+5, в A2 число 4', '3*4+5=17'], ['=MOYENNE(B2:B5) для 10, 12, 15, 11', '(10+12+15+11)/4=12']] });
+  'Растянули формулу вниз («étirer», «recopier vers le bas») — номера строк в ней растут: в B3 окажется «=3*A3+5». Вправо — меняются буквы: «=B1*2» из B2, скопированная в C2, станет «=C1*2». Так и задумано: формула каждый раз берёт числа «на том же месте» относительно себя.'],
+  ex: [['B2 содержит =3*A2+5, в A2 число 4', '3*4+5=17'], ['=MOYENNE(B2:B5) для 10, 12, 15, 11', '(10+12+15+11)/4=12']],
+  frs: [
+    'Une formule commence par le signe « = ». La cellule B3 est à l\'intersection de la colonne B et de la ligne 3.',
+    'Dans la cellule B2, on a saisi la formule =3*A2+5, puis on l\'a étirée vers le bas : la cellule B3 contient alors =3*A3+5.',
+    'Quand une formule est étirée vers le bas, le numéro de ligne de chaque cellule utilisée augmente ; quand elle est étirée vers la droite, c\'est la lettre de la colonne qui change.',
+    '=SOMME(B2:B8) calcule la somme des valeurs de B2 à B8 ; =MOYENNE(B2:B8) calcule leur moyenne.'] });
 
 gloss('une série statistique', 'статистический ряд', 'список полученных значений');
 gloss('l\'effectif', 'количество (абсолютная частота)', 'сколько раз встречается значение');

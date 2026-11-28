@@ -1542,3 +1542,6 @@ lex('fusée|fusées|fusée à eau', 'ракета; fusée à eau — водян�
 lex('pause|pauses', 'перерыв, привал');
 lex('éloigner|s\'éloigner|éloigne|éloignent|s\'éloigne', 'удалить; s\'éloigner de — удаляться от');
 lex('terme|termes', 'слагаемое (член суммы): le moins de termes possible — как можно меньше слагаемых');
+
+/* ---------- главы «Статистика» и «Алгоритмы»: перемещения ---------- */
+lex('robot|robots', 'робот');
