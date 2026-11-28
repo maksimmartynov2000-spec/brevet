@@ -102,7 +102,7 @@ topic({ id: 'nc.relatifs-addsub', ch: 'nc', lvl: 1, calc: false, variants: 5,
           'Проверка по термометру: от ' + nf(t1) + ' до 0 — ' + (-t1) + ' ' + ncPl(-t1, 'градус', 'градуса', 'градусов') + ', от 0 до ' + t2 + ' — ещё ' + t2 + ', всего ' + (t2 - t1) + '.'] };
     }
     if (kind === 1) {   /* the temperature falls below zero */
-      const t1 = r.ri(-4, 9), d = Math.max(t1, 0) + r.ri(2, 9), t2 = t1 - d;   /* the morning is always below zero */
+      const t1 = r.nz(-4, 9), d = Math.max(t1, 0) + r.ri(2, 9), t2 = t1 - d;   /* the morning is always below zero */
       return { q: L('Le soir, le thermomètre indique ' + nf(t1) + ' °C. Pendant la nuit, la température baisse de ' + d + ' °C. Quelle température indique le thermomètre le matin ?',
         'Вечером термометр показывает ' + nf(t1) + ' °C. За ночь температура понижается на ' + d + ' °C. Что показывает термометр утром?'),
         ans: N(t2, { unit: '°C' }), sol: [
@@ -246,7 +246,8 @@ topic({ id: 'nc.priorites', ch: 'nc', lvl: 1, calc: false, variants: 5,
         'Ответ ' + ncN(v[3], 1) + ' — ошибка в знаке: ' + ncN(a, 1) + ' − ' + ncN(b, 1) + ' = ' + ncN(a - b, 1) + ' (вычитаем больше, чем было), а не ' + ncN(b - a, 1) + '.'] };
     }
     /* vi === 4: from words to an expression */
-    const [b, c] = r.distinct(2, 2, 9), a = r.distinct(1, 2, 20, [b, c])[0], t = r.ri(0, 3);
+    /* numbers for which a wrong expression has the value of the right one are skipped: (a + b) × c = a × b + c, a − b × c = b × c − a */
+    let a, b, c, t; do { [b, c] = r.distinct(2, 2, 9); a = r.distinct(1, 2, 20, [b, c])[0]; t = r.ri(0, 3); } while ((t === 1 && (a + b) * c === a * b + c) || (t === 2 && a === b * c));
     const T = [
       { fr: 'la somme de ' + a + ' et du produit de ' + b + ' par ' + c, ru: 'сумма числа ' + a + ' и произведения ' + b + ' на ' + c,
         ok: a + '+' + b + '*' + c, bad: ['(' + a + '+' + b + ')*' + c, a + '*' + b + '+' + c, a + '+' + b + '+' + c],
@@ -585,13 +586,14 @@ topic({ id: 'nc.frac-muldiv', ch: 'nc', lvl: 2, calc: false, variants: 5,
     const q = L('Calculer et donner le résultat sous forme de fraction irréductible.', 'Вычисли и запиши ответ несократимой дробью.');
     const two = cross => { let a, b, c, d; do { b = r.ri(2, 9); d = r.ri(2, 9); a = r.ri(1, 9); c = r.ri(1, 9); } while (gcd(a, b) !== 1 || gcd(c, d) !== 1 || a * c === b * d || (cross && gcd(a, d) === 1 && gcd(c, b) === 1) || (a === 1 && b === 1)); return [a, b, c, d]; };
     if (vi === 0) {   /* a/b × c/d */
-      const [a, b, c, d] = two(r() < 0.75), neg = r() < 0.3 ? r.ri(1, 2) : 0, f1 = F(neg === 1 ? -a : a, b), f2 = F(neg === 2 ? -c : c, d), res = Fr.mul(f1, f2);
+      let a, b, c, d; do { [a, b, c, d] = two(r() < 0.75); } while ((a * c) % (b * d) === 0);   /* a whole result does not fit «sous forme de fraction irréductible» */
+      const neg = r() < 0.3 ? r.ri(1, 2) : 0, f1 = F(neg === 1 ? -a : a, b), f2 = F(neg === 2 ? -c : c, d), res = Fr.mul(f1, f2);
       const sol = [{ t: 'Числитель умножаем на числитель, знаменатель — на знаменатель: берём часть от части, доли дробятся.', tex: tF(f1) + '\\times ' + ncTP(f2) + ncProdTex(a, b, c, d, neg ? '-' : '') }, ncCrossWhy(a, b, c, d)];
       if (neg) sol.push('Знаки разные — произведение отрицательное.');
       return { q, tex: tF(f1) + '\\times ' + ncTP(f2), ans: FRA(res), sol };
     }
     if (vi === 1) {   /* a/b ÷ c/d */
-      let a, b, c, d; do { [a, b, d, c] = two(r() < 0.7); } while (c === 1 && d === 1);
+      let a, b, c, d; do { [a, b, d, c] = two(r() < 0.7); } while ((a * d) % (b * c) === 0);   /* no whole results */
       const neg = r() < 0.25 ? r.ri(1, 2) : 0, f1 = F(neg === 1 ? -a : a, b), f2 = F(neg === 2 ? -c : c, d), inv = F(neg === 2 ? -d : d, c), res = Fr.div(f1, f2);
       const sol = [{ t: 'Разделить на дробь — умножить на обратную ей («l\'inverse»): переворачиваем делитель. Почему так можно: деление отменяет умножение, а умножение на обратную дробь как раз отменяет умножение на исходную — их произведение равно 1.', tex: tF(f1) + '\\div ' + ncTP(f2) + '=' + tF(f1) + '\\times ' + ncTP(inv) },
         { t: ncCrossWhy(a, b, d, c), tex: tF(f1) + '\\times ' + ncTP(inv) + ncProdTex(a, b, d, c, neg ? '-' : '') }];
@@ -599,7 +601,7 @@ topic({ id: 'nc.frac-muldiv', ch: 'nc', lvl: 2, calc: false, variants: 5,
       return { q, tex: tF(f1) + '\\div ' + ncTP(f2), ans: FRA(res), sol };
     }
     if (vi === 2) {   /* a whole number and a fraction */
-      const t = r.ri(0, 2); let a, b, n; do { b = r.ri(2, 9); a = r.ri(1, 9); n = r.ri(2, 12); } while (gcd(a, b) !== 1 || (t === 0 && n % b === 0) || (t === 2 && a === 1 && b === 1));
+      const t = r.ri(0, 2); let a, b, n; do { b = r.ri(2, 9); a = r.ri(1, 9); n = r.ri(2, 12); } while (gcd(a, b) !== 1 || (t === 0 && n % b === 0) || (t === 2 && n % a === 0));   /* no whole results */
       if (t === 0) return { q, tex: n + '\\times ' + tfr(a, b), ans: FRA(F(n * a, b)), sol: [
         { t: 'Целое число — это дробь со знаменателем 1: $' + n + '=' + n + '/1$. Поэтому на ' + n + ' умножается только числитель — долей становится в ' + n + ' раз больше, а их размер прежний.', tex: n + '\\times ' + tfr(a, b) + '=\\dfrac{' + n + '\\times ' + a + '}{' + b + '}=' + tfr(n * a, b) + (gcd(n * a, b) > 1 ? '=' + tF(F(n * a, b)) : '') }] };
       if (t === 1) return { q, tex: tfr(a, b) + '\\div ' + n, ans: FRA(F(a, b * n)), sol: [
@@ -696,7 +698,7 @@ topic({ id: 'nc.frac-calc', ch: 'nc', lvl: 2, calc: false, variants: 5,
         { t: 'Теперь ' + (minus ? 'вычитание' : 'сложение') + ': целое число ' + n + ' записываем дробью с тем же знаменателем.', tex: add.tex }] };
     }
     if (vi === 3) {   /* a big fraction: (a ± u)/(b ± v) */
-      let a, b, u, v, s1, s2, top, bot, R; do { a = r.ri(1, 2); b = r.ri(1, 2); u = ncRF(r, 6); v = ncRF(r, 6); s1 = r() < 0.5; s2 = r() < 0.5; top = s1 ? Fr.sub(F(a), u) : Fr.add(F(a), u); bot = s2 ? Fr.sub(F(b), v) : Fr.add(F(b), v); R = Fr.div(top, bot); } while (top.n <= 0 || bot.n <= 0 || top.d === 1 || bot.d === 1 || R.d > 24 || (R.n === 1 && R.d === 1));
+      let a, b, u, v, s1, s2, top, bot, R; do { a = r.ri(1, 2); b = r.ri(1, 2); u = ncRF(r, 6); v = ncRF(r, 6); s1 = r() < 0.5; s2 = r() < 0.5; top = s1 ? Fr.sub(F(a), u) : Fr.add(F(a), u); bot = s2 ? Fr.sub(F(b), v) : Fr.add(F(b), v); R = Fr.div(top, bot); } while (top.n <= 0 || bot.n <= 0 || top.d === 1 || bot.d === 1 || R.d > 24 || R.d === 1);
       const t1 = ncAddTex(F(a), u, s1), t2 = ncAddTex(F(b), v, s2), g = F(bot.d, bot.n);
       return { q, tex: '\\dfrac{' + a + op(s1) + tF(u) + '}{' + b + op(s2) + tF(v) + '}', ans: FRA(R), sol: [
         'Большая черта дроби — это деление всего числителя на весь знаменатель, поэтому сначала считаем их отдельно, как будто они в скобках.',
@@ -776,7 +778,7 @@ topic({ id: 'nc.puissances', ch: 'nc', lvl: 2, calc: false, variants: 5,
     }
     if (vi === 3) {   /* multiple choice — the usual mistakes */
       const t = r.ri(0, 2);
-      if (t === 0) { const a = r.pick([2, 3, 5, 7]); let m, n; do { m = r.ri(2, 6); n = r.ri(2, 6); } while (m * n === m + n); const A = a * a;
+      if (t === 0) { const a = r.pick([2, 3, 5, 7]); let m, n; do { m = r.ri(2, 6); n = r.ri(2, 6); } while (m * n === m + n || m * n === 2 * (m + n)); const A = a * a;   /* m·n = 2(m + n) would make two wrong options equal: a^(mn) = (a²)^(m+n) */
         return { q: L('Parmi les propositions suivantes, laquelle est égale à $' + a + '^' + m + '*' + a + '^' + n + '$ ?', 'Какое из выражений равно $' + a + '^' + m + '*' + a + '^' + n + '$?'),
           ans: ncMQ(r, ['$' + a + '^' + (m + n) + '$', '$' + a + '^' + (m * n) + '$', '$' + A + '^' + (m + n) + '$', '$' + A + '^' + (m * n) + '$']), sol: [
             ['$' + a + '^' + m + '$ — это ' + m + ' ' + ncPl(m, 'множитель', 'множителя', 'множителей') + ' ' + a + ', а $' + a + '^' + n + '$ — ещё ' + n + '; всего ' + (m + n) + ': показатели складываются.', a + '^' + m + '*' + a + '^' + n + '=' + a + '^' + (m + n)],
@@ -788,7 +790,8 @@ topic({ id: 'nc.puissances', ch: 'nc', lvl: 2, calc: false, variants: 5,
             ['Отрицательный показатель — не отрицательное число, а деление:', '10^(-' + n + ')=1/10^' + n + '=1/' + P + '=' + ncD(1, n)],
             'Варианты со знаком «минус» — ошибка: $10^(-' + n + ')$ положительно, это маленькая доля единицы.',
             ncTxt(ncD(1, n + 1)) + ' — лишний ноль: единица должна стоять на ' + n + '-м месте после запятой, ведь мы делим на 10 ровно ' + ncTimes(n) + '.'] }; }
-      const a = r.ri(2, 5), n = a <= 3 ? r.ri(2, 4) : r.ri(2, 3), par = r() < 0.5, v = par ? Math.pow(-a, n) : -Math.pow(a, n), m = par ? '(-' + a + ')^' + n : '-' + a + '^' + n;
+      let a, n; do { a = r.ri(2, 5); n = a <= 3 ? r.ri(2, 4) : r.ri(2, 3); } while (a * n === Math.pow(a, n));   /* not 2²: there 2 × 2 = 2² and the «multiplied instead» options would be right */
+      const par = r() < 0.5, v = par ? Math.pow(-a, n) : -Math.pow(a, n), m = par ? '(-' + a + ')^' + n : '-' + a + '^' + n;
       return { q: L('Parmi les propositions suivantes, laquelle est égale à $' + m + '$ ?', 'Какое из чисел равно $' + m + '$?'),
         ans: ncMQ(r, [v, -v, a * n, -a * n].map(x => '$' + x + '$')), sol: [
           par ? ['В скобках — число −' + a + ', в степень возводится оно целиком:', m + '=' + Array(n).fill('(-' + a + ')').join('*') + '=' + v] : ['Без скобок степень относится только к ' + a + ', а минус ставится потом:', m + '=-(' + Array(n).fill(a).join('*') + ')=' + v],
@@ -840,7 +843,7 @@ topic({ id: 'nc.sci', ch: 'nc', lvl: 2, calc: false, variants: 5,
         { t: 'Ответ:', tex: fmtBig(x.s) + '=' + x.tex }] };
     }
     if (vi === 1) {   /* multiple choice (Métropole 2026 Q6, Asie 2026 Q1) */
-      const k = r.ri(2, 4), D = ncDig(r, k), small = r() < 0.6, e = small ? -r.ri(2, 6) : r.ri(k + 1, 8), x = ncSci(D, e), shift = r() < 0.5;
+      const k = r.ri(2, 4), D = ncDig(r, k), small = r() < 0.6, e = small ? -r.ri(2, 6) : r.ri(k + 1, 8), x = ncSci(D, e), shift = k > 2 && r() < 0.5;   /* with two digits the shifted writing would repeat the option D × 10^(e−1) */
       const S_ = x.a + '*10^(' + (-e) + ')', N1 = D + '*10^(' + (e - k + 1) + ')', N2 = shift ? D.slice(0, 2) + (k > 2 ? '.' + D.slice(2) : '') + '*10^(' + (e - 1) + ')' : D + '*10^(' + e + ')';
       return { q: L('Parmi les propositions suivantes, laquelle est la notation scientifique du nombre ' + ncTxt(x.s) + ' ?', 'Какая из записей — научная запись («notation scientifique») числа ' + ncTxt(x.s) + '?'),
         ans: ncMQ(r, [x.key, S_, N1, N2].map(o => '$' + o + '$')), sol: [
@@ -942,7 +945,7 @@ topic({ id: 'nc.racines', ch: 'nc', lvl: 2, calc: false, variants: 5,
           ['Сначала считаем под корнем, потом извлекаем корень:', m + '=√' + c * c + '=' + c],
           (p + s) + ' — извлекли корень из каждого слагаемого. Но корень из суммы не равен сумме корней: ' + (p + s) + '² = ' + (p + s) * (p + s) + ', а не ' + c * c + '.',
           c * c + ' — забыли извлечь корень; ' + nf(c * c / 2) + ' — спутали корень с делением пополам.'] }; }
-      const [x, y] = r.pick([['0.04', 2], ['0.09', 3], ['0.16', 4], ['0.25', 5], ['0.36', 6], ['0.49', 7], ['0.64', 8], ['0.81', 9]]), v = ncD(y, 1);
+      const [x, y] = r.pick([['0.09', 3], ['0.16', 4], ['0.25', 5], ['0.36', 6], ['0.49', 7], ['0.64', 8], ['0.81', 9]]), v = ncD(y, 1);   /* not 0,04: its half 0,02 is also the «wrong place» option */
       return { q: L('Parmi les propositions suivantes, laquelle est égale à $√' + x + '$ ?', 'Какое из чисел равно $√' + x + '$?'), ans: ncMQ(r, [ncTxt(v), ncTxt(ncD(y, 2)), ncTxt(String(+x / 2)), String(y)]), sol: [
         ncTxt(v) + ' × ' + ncTxt(v) + ' = ' + ncTxt(x) + ': десятые × десятые = сотые. Значит, $√' + x + '=' + v + '$.',
         ncTxt(ncD(y, 2)) + ' — ошибка в разрядах: ' + ncTxt(ncD(y, 2)) + '² = ' + ncTxt(ncD(y * y, 4)) + '. ' + y + ' — потеряна запятая: ' + y + '² = ' + y * y + '. ' + ncTxt(String(+x / 2)) + ' — корень спутали с делением пополам.'] };
@@ -1163,7 +1166,7 @@ topic({ id: 'nc.arrondi', ch: 'nc', lvl: 1, calc: false, variants: 5,
           tr === ro ? 'Здесь усечение и округление совпали: следующая цифра меньше 5.' : 'Здесь они различаются: усечение никогда не увеличивает число, а округление может.'] };
     }
     if (vi === 2) {   /* round a fraction */
-      let p, q; do { q = r.pick([3, 6, 7, 9, 11, 12]); p = r.ri(1, 3 * q); } while (p % q === 0 || 1000 % q === 0);
+      let p, q; do { q = r.pick([3, 6, 7, 9, 11, 12]); p = r.ri(1, 3 * q); } while (gcd(p, q) !== 1);   /* in lowest terms: the decimal writing never ends, so there is always something to round and never an exact half (3/6, 9/12 …) */
       const k = r.ri(1, 2), digits = Math.floor(p * Math.pow(10, k + 1) / q), key = dec(Math.floor((2 * p * Math.pow(10, k) + q) / (2 * q)), k);
       return { q: L('Donner l\'arrondi ' + NC_PREC[k][0] + ' de $' + p + '/' + q + '$.', 'Округли $' + p + '/' + q + '$ ' + NC_PREC[k][1] + '.'), ans: N(key, { dp: k }), sol: [
         'Делим ' + p + ' на ' + q + ' столбиком, пока не получим на одну цифру больше, чем нужно: ' + p + ' ÷ ' + q + ' = ' + ncTxt(dec(digits, k + 1)) + '…',
@@ -1172,7 +1175,7 @@ topic({ id: 'nc.arrondi', ch: 'nc', lvl: 1, calc: false, variants: 5,
     }
     if (vi === 3) {   /* multiple choice: carrying over, rounding twice */
       if (r() < 0.5) {   /* x = w,9de with d ≥ 5 → (w+1),0 */
-        const w = r.ri(1, 19), d = r.ri(5, 9), e = r.ri(1, 9), n = w * 1000 + 900 + d * 10 + e;
+        const w = r.ri(1, 19), d = r.ri(5, 8), e = r.ri(1, 9), n = w * 1000 + 900 + d * 10 + e;   /* d ≤ 8: with w,99e the «rounded to hundredths» option would be (w+1),00 — the right value */
         const opts = [dec(w * 10 + 10, 1), dec(w * 10 + 9, 1), w + ',10', dec(ncRound(n, 3, 2), 2)].map(s => s.includes(',') ? s : ncTxt(s));
         return { q: L('L\'arrondi au dixième de ' + ncN(n, 3) + ' est :', 'Округление числа ' + ncN(n, 3) + ' до десятых равно:'), ans: ncMQ(r, opts), sol: [
           ncRoundWhy(n, 3, 1),
@@ -1228,9 +1231,8 @@ fiche({ ch: 'nc', id: 'nc.racine-carree', ru: 'Квадратный корень
   '$√a$ (при $a ≥ 0$) — положительное число, квадрат которого равен $a$: $√49=7$, потому что $7^2=49$. $√0=0$, $√1=1$.',
   'Полные квадраты: 1, 4, 9, 16, 25, 36, 49, 64, 81, 100, 121, 144, 169, 196, 225.',
   '$(√a)^2=a$ и $√(a^2)=a$ (при $a ≥ 0$). Корень из суммы — не сумма корней: $√(9+16)=5$, а $√9+√16=7$.',
-  'Оценка: если $49 < 50 < 64$, то $7 < √50 < 8$ — у большего числа и корень больше.',
-  'Сверх программы 3e: $√(a*b)=√a*√b$, поэтому $√50=√25*√2=5√2$.'],
-  ex: [['Квадрат корня', '(2√5)^2=4*5=20'], ['Сначала под корнем', '√(36+64)=√100=10'], ['Сумма на разность', '(5+2√3)(5-2√3)=25-12=13'], ['Упрощение', '√50=√25*√2=5√2']] });
+  'Оценка: если $49 < 50 < 64$, то $7 < √50 < 8$ — у большего числа и корень больше.'],
+  ex: [['Квадрат корня', '(2√5)^2=4*5=20'], ['Сначала под корнем', '√(36+64)=√100=10'], ['Сумма на разность', '(5+2√3)(5-2√3)=25-12=13']] });
 fiche({ ch: 'nc', id: 'nc.arithmetique', ru: 'Делители и простые числа', fr: 'Arithmétique', body: [
   'Если $a=b*k$ ($k$ — целое), то $b$ — делитель $a$ («un diviseur»), а $a$ — кратное $b$ («un multiple»). Деление с остатком («la division euclidienne»): $a=b*q+r$, где $0 ≤ r < b$.',
   'Признаки делимости: на 2 — последняя цифра чётная; на 5 — оканчивается на 0 или 5; на 10 — на 0; на 3 и на 9 — сумма цифр делится на 3 (на 9).',
